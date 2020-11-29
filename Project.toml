@@ -3,5 +3,11 @@ uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
 authors = ["Miles Lucas <mdlucas@hawaii.edu> and contributors"]
 version = "0.1.0"
 
+[deps]
+CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
 julia = "1.3"
