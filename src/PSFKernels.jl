@@ -3,14 +3,14 @@
 
 Statistical kernels for constructing point-spread functions (PSFs). These kernels act like matrices but without allocating any memory, which makes them efficient to fit and apply.
 
-# Kernels
+## Kernels
 
 The following kernels are currently implemented
 * [`PSFKernels.Gaussian`](@ref)
 * [`PSFKernels.AiryDisk`](@ref)
 * [`PSFKernels.Moffat`](@ref)
 
-# Usage
+## Usage
 
 Using the kernels should feel just like an array. In fact, `PSFKernels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
 
@@ -41,7 +41,7 @@ these axes are merely a convenience for bounding the kernel, since they accept a
 julia> k[100, 10000] # valid for index-like inputs
 0.0
 
-julia> k(2.4, 1.7)
+julia> k(2.4, 1.7) # valid for any number
 0.38315499005194587
 ```
 
