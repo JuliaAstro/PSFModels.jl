@@ -40,7 +40,7 @@ julia> using PSFKernels: Gaussian
 julia> kernel = Gaussian(8)
 ```
 
-or you can create an alias for PSFKernels
+or you can create an alias for `PSFKernels`
 
 ```julia
 # julia version 1.5 or below
