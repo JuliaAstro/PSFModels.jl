@@ -20,7 +20,9 @@ julia>]
 (@v1.6) pkg> add PSFKernels
 ```
 
-to import the library
+## Getting Started
+
+To import the library
 
 ```julia
 julia> using PSFKernels
@@ -39,11 +41,11 @@ or you can create an alias for `PSFKernels`
 ```julia
 # julia version 1.5 or below
 using PSFKernels
-const k = PSFKernels
+const kerns = PSFKernels
 # julia version 1.6 or above
-using PSFKernels as k
+using PSFKernels as kerns
 
-kernel = k.Gaussian(10)
+kernel = kerns.Gaussian(10)
 ```
 
 ```@docs

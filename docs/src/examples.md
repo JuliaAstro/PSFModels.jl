@@ -33,9 +33,11 @@ function kernel(X::AbstractVector{T}) where T
 end
 
 # objective function
-function loss(X::AbstractVector, target)
+function loss(X::AbstractVector{T}, target) where T
     k = kernel(X)
     amp = X[5]
+    # cheap way to enforce positivity
+    all(>(0), X) || return T(Inf)
     # l2-distance loss (χ² loss)
     return sum(abs2, target .- amp .* k[axes(target)...])
 end
@@ -57,8 +59,8 @@ res = optimize(P -> loss(P, psf), test_params)
 
 ```@example fit
 # utilize automatic differentiation (AD) to enable
-# advanced algorithms, like Newton's method
-res_ad = optimize(P -> loss(P, psf), test_params, Newton(); autodiff=:forward)
+# advanced algorithms, like LBFGS
+res_ad = optimize(P -> loss(P, psf), test_params, LBFGS(); autodiff=:forward)
 ```
 
 we can see which result has the better loss, and then use the generative model to create a kernel that we can use elsewhere
@@ -73,7 +75,7 @@ model = kernel(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),
-    imshow(model[axes(psf)...]; title="Model"),
+    plot(model, axes(psf); title="Model"),
     cbar=false,
     ticks=false,
     layout=2,

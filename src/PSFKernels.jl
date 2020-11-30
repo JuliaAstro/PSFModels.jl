@@ -47,6 +47,9 @@ julia> k(2.4, 1.7) # valid for any number
 
 By bounding the kernel, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
 
+!!! note "Coordinate System"
+    The PSFs follows a 1-based image coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This corresponds with Julia indexing, as well as DS9 and IRAF.
+
 ```jldoctest
 julia> big_mat = ones(101, 101);
 
@@ -79,6 +82,16 @@ julia> sum(kbig)
 163.07467408408593790971336380361822460116627553361468017101287841796875
 ```
 
+finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be seen in use in the [API/Reference](@ref) section.
+
+```julia
+using Plots
+kernel = PSFKernels.Gaussian(8)
+plot(kernel)              # default axes
+plot(kernel, 1:5, 1:5)    # custom axes
+plot(kernel, axes(other)) # use axes from other array
+```
+
 !!! tip "Tip: Automatic Differentation"
     Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
     ```julia
@@ -104,12 +117,13 @@ In general, all `PSFKernel`s have a set of pre-determined axes (the size is set 
 The interface to define a kernel is as follows (for an example kernel `Kernel`)
 
 | method | description |
-|--------|-------------|
+|:-------|:------------|
 | `Kernel()` | constructor(s) |
 | `Base.size(k::Kernel)` | size, necessary for `AbstractArray` interface |
 | `Base.axes(k::Kernel)` | axes, necessary for `AbstractArray` interface |
 | `(k::Kernel)(point::AbstractVector)` | evaluate the kernel at the point in 2d space |
 
+browsing through the implementation of [`PSFKernels.Gaussian`](@ref) should give a good idea of how to create a kernel
 """
 abstract type PSFKernel{T} <: AbstractMatrix{T} end
 
