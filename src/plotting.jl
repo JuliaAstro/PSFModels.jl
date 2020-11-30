@@ -1,14 +1,14 @@
 using RecipesBase
 
-@recipe f(kernel::PSFKernel, sz=size(kernel))
+@recipe function f(kernel::PSFKernel)
     seriestype := :heatmap
     aspect_ratio --> 1
 
-    inds = CartesianIndices(sz)
-    arr = kernel[inds]
+    inds = axes(kernel)
+    arr = kernel[inds...]
 
-    xlim --> extrema(axes(arr, 2))
-    ylim --> extrema(axes(arr, 1))
+    xlim --> extrema(inds[2])
+    ylim --> extrema(inds[1])
 
-    return arr
+    return inds..., arr
 end

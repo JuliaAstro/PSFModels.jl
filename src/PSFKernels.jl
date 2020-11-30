@@ -98,7 +98,18 @@ using StaticArrays
 
 Abstract type for PSF Kernels.
 
-The common interface 
+In general, all `PSFKernel`s have a set of pre-determined axes (the size is set upon creation) but they are lazy. That is, no memory is allocated and the values are calculated on the fly.
+
+# Interface
+The interface to define a kernel is as follows (for an example kernel `Kernel`)
+
+| method | description |
+|--------|-------------|
+| `Kernel()` | constructor(s) |
+| `Base.size(k::Kernel)` | size, necessary for `AbstractArray` interface |
+| `Base.axes(k::Kernel)` | axes, necessary for `AbstractArray` interface |
+| `(k::Kernel)(point::AbstractVector)` | evaluate the kernel at the point in 2d space |
+
 """
 abstract type PSFKernel{T} <: AbstractMatrix{T} end
 

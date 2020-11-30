@@ -3,12 +3,6 @@
 ```@setup plots
 using PSFKernels: Gaussian, Moffat, AiryDisk
 using Plots
-# convenience function for plotting
-function imshow(data; kwargs...)
-    xlim = extrema(axes(data, 2))
-    ylim = extrema(axes(data, 1))
-    heatmap(data; xlim=xlim, ylim=ylim, aspect_ratio=1, kwargs...)
-end
 ```
 
 ```@index
@@ -18,36 +12,36 @@ end
 PSFKernels.PSFKernel
 ```
 
-# Gaussian
-
-```@eval
-kernel = Gaussian(10)
-imshow(kernel; title="Gaussian(10; maxsize=3))
-```
+## Gaussian
 
 ```@docs
 PSFKernels.Gaussian
 PSFKernels.Normal
 ```
 
-## Airy Disk
-
-```@eval
-kernel = AiryDisk(10)
-imshow(kernel; title="AiryDisk(10; maxsize=3))
+```@example plots
+kernel = Gaussian(10)
+plot(kernel; title="Gaussian(fwhm=10)")
 ```
+
+## Airy Disk
 
 ```@docs
 PSFKernels.AiryDisk
 ```
 
-## Moffat
-
-```@eval
-kernel = Moffat(10)
-imshow(kernel; title="Moffat(10; maxsize=3))
+```@example plots
+kernel = AiryDisk(10)
+plot(kernel; title="AiryDisk(fwhm=10)")
 ```
+
+## Moffat
 
 ```@docs
 PSFKernels.Moffat
+```
+
+```@example plots
+kernel = Moffat(10)
+plot(kernel; title="Moffat(fwhm=10)")
 ```
