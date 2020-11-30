@@ -43,17 +43,17 @@ Base.axes(a::AiryDisk) = a.indices
 
 const rz = 3.8317059702075125 / π
 
-function Base.getindex(a::AiryDisk{T}, idx::Vararg{<:Integer,2}) where T
+function (a::AiryDisk{T})(point::AbstractVector) where T
     radius = a.fwhm * 1.18677
-    Δ = euclidean(SVector(idx), a.pos)
+    Δ = euclidean(point, a.pos)
     r = Δ / (radius / rz)
     val = ifelse(iszero(r), one(T), 2 * besselj1(π * r) / (π * r))
     return convert(T, val)
 end
 
-function Base.getindex(a::AiryDisk{T,<:Union{AbstractVector,Tuple}}, idx::Vararg{<:Integer,2}) where T
+function (a::AiryDisk{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
     weights = SA[(rz / (first(a.fwhm) * 1.18677))^2, (rz / (last(a.fwhm) * 1.18677))^2]
-    r = weuclidean(SVector(idx), a.pos, weights)
+    r = weuclidean(point, a.pos, weights)
     val = ifelse(iszero(r), one(T), 2 * besselj1(π * r) / (π * r))
     return convert(T, val)
 end

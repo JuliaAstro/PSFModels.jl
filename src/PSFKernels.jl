@@ -1,5 +1,5 @@
 """
-    PSFKernels
+# PSFKernels
 
 Statistical kernels for constructing point-spread functions (PSFs). These kernels act like matrices but without allocating any memory, which makes them efficient to fit and apply.
 
@@ -38,8 +38,11 @@ julia> stamp = collect(k);
 these axes are merely a convenience for bounding the kernel, since they accept any real number as input. 
 
 ```jldoctest kernel
-julia> k[100, 10000]
+julia> k[100, 10000] # valid for index-like inputs
 0.0
+
+julia> k(2.4, 1.7)
+0.38315499005194587
 ```
 
 By bounding the kernel, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
@@ -54,13 +57,13 @@ julia> ax = map(intersect, axes(big_mat), axes(small_kern))
 
 julia> cutout = big_mat[ax...]
 7×7 Array{Float64,2}:
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
-1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+ 1.0  1.0  1.0  1.0  1.0  1.0  1.0
 
 julia> photsum = sum(cutout .* small_kern[ax...])
 4.5322418212890625
@@ -77,58 +80,11 @@ julia> sum(kbig)
 ```
 
 !!! tip "Tip: Automatic Differentation"
-Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
-```julia
-# example generative model for position and scalar fwhm
-kernel(X::AbstractVector{T}) where {T} = Kernels.Gaussian{T}(X...)
-```
-
-# Examples
-
-Here is a brief example which shows how to construct a loss function for fitting a `PSFKernel` to some data.
-
-```julia
-data = ones(101, 101)
-# generative model
-function kernel(X::AbstractVector{T}) where T
-    position = X[1:2] # x, y position
-    fwhm = X[3:4]     # fwhm_x, fwhm_y
-    return PSFKernels.Gaussian{T}(position, fwhm)
-end
-# objective function
-function loss(X::AbstractVector, data)
-    k = kernel(X)
-    amp = X[5]
-    # l2-distance loss (χ² loss)
-    return sum(abs2, data .- amp .* k[axes(data)...])
-end
-
-test_params = Float64[51, 51, 10, 10, 1]
-loss(test_params, data)
-
-# output
-
-10031.03649468148
-```
-
-The objective function can then be used with an optimization library like [Optim.jl](https://github.com/JuliaOpt/Optim.jl) to find best-fitting parameters
-```julia
-using Optim
-
-# Fit our data using test_params as a starting point
-# uses Nelder-Mead optimization
-res = optimize(P -> loss(P, data), test_params)
-
-# utilize automatic differentiation (AD) to enable
-# advanced algorithms, like Newton's method
-res_ad = optimize(P -> loss(P, data), test_params, Newton(); autodiff=:forward)
-```
-we can see which result has the better loss, and then use the generative model to create a kernel that we can use elsewhere
-```julia
-best_res = minimum(res) < minimum(res_ad) ? res : res_ad
-best_fit_params = Optim.minimizer(best_res)
-model = kernel(best_fit_params)
-```
+    Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
+    ```julia
+    # example generative model for position and scalar fwhm
+    kernel(X::AbstractVector{T}) where {T} = PSFKernels.Gaussian{T}(X...)
+    ```
 """
 module PSFKernels
 
@@ -152,6 +108,14 @@ function indices_from_extent(pos, fwhm, maxsize)
     upper = @. ceil(Int, pos + halfextent)
     return (first(lower):first(upper), last(lower):last(upper))
 end
+
+# in general, parse to static vector
+(kernel::PSFKernel)(point...) = kernel(SVector(point))
+(kernel::PSFKernel)(point::Tuple) = kernel(SVector(point))
+(kernel::PSFKernel)(idx::CartesianIndex) = kernel(SVector(idx.I))
+
+# getindex just calls kernel
+Base.getindex(kernel::PSFKernel, idx::Vararg{Int,2}) = kernel(idx)
 
 
 # TODO

@@ -43,17 +43,17 @@ Base.size(m::Moffat) = map(length, m.indices)
 Base.axes(m::Moffat) = m.indices
 
 # scalar case
-function Base.getindex(m::Moffat{T}, idx::Vararg{<:Integer,2}) where T
+function (m::Moffat{T})(point::AbstractVector) where T
     hwhm = m.fwhm / 2
-    Δ = sqeuclidean(SVector(idx), m.pos)
+    Δ = sqeuclidean(point, m.pos)
     val = inv(1 + Δ / hwhm^2)
     return convert(T, val)
 end
 
 # vector case
-function Base.getindex(m::Moffat{T,<:Union{AbstractVector,Tuple}}, idx::Vararg{<:Integer,2}) where T
+function (m::Moffat{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
     weights = SA[(2 / first(m.fwhm))^2, (2 / last(m.fwhm))^2]
-    Δ = wsqeuclidean(SVector(idx), m.pos, weights)
+    Δ = wsqeuclidean(point, m.pos, weights)
     val = inv(1 + Δ)
     return convert(T, val)
 end

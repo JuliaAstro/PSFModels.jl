@@ -34,9 +34,9 @@ end
 
 # Alias Normal -> Gaussian
 """
-Kernels.Normal
+    PSFKernels.Normal
 
-An alias for [`Kernels.Gaussian`](@ref)
+An alias for [`PSFKernels.Gaussian`](@ref)
 """
 const Normal = Gaussian
 
@@ -57,23 +57,23 @@ Gaussian{T}(p::Polar, fwhm; origin=SA[0, 0], kwargs...) where {T} = Gaussian{T}(
 Base.size(g::Gaussian) = map(length, g.indices)
 Base.axes(g::Gaussian) = g.indices
 
-# fallback, also covers scalar case
-function Base.getindex(g::Gaussian{T}, idx::Vararg{<:Integer,2}) where T
-    Δ = sqeuclidean(SVector(idx), g.pos)
+# covers scalar case
+function (g::Gaussian{T})(point::AbstractVector) where T
+    Δ = sqeuclidean(point, g.pos)
     val = exp(-4 * log(2) * Δ / g.fwhm^2)
     return convert(T, val)
 end
-# vector case
-function Base.getindex(g::Gaussian{T,<:Union{Tuple,AbstractVector}}, idx::Vararg{<:Integer,2}) where T
+# covers vector case
+function (g::Gaussian{T,<:Union{Tuple,AbstractVector}})(point::AbstractVector) where T
     weights = SA[1/first(g.fwhm)^2, 1/last(g.fwhm)^2] # manually invert
-    Δ = wsqeuclidean(SVector(idx), g.pos, weights)
+    Δ = wsqeuclidean(point, g.pos, weights)
     val = exp(-4 * log(2) * Δ)
     return convert(T, val)
 end
 
 # matrix case
-function Base.getindex(g::Gaussian{T,<:AbstractMatrix}, idx::Vararg{<:Integer,2}) where T
-    R = SVector(idx) - g.pos
+function (g::Gaussian{T,<:AbstractMatrix})(point::AbstractVector) where T
+    R = point - g.pos
     Δ = R' * ((g.fwhm .^2) \ R)
     val = exp(-4 * log(2) * Δ)
     return convert(T, val)
