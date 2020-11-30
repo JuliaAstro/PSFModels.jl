@@ -95,6 +95,10 @@ using StaticArrays
 
 """
     Kernels.PSFKernel{T} <: AbstractMatrix{T}
+
+Abstract type for PSF Kernels.
+
+The common interface 
 """
 abstract type PSFKernel{T} <: AbstractMatrix{T} end
 
@@ -128,5 +132,6 @@ Base.getindex(kernel::PSFKernel, idx::Vararg{Int,2}) = kernel(idx)
 include("gaussian.jl")
 include("moffat.jl")
 include("airy.jl")
+include("plotting.jl")
 
 end # module PSFKernels
