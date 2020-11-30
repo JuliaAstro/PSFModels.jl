@@ -26,6 +26,32 @@ julia> ]
 (@v1.5) pkg> add PSFKernels
 ```
 
+To import the library
+
+```julia
+julia> using PSFKernels
+```
+
+None of the kernels are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
+
+```julia
+julia> using PSFKernels: Gaussian
+
+julia> kernel = Gaussian(8)
+```
+
+or you can create an alias for PSFKernels
+
+```julia
+# julia version 1.5 or below
+using PSFKernels
+const kerns = PSFKernels
+# julia version 1.6 or above
+using PSFKernels as kerns
+
+kernel = kerns.Gaussian(10)
+```
+
 ## Usage
 
 For more in-depth usage and examples, please see the [documentation]([https://](https://juliaastro.github.io/PSFKernels.jl/dev)).
