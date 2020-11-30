@@ -54,7 +54,7 @@ kernel = kerns.Gaussian(10)
 
 ## Usage
 
-For more in-depth usage and examples, please see the [documentation]([https://](https://juliaastro.github.io/PSFKernels.jl/dev)).
+For more in-depth usage and examples, please see the [documentation](https://juliaastro.github.io/PSFKernels.jl/dev/).
 
 ```julia
 using PSFKernels
