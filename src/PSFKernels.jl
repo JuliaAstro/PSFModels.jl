@@ -1,24 +1,21 @@
-module PSFKernels
-
-
 """
-    Kernels
+    PSFKernels
 
 Statistical kernels for constructing point-spread functions (PSFs). These kernels act like matrices but without allocating any memory, which makes them efficient to fit and apply.
 
 # Kernels
 
 The following kernels are currently implemented
-* [`Kernels.Gaussian`](@ref)
-* [`Kernels.AiryDisk`](@ref)
-* [`Kernels.Moffat`](@ref)
+* [`PSFKernels.Gaussian`](@ref)
+* [`PSFKernels.AiryDisk`](@ref)
+* [`PSFKernels.Moffat`](@ref)
 
 # Usage
 
-Using the kernels should feel just like an array. In fact, `Kernels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
+Using the kernels should feel just like an array. In fact, `PSFKernels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
 
 ```jldoctest kernel
-julia> k = Kernels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
+julia> k = PSFKernels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
 julia> k[0, 0]
 1.0
@@ -50,20 +47,20 @@ By bounding the kernel, we get a cutout which can be applied to arrays with much
 ```jldoctest
 julia> big_mat = ones(101, 101);
 
-julia> small_kern = Kernels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
+julia> small_kern = PSFKernels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
 
 julia> ax = map(intersect, axes(big_mat), axes(small_kern))
 (48:54, 48:54)
 
 julia> cutout = big_mat[ax...]
 7×7 Array{Float64,2}:
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
+1.0  1.0  1.0  1.0  1.0  1.0  1.0
 
 julia> photsum = sum(cutout .* small_kern[ax...])
 4.5322418212890625
@@ -73,18 +70,18 @@ Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the apert
 Since the kernels are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
 
 ```jldoctest
-julia> kbig = Kernels.Gaussian{BigFloat}(12);
+julia> kbig = PSFKernels.Gaussian{BigFloat}(12);
 
 julia> sum(kbig)
 163.07467408408593790971336380361822460116627553361468017101287841796875
 ```
 
 !!! tip "Tip: Automatic Differentation"
-    Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
-    ```julia
-    # example generative model for position and scalar fwhm
-    kernel(X::AbstractVector{T}) where {T} = Kernels.Gaussian{T}(X...)
-    ```
+Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
+```julia
+# example generative model for position and scalar fwhm
+kernel(X::AbstractVector{T}) where {T} = Kernels.Gaussian{T}(X...)
+```
 
 # Examples
 
@@ -96,7 +93,7 @@ data = ones(101, 101)
 function kernel(X::AbstractVector{T}) where T
     position = X[1:2] # x, y position
     fwhm = X[3:4]     # fwhm_x, fwhm_y
-    return Kernels.Gaussian{T}(position, fwhm)
+    return PSFKernels.Gaussian{T}(position, fwhm)
 end
 # objective function
 function loss(X::AbstractVector, data)
@@ -133,7 +130,7 @@ best_fit_params = Optim.minimizer(best_res)
 model = kernel(best_fit_params)
 ```
 """
-module Kernels
+module PSFKernels
 
 using CoordinateTransformations
 using Distances
@@ -148,7 +145,6 @@ abstract type PSFKernel{T} <: AbstractMatrix{T} end
 # always inbounds
 Base.checkbounds(::Type{Bool}, ::PSFKernel, idx...) = true
 Base.checkbounds(::Type{Bool}, ::PSFKernel, idx::CartesianIndex) = true
-
 
 function indices_from_extent(pos, fwhm, maxsize)
     halfextent = @. maxsize * fwhm / 2
@@ -169,6 +165,4 @@ include("gaussian.jl")
 include("moffat.jl")
 include("airy.jl")
 
-end # module Kernels
-
-end
+end # module PSFKernels

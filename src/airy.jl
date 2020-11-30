@@ -1,10 +1,10 @@
 
 @doc raw"""
-    Kernels.AiryDisk(fwhm; maxsize=3)
-    Kernels.AiryDisk(position, fwhm; maxsize=3)
-    Kernels.AiryDisk(x, y, fwhm; maxsize=3)
-    Kernels.AiryDisk(::Polar, fwhm; maxsize=3, origin=(0, 0))
-    Kernels.AiryDisk{T}(args...; kwargs...)
+    PSFKernels.AiryDisk(fwhm; maxsize=3)
+    PSFKernels.AiryDisk(position, fwhm; maxsize=3)
+    PSFKernels.AiryDisk(x, y, fwhm; maxsize=3)
+    PSFKernels.AiryDisk(::Polar, fwhm; maxsize=3, origin=(0, 0))
+    PSFKernels.AiryDisk{T}(args...; kwargs...)
 
 An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 

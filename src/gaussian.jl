@@ -1,10 +1,10 @@
 
 @doc raw"""
-    Kernels.Gaussian(fwhm; maxsize=3)
-    Kernels.Gaussian(position, fwhm; maxsize=3)
-    Kernels.Gaussian(x, y, fwhm; maxsize=3)
-    Kernels.Gaussian(::Polar, fwhm; maxsize=3, origin=(0, 0))
-    Kernels.Gaussian{T}(args...; kwargs...)
+    PSFKernels.Gaussian(fwhm; maxsize=3)
+    PSFKernels.Gaussian(position, fwhm; maxsize=3)
+    PSFKernels.Gaussian(x, y, fwhm; maxsize=3)
+    PSFKernels.Gaussian(::Polar, fwhm; maxsize=3, origin=(0, 0))
+    PSFKernels.Gaussian{T}(args...; kwargs...)
 
 An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 
@@ -25,12 +25,21 @@ f(x | x̂, Q) = exp[-4ln(2) * (x - x̂)ᵀ Q (x - x̂)]
 where `Q` is the inverse covariance matrix (or precision matrix). This is equivalent to the inverse of the FWHM matrix after squaring each element.
 """
 struct Gaussian{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFKernel{T}
-pos::VT
-fwhm::FT
-indices::IT
+    pos::VT
+    fwhm::FT
+    indices::IT
 
-Gaussian{T}(pos::VT, fwhm::FT, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple} = new{T,FT,VT,IT}(pos, fwhm, indices)
+    Gaussian{T}(pos::VT, fwhm::FT, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple} = new{T,FT,VT,IT}(pos, fwhm, indices)
 end
+
+# Alias Normal -> Gaussian
+"""
+Kernels.Normal
+
+An alias for [`Kernels.Gaussian`](@ref)
+"""
+const Normal = Gaussian
+
 
 ## constructors
 # default type is Float64
@@ -50,32 +59,22 @@ Base.axes(g::Gaussian) = g.indices
 
 # fallback, also covers scalar case
 function Base.getindex(g::Gaussian{T}, idx::Vararg{<:Integer,2}) where T
-Δ = sqeuclidean(SVector(idx), g.pos)
-val = exp(-4 * log(2) * Δ / g.fwhm^2)
-return convert(T, val)
+    Δ = sqeuclidean(SVector(idx), g.pos)
+    val = exp(-4 * log(2) * Δ / g.fwhm^2)
+    return convert(T, val)
 end
 # vector case
 function Base.getindex(g::Gaussian{T,<:Union{Tuple,AbstractVector}}, idx::Vararg{<:Integer,2}) where T
-weights = SA[1/first(g.fwhm)^2, 1/last(g.fwhm)^2] # manually invert
-Δ = wsqeuclidean(SVector(idx), g.pos, weights)
-val = exp(-4 * log(2) * Δ)
-return convert(T, val)
+    weights = SA[1/first(g.fwhm)^2, 1/last(g.fwhm)^2] # manually invert
+    Δ = wsqeuclidean(SVector(idx), g.pos, weights)
+    val = exp(-4 * log(2) * Δ)
+    return convert(T, val)
 end
 
 # matrix case
 function Base.getindex(g::Gaussian{T,<:AbstractMatrix}, idx::Vararg{<:Integer,2}) where T
-R = SVector(idx) - g.pos
-Δ = R' * ((g.fwhm .^2) \ R)
-val = exp(-4 * log(2) * Δ)
-return convert(T, val)
+    R = SVector(idx) - g.pos
+    Δ = R' * ((g.fwhm .^2) \ R)
+    val = exp(-4 * log(2) * Δ)
+    return convert(T, val)
 end
-
-# Alias Normal -> Gaussian
-
-"""
-Kernels.Normal
-
-An alias for [`Kernels.Gaussian`](@ref)
-"""
-const Normal = Gaussian
-

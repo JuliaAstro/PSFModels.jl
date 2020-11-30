@@ -1,6 +1,13 @@
 using PSFKernels
 using Documenter
 
+
+setup = quote
+    using PSFKernels
+end
+
+DocMeta.setdocmeta!(PSFKernels, :DocTestSetup, setup; recursive = true)
+
 makedocs(;
     modules=[PSFKernels],
     authors="Miles Lucas <mdlucas@hawaii.edu> and contributors",
@@ -8,7 +15,7 @@ makedocs(;
     sitename="PSFKernels.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://JuliaAstro.github.io/PSFKernels.jl",
+        canonical="https://juliaastro.github.io/PSFKernels.jl",
         assets=String[],
     ),
     pages=[
