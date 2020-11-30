@@ -29,6 +29,7 @@ julia> size(k)
 julia> axes(k)
 (-8:8, -8:8)
 ```
+
 if we want to collect the kernel into a dense matrix, regardless of the indexing (e.g. to prepare for cross-correlation), we can simply
 
 ```jldoctest kernel
@@ -131,13 +132,6 @@ abstract type PSFKernel{T} <: AbstractMatrix{T} end
 Base.checkbounds(::Type{Bool}, ::PSFKernel, idx...) = true
 Base.checkbounds(::Type{Bool}, ::PSFKernel, idx::CartesianIndex) = true
 
-function indices_from_extent(pos, fwhm, maxsize)
-    halfextent = @. maxsize * fwhm / 2
-    lower = @. floor(Int, pos - halfextent)
-    upper = @. ceil(Int, pos + halfextent)
-    return (first(lower):first(upper), last(lower):last(upper))
-end
-
 # in general, parse to static vector
 (kernel::PSFKernel)(point...) = kernel(SVector(point))
 (kernel::PSFKernel)(point::Tuple) = kernel(SVector(point))
@@ -146,6 +140,25 @@ end
 # getindex just calls kernel
 Base.getindex(kernel::PSFKernel, idx::Vararg{Int,2}) = kernel(idx)
 
+# broadcasting hack to slurp other axes (doesn't work for numbers)
+Broadcast.combine_axes(kern::PSFKernel, other) = axes(other)
+Broadcast.combine_axes(other, kern::PSFKernel) = axes(other)
+
+
+
+function indices_from_extent(pos, fwhm, maxsize)
+    halfextent = @. maxsize * fwhm / 2
+    lower = @. floor(Int, pos - halfextent)
+    upper = @. ceil(Int, pos + halfextent)
+    return (first(lower):first(upper), last(lower):last(upper))
+end
+
+function indices_from_extent(pos, extent)
+    halfextent = @. extent / 2
+    lower = @. round(Int, pos - halfextent)
+    upper = @. round(Int, pos + halfextent)
+    return (first(lower):first(upper), last(lower):last(upper))
+end
 
 # TODO
 # function indices_from_extent(pos, fwhm::AbstractMatrix, maxsize)
