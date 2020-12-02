@@ -13,9 +13,17 @@ The `fwhm` can be a scalar (isotropic) or vector/tuple (diagonal). For efficient
 The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This means the kernels act like a transmission weighting.
 
 # Functional form
+
+The Airy disk is a distribution over the radius `r` (the square-Euclidean distance)
+
 ```
-TODO
+f(x | x̂, FWHM) = [ 2J₁(q) / q ]^2
 ```
+where `J₁` is the first order Bessel function of the first kind and
+```
+q = π*r / (FWHM / 1.21967)
+```
+here the `FWHM` is equivalent to the radius of the first zero
 """
 struct AiryDisk{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFKernel{T}
     pos::VT
@@ -47,13 +55,13 @@ function (a::AiryDisk{T})(point::AbstractVector) where T
     radius = a.fwhm * 1.18677
     Δ = euclidean(point, a.pos)
     r = Δ / (radius / rz)
-    val = ifelse(iszero(r), one(T), 2 * besselj1(π * r) / (π * r))
+    val = ifelse(iszero(r), one(T), (2 * besselj1(π * r) / (π * r))^2)
     return convert(T, val)
 end
 
 function (a::AiryDisk{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
     weights = SA[(rz / (first(a.fwhm) * 1.18677))^2, (rz / (last(a.fwhm) * 1.18677))^2]
     r = weuclidean(point, a.pos, weights)
-    val = ifelse(iszero(r), one(T), 2 * besselj1(π * r) / (π * r))
+    val = ifelse(iszero(r), one(T), (2 * besselj1(π * r) / (π * r))^2)
     return convert(T, val)
 end
