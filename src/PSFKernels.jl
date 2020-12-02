@@ -144,8 +144,6 @@ Base.getindex(kernel::PSFKernel, idx::Vararg{Int,2}) = kernel(idx)
 Broadcast.combine_axes(kern::PSFKernel, other) = axes(other)
 Broadcast.combine_axes(other, kern::PSFKernel) = axes(other)
 
-
-
 function indices_from_extent(pos, fwhm, maxsize)
     halfextent = @. maxsize * fwhm / 2
     lower = @. floor(Int, pos - halfextent)

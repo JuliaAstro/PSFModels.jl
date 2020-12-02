@@ -11,11 +11,13 @@ function test_kernel_interface(K)
     @test k.pos ≈ SA[0, 0]
     @test eltype(k) == Float64
 
-    @test k[0, 0] ≈ k(0, 0) ≈ k(SA[0, 0]) ≈ 1
+    @test k[0, 0] ≈ k(0, 0) ≈ k(SA[0, 0]) ≈ k(CartesianIndex(0, 0)) ≈ 1
     @test k[-100, -100] ≈ k(-100, -100)
     @test_throws ArgumentError k[1.0, 1.0]
     @test maximum(k) ≈ 1
     @test 0 ≤ minimum(k) ≤ 1
+    
+    @test k .* ones(10, 10) ≈ k[1:10, 1:10]
 
     # test new position
     k = K(12, 13, 10)
@@ -44,6 +46,7 @@ function test_kernel_interface(K)
     k = K{BigFloat}(10)
     @test eltype(k) == BigFloat
     @test k[0, 0] isa BigFloat
+
 end
 
 @testset "Kernel Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
