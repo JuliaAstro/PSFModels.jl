@@ -15,7 +15,7 @@ function test_kernel_interface(K)
     @test k[-100, -100] ≈ k(-100, -100)
     @test_throws ArgumentError k[1.0, 1.0]
     @test maximum(k) ≈ 1
-    @test -1 ≤ minimum(k) ≤ 1
+    @test 0 ≤ minimum(k) ≤ 1
 
     # test new position
     k = K(12, 13, 10)
@@ -66,9 +66,31 @@ end
 
 
 @testset "AiryDisk" begin
-    
+    k = AiryDisk(10)
+    radius = k.fwhm * 1.18677
+    # first radius is 0
+    @test k(radius, 0) ≈ 0 atol=eps(Float64)
+    @test k(-radius, 0) ≈ 0 atol=eps(Float64)
+    @test k(0, radius) ≈ 0 atol=eps(Float64)
+    @test k(0, -radius) ≈ 0 atol=eps(Float64)
+
+    k = AiryDisk((10, 9))
+    r1 = k.fwhm[1] * 1.18677
+    r2 = k.fwhm[2] * 1.18677
+    # first radius is 0
+    @test k(r1, 0) ≈ 0 atol=eps(Float64)
+    @test k(-r1, 0) ≈ 0 atol=eps(Float64)
+    @test k(0, r2) ≈ 0 atol=eps(Float64)
+    @test k(0, -r2) ≈ 0 atol=eps(Float64)
 end
 
 @testset "Moffat" begin
-    
+    k = Moffat(10)
+    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
+    @test k[1, 2] ≈ expected
+
+    k = Moffat((10, 9))
+    wdist = (1/5)^2 + (2/4.5)^2
+    expected = inv(1 + wdist)
+    @test k[1, 2] ≈ expected
 end

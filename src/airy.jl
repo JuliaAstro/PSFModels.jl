@@ -21,9 +21,8 @@ f(x | x̂, FWHM) = [ 2J₁(q) / q ]^2
 ```
 where `J₁` is the first order Bessel function of the first kind and
 ```
-q = π*r / (FWHM / 1.21967)
+q ≈ π * r / (0.973 * FWHM)
 ```
-here the `FWHM` is equivalent to the radius of the first zero
 """
 struct AiryDisk{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFKernel{T}
     pos::VT
