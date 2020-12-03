@@ -1,28 +1,28 @@
 """
 # PSFModels
 
-Statistical kernels for constructing point-spread functions (PSFs). These kernels act like matrices but without allocating any memory, which makes them efficient to fit and apply.
+Statistical models for constructing point-spread functions (PSFs). These models act like matrices but without allocating any memory, which makes them efficient to fit and apply.
 
-## Kernels
+## Models
 
-The following kernels are currently implemented
+The following models are currently implemented
 * [`PSFModels.Gaussian`](@ref)
 * [`PSFModels.AiryDisk`](@ref)
 * [`PSFModels.Moffat`](@ref)
 
 ## Usage
 
-Using the kernels should feel just like an array. In fact, `PSFModels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
+Using the models should feel just like an array. In fact, `PSFModels.PSFModel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the models as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
 
-```jldoctest kernel
+```jldoctest model
 julia> k = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
 julia> k[0, 0]
 1.0
 ```
-because the kernel is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
+because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
 
-```jldoctest kernel
+```jldoctest model
 julia> size(k)
 (17, 17)
 
@@ -30,15 +30,15 @@ julia> axes(k)
 (-8:8, -8:8)
 ```
 
-if we want to collect the kernel into a dense matrix, regardless of the indexing (e.g. to prepare for cross-correlation), we can simply
+if we want to collect the model into a dense matrix, regardless of the indexing (e.g. to prepare for cross-correlation), we can simply
 
-```jldoctest kernel
+```jldoctest model
 julia> stamp = collect(k);
 ```
 
-these axes are merely a convenience for bounding the kernel, since they accept any real number as input. 
+these axes are merely a convenience for bounding the model, since they accept any real number as input. 
 
-```jldoctest kernel
+```jldoctest model
 julia> k[100, 10000] # valid for index-like inputs
 0.0
 
@@ -46,7 +46,7 @@ julia> k(2.4, 1.7) # valid for any number
 0.38315499005194587
 ```
 
-By bounding the kernel, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
+By bounding the model, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
 
 !!! note "Coordinate System"
     The PSFs follows a 1-based image coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This corresponds with Julia indexing, as well as DS9 and IRAF.
@@ -74,7 +74,7 @@ julia> photsum = sum(cutout .* small_kern[ax...])
 ```
 Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the aperture sum, and with some care we could make it allocation-free.
 
-Since the kernels are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
+Since the models are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
 
 ```jldoctest
 julia> kbig = PSFModels.Gaussian{BigFloat}(12);
@@ -87,17 +87,17 @@ finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/Ju
 
 ```julia
 using Plots
-kernel = PSFModels.Gaussian(8)
-plot(kernel)              # default axes
-plot(kernel, 1:5, 1:5)    # custom axes
-plot(kernel, axes(other)) # use axes from other array
+model = PSFModels.Gaussian(8)
+plot(model)              # default axes
+plot(model, 1:5, 1:5)    # custom axes
+plot(model, axes(other)) # use axes from other array
 ```
 
 !!! tip "Tip: Automatic Differentation"
     Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
     ```julia
     # example generative model for position and scalar fwhm
-    kernel(X::AbstractVector{T}) where {T} = PSFModels.Gaussian{T}(X...)
+    model(X::AbstractVector{T}) where {T} = PSFModels.Gaussian{T}(X...)
     ```
 """
 module PSFModels
@@ -108,41 +108,41 @@ using SpecialFunctions
 using StaticArrays
 
 """
-    Kernels.PSFKernel{T} <: AbstractMatrix{T}
+    PSFModels.PSFModel{T} <: AbstractMatrix{T}
 
-Abstract type for PSF Kernels.
+Abstract type for PSF models.
 
-In general, all `PSFKernel`s have a set of pre-determined axes (the size is set upon creation) but they are lazy. That is, no memory is allocated and the values are calculated on the fly.
+In general, all `PSFModel`s have a set of pre-determined axes (the size is set upon creation) but they are lazy. That is, no memory is allocated and the values are calculated on the fly.
 
 # Interface
-The interface to define a kernel is as follows (for an example kernel `Kernel`)
+The interface to define a model is as follows (for an example model `Model`)
 
 | method | description |
 |:-------|:------------|
-| `Kernel()` | constructor(s) |
-| `Base.size(k::Kernel)` | size, necessary for `AbstractArray` interface |
-| `Base.axes(k::Kernel)` | axes, necessary for `AbstractArray` interface |
-| `(k::Kernel)(point::AbstractVector)` | evaluate the kernel at the point in 2d space |
+| `Model()` | constructor(s) |
+| `Base.size(k::Model)` | size, necessary for `AbstractArray` interface |
+| `Base.axes(m::Model)` | axes, necessary for `AbstractArray` interface |
+| `(m::Model)(point::AbstractVector)` | evaluate the model at the point in 2d space |
 
-browsing through the implementation of [`PSFModels.Gaussian`](@ref) should give a good idea of how to create a kernel
+browsing through the implementation of [`PSFModels.Gaussian`](@ref) should give a good idea of how to create a model
 """
-abstract type PSFKernel{T} <: AbstractMatrix{T} end
+abstract type PSFModel{T} <: AbstractMatrix{T} end
 
 # always inbounds
-Base.checkbounds(::Type{Bool}, ::PSFKernel, idx...) = true
-Base.checkbounds(::Type{Bool}, ::PSFKernel, idx::CartesianIndex) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, idx...) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, idx::CartesianIndex) = true
 
 # in general, parse to static vector
-(kernel::PSFKernel)(point...) = kernel(SVector(point))
-(kernel::PSFKernel)(point::Tuple) = kernel(SVector(point))
-(kernel::PSFKernel)(idx::CartesianIndex) = kernel(SVector(idx.I))
+(model::PSFModel)(point...) = model(SVector(point))
+(model::PSFModel)(point::Tuple) = model(SVector(point))
+(model::PSFModel)(idx::CartesianIndex) = model(SVector(idx.I))
 
-# getindex just calls kernel
-Base.getindex(kernel::PSFKernel, idx::Vararg{Int,2}) = kernel(idx)
+# getindex just calls model
+Base.getindex(model::PSFModel, idx::Vararg{Int,2}) = model(idx)
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
-Broadcast.combine_axes(kern::PSFKernel, other) = axes(other)
-Broadcast.combine_axes(other, kern::PSFKernel) = axes(other)
+Broadcast.combine_axes(kern::PSFModel, other) = axes(other)
+Broadcast.combine_axes(other, kern::PSFModel) = axes(other)
 
 function indices_from_extent(pos, fwhm, maxsize)
     halfextent = @. maxsize * fwhm / 2

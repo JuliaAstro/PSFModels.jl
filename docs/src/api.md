@@ -9,7 +9,7 @@ using Plots
 ```
 
 ```@docs
-PSFModels.PSFKernel
+PSFModels.PSFModel
 ```
 
 ## Gaussian
@@ -20,8 +20,8 @@ PSFModels.Normal
 ```
 
 ```@example plots
-kernel = Gaussian(10)
-plot(kernel; title="Gaussian(fwhm=10)")
+model = Gaussian(10)
+plot(model; title="Gaussian(fwhm=10)")
 ```
 
 ## Airy Disk
@@ -31,8 +31,8 @@ PSFModels.AiryDisk
 ```
 
 ```@example plots
-kernel = AiryDisk(10)
-plot(kernel; title="AiryDisk(fwhm=10)")
+model = AiryDisk(10)
+plot(model; title="AiryDisk(fwhm=10)")
 ```
 
 ## Moffat
@@ -42,6 +42,6 @@ PSFModels.Moffat
 ```
 
 ```@example plots
-kernel = Moffat(10)
-plot(kernel; title="Moffat(fwhm=10)")
+model = Moffat(10)
+plot(model; title="Moffat(fwhm=10)")
 ```

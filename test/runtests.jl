@@ -3,7 +3,7 @@ using PSFModels: Gaussian, Normal, AiryDisk, Moffat
 using StaticArrays
 using Test
 
-function test_kernel_interface(K)
+function test_model_interface(K)
     # test defaults
     k = K(10)
     @test size(k) == (31, 31)
@@ -49,8 +49,8 @@ function test_kernel_interface(K)
 
 end
 
-@testset "Kernel Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
-    test_kernel_interface(K)
+@testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
+    test_model_interface(K)
 end
 
 @testset "Gaussian" begin

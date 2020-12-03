@@ -6,11 +6,11 @@
     PSFModels.Gaussian(::Polar, fwhm; maxsize=3, origin=(0, 0))
     PSFModels.Gaussian{T}(args...; kwargs...)
 
-An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
+An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 
 The `fwhm` can be a scalar (isotropic), vector/tuple (diagonal), or a matrix (correlated). For efficient calculations, we recommend using [StaticArrys](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis.
 
-The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This is distinct from the probability distribution (pdf) of a bivariate Gaussian which assures the kernel *sums* to 1. This means the kernels act like a transmission weighting instead of a probability weighting.
+The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This is distinct from the probability distribution (pdf) of a bivariate Gaussian which assures the model *sums* to 1. This means the models act like a transmission weighting instead of a probability weighting.
 
 # Functional form
 ```
@@ -24,7 +24,7 @@ f(x | x̂, Q) = exp[-4ln(2) * (x - x̂)ᵀ Q (x - x̂)]
 ```
 where `Q` is the inverse covariance matrix (or precision matrix). This is equivalent to the inverse of the FWHM matrix after squaring each element.
 """
-struct Gaussian{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFKernel{T}
+struct Gaussian{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
     pos::VT
     fwhm::FT
     indices::IT

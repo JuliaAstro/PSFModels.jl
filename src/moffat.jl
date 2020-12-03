@@ -6,11 +6,11 @@
     PSFModels.Moffat(::Polar, fwhm; maxsize=3, origin=(0, 0))
     PSFModels.Moffat{T}(args...; kwargs...)
 
-An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
+An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 
 The `fwhm` can be a scalar (isotropic) or vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrys](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis.
 
-The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This means the kernels act like a transmission weighting.
+The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This means the models act like a transmission weighting.
 
 # Functional form
 ```
@@ -18,7 +18,7 @@ f(x | x̂, FWHM) = 1 / [1 + ||x - x̂|| / (FWHM / 2)^2]
 ```
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a vector or tuple, the weighting is applied along each axis.
 """
-struct Moffat{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFKernel{T}
+struct Moffat{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
     pos::VT
     fwhm::FT
     indices::IT

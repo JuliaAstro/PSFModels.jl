@@ -3,7 +3,7 @@
 
 ## Fitting a PSF
 
-Here is a brief example which shows how to construct a loss function for fitting a `PSFKernel` to some data.
+Here is a brief example which shows how to construct a loss function for fitting a `PSFModel` to some data.
 
 ```@example fit
 using PSFModels: Gaussian
@@ -26,7 +26,7 @@ imshow(psf)
 
 ```@example fit
 # generative model
-function kernel(X::AbstractVector{T}) where T
+function model(X::AbstractVector{T}) where T
     position = X[1:2] # x, y position
     fwhm     = X[3:4] # fwhm_x, fwhm_y
     return Gaussian{T}(position, fwhm)
@@ -34,7 +34,7 @@ end
 
 # objective function
 function loss(X::AbstractVector{T}, target) where T
-    k = kernel(X)
+    k = model(X)
     amp = X[5]
     # cheap way to enforce positivity
     all(>(0), X) || return T(Inf)
@@ -63,7 +63,7 @@ res = optimize(P -> loss(P, psf), test_params)
 res_ad = optimize(P -> loss(P, psf), test_params, LBFGS(); autodiff=:forward)
 ```
 
-we can see which result has the better loss, and then use the generative model to create a kernel that we can use elsewhere
+we can see which result has the better loss, and then use the generative model to create a model that we can use elsewhere
 
 ```@example fit
 best_res = minimum(res) < minimum(res_ad) ? res : res_ad
@@ -71,7 +71,7 @@ best_fit_params = Optim.minimizer(best_res)
 ```
 
 ```@example fit
-model = kernel(best_fit_params)
+model = model(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),

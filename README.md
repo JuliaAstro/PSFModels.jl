@@ -10,7 +10,7 @@
 
 Fast, allocation-free point-spread function (PSF) representations
 
-## Kernels
+## Models
 
 * `PSFModels.Gaussian` (or `Normal`)
 * `PSFModels.AiryDisk`
@@ -32,12 +32,12 @@ To import the library
 julia> using PSFModels
 ```
 
-None of the kernels are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
+None of the models are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
 
 ```julia
 julia> using PSFModels: Gaussian
 
-julia> kernel = Gaussian(8)
+julia> model = Gaussian(8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -49,7 +49,7 @@ const kerns = PSFModels
 # julia version 1.6 or above
 using PSFModels as kerns
 
-kernel = kerns.Gaussian(10)
+model = kerns.Gaussian(10)
 ```
 
 ## Usage
@@ -70,7 +70,7 @@ kf0 = PSFModels.Gaussian{Float32}(8.2) # output guaranteed to be Float32
 ```
 
 ```julia
-k[0, 0]      # "index" the kernel
+k[0, 0]      # "index" the model
 k[:, 0]
 k(0.3, 1.0)  # directly query value
 k([1.2, 0.4])

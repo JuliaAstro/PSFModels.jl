@@ -28,12 +28,12 @@ To import the library
 julia> using PSFModels
 ```
 
-None of the kernels are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
+None of the models are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
 
 ```julia
 julia> using PSFModels: Gaussian
 
-julia> kernel = Gaussian(8)
+julia> model = Gaussian(8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -45,7 +45,7 @@ const kerns = PSFModels
 # julia version 1.6 or above
 using PSFModels as kerns
 
-kernel = kerns.Gaussian(10)
+model = kerns.Gaussian(10)
 ```
 
 ```@docs
