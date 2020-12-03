@@ -6,7 +6,7 @@
 Here is a brief example which shows how to construct a loss function for fitting a `PSFKernel` to some data.
 
 ```@example fit
-using PSFKernels: Gaussian
+using PSFModels: Gaussian
 using HCIDatasets: BetaPictoris
 using Plots
 

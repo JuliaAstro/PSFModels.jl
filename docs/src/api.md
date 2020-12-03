@@ -1,7 +1,7 @@
 # API/Reference
 
 ```@setup plots
-using PSFKernels: Gaussian, Moffat, AiryDisk
+using PSFModels: Gaussian, Moffat, AiryDisk
 using Plots
 ```
 
@@ -9,14 +9,14 @@ using Plots
 ```
 
 ```@docs
-PSFKernels.PSFKernel
+PSFModels.PSFKernel
 ```
 
 ## Gaussian
 
 ```@docs
-PSFKernels.Gaussian
-PSFKernels.Normal
+PSFModels.Gaussian
+PSFModels.Normal
 ```
 
 ```@example plots
@@ -27,7 +27,7 @@ plot(kernel; title="Gaussian(fwhm=10)")
 ## Airy Disk
 
 ```@docs
-PSFKernels.AiryDisk
+PSFModels.AiryDisk
 ```
 
 ```@example plots
@@ -38,7 +38,7 @@ plot(kernel; title="AiryDisk(fwhm=10)")
 ## Moffat
 
 ```@docs
-PSFKernels.Moffat
+PSFModels.Moffat
 ```
 
 ```@example plots

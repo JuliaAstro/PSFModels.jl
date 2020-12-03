@@ -1,21 +1,21 @@
 """
-# PSFKernels
+# PSFModels
 
 Statistical kernels for constructing point-spread functions (PSFs). These kernels act like matrices but without allocating any memory, which makes them efficient to fit and apply.
 
 ## Kernels
 
 The following kernels are currently implemented
-* [`PSFKernels.Gaussian`](@ref)
-* [`PSFKernels.AiryDisk`](@ref)
-* [`PSFKernels.Moffat`](@ref)
+* [`PSFModels.Gaussian`](@ref)
+* [`PSFModels.AiryDisk`](@ref)
+* [`PSFModels.Moffat`](@ref)
 
 ## Usage
 
-Using the kernels should feel just like an array. In fact, `PSFKernels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
+Using the kernels should feel just like an array. In fact, `PSFModels.PSFKernel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the kernels as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
 
 ```jldoctest kernel
-julia> k = PSFKernels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
+julia> k = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
 julia> k[0, 0]
 1.0
@@ -54,7 +54,7 @@ By bounding the kernel, we get a cutout which can be applied to arrays with much
 ```jldoctest
 julia> big_mat = ones(101, 101);
 
-julia> small_kern = PSFKernels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
+julia> small_kern = PSFModels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
 
 julia> ax = map(intersect, axes(big_mat), axes(small_kern))
 (48:54, 48:54)
@@ -77,7 +77,7 @@ Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the apert
 Since the kernels are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
 
 ```jldoctest
-julia> kbig = PSFKernels.Gaussian{BigFloat}(12);
+julia> kbig = PSFModels.Gaussian{BigFloat}(12);
 
 julia> sum(kbig)
 163.07467408408593790971336380361822460116627553361468017101287841796875
@@ -87,7 +87,7 @@ finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/Ju
 
 ```julia
 using Plots
-kernel = PSFKernels.Gaussian(8)
+kernel = PSFModels.Gaussian(8)
 plot(kernel)              # default axes
 plot(kernel, 1:5, 1:5)    # custom axes
 plot(kernel, axes(other)) # use axes from other array
@@ -97,10 +97,10 @@ plot(kernel, axes(other)) # use axes from other array
     Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
     ```julia
     # example generative model for position and scalar fwhm
-    kernel(X::AbstractVector{T}) where {T} = PSFKernels.Gaussian{T}(X...)
+    kernel(X::AbstractVector{T}) where {T} = PSFModels.Gaussian{T}(X...)
     ```
 """
-module PSFKernels
+module PSFModels
 
 using CoordinateTransformations
 using Distances
@@ -124,7 +124,7 @@ The interface to define a kernel is as follows (for an example kernel `Kernel`)
 | `Base.axes(k::Kernel)` | axes, necessary for `AbstractArray` interface |
 | `(k::Kernel)(point::AbstractVector)` | evaluate the kernel at the point in 2d space |
 
-browsing through the implementation of [`PSFKernels.Gaussian`](@ref) should give a good idea of how to create a kernel
+browsing through the implementation of [`PSFModels.Gaussian`](@ref) should give a good idea of how to create a kernel
 """
 abstract type PSFKernel{T} <: AbstractMatrix{T} end
 
@@ -170,4 +170,4 @@ include("moffat.jl")
 include("airy.jl")
 include("plotting.jl")
 
-end # module PSFKernels
+end # module PSFModels

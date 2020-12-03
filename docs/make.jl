@@ -1,21 +1,21 @@
-using PSFKernels
+using PSFModels
 using Documenter
 
 
 setup = quote
-    using PSFKernels
+    using PSFModels
 end
 
-DocMeta.setdocmeta!(PSFKernels, :DocTestSetup, setup; recursive = true)
+DocMeta.setdocmeta!(PSFModels, :DocTestSetup, setup; recursive = true)
 
 makedocs(;
-    modules=[PSFKernels],
+    modules=[PSFModels],
     authors="Miles Lucas <mdlucas@hawaii.edu> and contributors",
-    repo="https://github.com/JuliaAstro/PSFKernels.jl/blob/{commit}{path}#L{line}",
-    sitename="PSFKernels.jl",
+    repo="https://github.com/JuliaAstro/PSFModels.jl/blob/{commit}{path}#L{line}",
+    sitename="PSFModels.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://juliaastro.github.io/PSFKernels.jl",
+        canonical="https://juliaastro.github.io/PSFModels.jl",
         assets=String[],
     ),
     pages=[
@@ -26,6 +26,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/JuliaAstro/PSFKernels.jl",
+    repo="github.com/JuliaAstro/PSFModels.jl",
     push_preview=true
 )

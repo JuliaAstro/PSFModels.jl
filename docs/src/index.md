@@ -1,23 +1,23 @@
 ```@meta
-CurrentModule = PSFKernels
+CurrentModule = PSFModels
 ```
 
-# PSFKernels.jl
+# PSFModels.jl
 
-[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/PSFKernels.jl)
-[![Build Status](https://github.com/juliaastro/PSFKernels.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/PSFKernels.jl/actions)
-[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFKernels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
-[![Coverage](https://codecov.io/gh/juliaastro/PSFKernels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFKernels.jl)
+[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/PSFModels.jl)
+[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/PSFModels.jl/actions)
+[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
+[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFModels.jl)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Installation
 
-PSFKernels can be added from the Julia package manager
+PSFModels can be added from the Julia package manager
 
 ```julia
 julia>]
 
-(@v1.6) pkg> add PSFKernels
+(@v1.6) pkg> add PSFModels
 ```
 
 ## Getting Started
@@ -25,29 +25,29 @@ julia>]
 To import the library
 
 ```julia
-julia> using PSFKernels
+julia> using PSFModels
 ```
 
 None of the kernels are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
 
 ```julia
-julia> using PSFKernels: Gaussian
+julia> using PSFModels: Gaussian
 
 julia> kernel = Gaussian(8)
 ```
 
-or you can create an alias for `PSFKernels`
+or you can create an alias for `PSFModels`
 
 ```julia
 # julia version 1.5 or below
-using PSFKernels
-const kerns = PSFKernels
+using PSFModels
+const kerns = PSFModels
 # julia version 1.6 or above
-using PSFKernels as kerns
+using PSFModels as kerns
 
 kernel = kerns.Gaussian(10)
 ```
 
 ```@docs
-PSFKernels
+PSFModels
 ```

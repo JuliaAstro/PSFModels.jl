@@ -1,10 +1,10 @@
 
 @doc raw"""
-    PSFKernels.Gaussian(fwhm; maxsize=3)
-    PSFKernels.Gaussian(position, fwhm; maxsize=3)
-    PSFKernels.Gaussian(x, y, fwhm; maxsize=3)
-    PSFKernels.Gaussian(::Polar, fwhm; maxsize=3, origin=(0, 0))
-    PSFKernels.Gaussian{T}(args...; kwargs...)
+    PSFModels.Gaussian(fwhm; maxsize=3)
+    PSFModels.Gaussian(position, fwhm; maxsize=3)
+    PSFModels.Gaussian(x, y, fwhm; maxsize=3)
+    PSFModels.Gaussian(::Polar, fwhm; maxsize=3, origin=(0, 0))
+    PSFModels.Gaussian{T}(args...; kwargs...)
 
 An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 
@@ -34,9 +34,9 @@ end
 
 # Alias Normal -> Gaussian
 """
-    PSFKernels.Normal
+    PSFModels.Normal
 
-An alias for [`PSFKernels.Gaussian`](@ref)
+An alias for [`PSFModels.Gaussian`](@ref)
 """
 const Normal = Gaussian
 

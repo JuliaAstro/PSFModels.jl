@@ -1,10 +1,10 @@
 
 @doc raw"""
-    PSFKernels.Moffat(fwhm; maxsize=3)
-    PSFKernels.Moffat(position, fwhm; maxsize=3)
-    PSFKernels.Moffat(x, y, fwhm; maxsize=3)
-    PSFKernels.Moffat(::Polar, fwhm; maxsize=3, origin=(0, 0))
-    PSFKernels.Moffat{T}(args...; kwargs...)
+    PSFModels.Moffat(fwhm; maxsize=3)
+    PSFModels.Moffat(position, fwhm; maxsize=3)
+    PSFModels.Moffat(x, y, fwhm; maxsize=3)
+    PSFModels.Moffat(::Polar, fwhm; maxsize=3, origin=(0, 0))
+    PSFModels.Moffat{T}(args...; kwargs...)
 
 An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the kernel is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
 

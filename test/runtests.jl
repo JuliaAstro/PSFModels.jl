@@ -1,5 +1,5 @@
-using PSFKernels
-using PSFKernels: Gaussian, Normal, AiryDisk, Moffat
+using PSFModels
+using PSFModels: Gaussian, Normal, AiryDisk, Moffat
 using StaticArrays
 using Test
 
