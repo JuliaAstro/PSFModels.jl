@@ -66,7 +66,7 @@ m = PSFModels.Gaussian([1 0; 0 1])  # specify FWHM as a correlated matrix
 m = PSFModels.Gaussian(12, 25, 8.2) # specifiy location in pixel coordinates
 m = PSFModels.Gaussian([12, 25], 8.2)
 
-kf0 = PSFModels.Gaussian{Float32}(8.2) # output guaranteed to be Float32
+mf0 = PSFModels.Gaussian{Float32}(8.2) # output guaranteed to be Float32
 ```
 
 ```julia
