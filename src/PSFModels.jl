@@ -15,34 +15,34 @@ The following models are currently implemented
 Using the models should feel just like an array. In fact, `PSFModels.PSFModel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the models as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
 
 ```jldoctest model
-julia> k = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
+julia> m = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
-julia> k[0, 0]
+julia> m[0, 0]
 1.0
 ```
 because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
 
 ```jldoctest model
-julia> size(k)
+julia> size(m)
 (17, 17)
 
-julia> axes(k)
+julia> axes(m)
 (-8:8, -8:8)
 ```
 
 if we want to collect the model into a dense matrix, regardless of the indexing (e.g. to prepare for cross-correlation), we can simply
 
 ```jldoctest model
-julia> stamp = collect(k);
+julia> stamp = collect(m);
 ```
 
 these axes are merely a convenience for bounding the model, since they accept any real number as input. 
 
 ```jldoctest model
-julia> k[100, 10000] # valid for index-like inputs
+julia> m[100, 10000] # valid for index-like inputs
 0.0
 
-julia> k(2.4, 1.7) # valid for any number
+julia> m(2.4, 1.7) # valid for any number
 0.38315499005194587
 ```
 
@@ -120,7 +120,7 @@ The interface to define a model is as follows (for an example model `Model`)
 | method | description |
 |:-------|:------------|
 | `Model()` | constructor(s) |
-| `Base.size(k::Model)` | size, necessary for `AbstractArray` interface |
+| `Base.size(m::Model)` | size, necessary for `AbstractArray` interface |
 | `Base.axes(m::Model)` | axes, necessary for `AbstractArray` interface |
 | `(m::Model)(point::AbstractVector)` | evaluate the model at the point in 2d space |
 

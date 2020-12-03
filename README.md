@@ -45,11 +45,11 @@ or you can create an alias for `PSFModels`
 ```julia
 # julia version 1.5 or below
 using PSFModels
-const kerns = PSFModels
+const M = PSFModels
 # julia version 1.6 or above
-using PSFModels as kerns
+using PSFModels as M
 
-model = kerns.Gaussian(10)
+model = M.Gaussian(10)
 ```
 
 ## Usage
@@ -59,34 +59,34 @@ For more in-depth usage and examples, please see the [documentation](https://jul
 ```julia
 using PSFModels
 
-k = PSFModels.Gaussian(8)           # bivariate gaussian with a FWHM of 8 pixels
-k = PSFModels.Gaussian((7.4, 8.2))  # specify FWHM for each axis
-k = PSFModels.Gaussian([1 0; 0 1])  # specify FWHM as a correlated matrix
+m = PSFModels.Gaussian(8)           # bivariate gaussian with a FWHM of 8 pixels
+m = PSFModels.Gaussian((7.4, 8.2))  # specify FWHM for each axis
+m = PSFModels.Gaussian([1 0; 0 1])  # specify FWHM as a correlated matrix
 
-k = PSFModels.Gaussian(12, 25, 8.2) # specifiy location in pixel coordinates
-k = PSFModels.Gaussian([12, 25], 8.2)
+m = PSFModels.Gaussian(12, 25, 8.2) # specifiy location in pixel coordinates
+m = PSFModels.Gaussian([12, 25], 8.2)
 
 kf0 = PSFModels.Gaussian{Float32}(8.2) # output guaranteed to be Float32
 ```
 
 ```julia
-k[0, 0]      # "index" the model
-k[:, 0]
-k(0.3, 1.0)  # directly query value
-k([1.2, 0.4])
+m[0, 0]      # "index" the model
+m[:, 0]
+m(0.3, 1.0)  # directly query value
+m([1.2, 0.4])
 
-# evaluate `k` over its indices forming an array
-collect(k)
+# evaluate `m` over its indices forming an array
+collect(m)
 
 # broadcasting will take the axes of the other arrays
 arr = randn(101, 101)
-k .* arr
+m .* arr
 
 ## (nearly) allocation-free loss function
 # get overlapped cutouts for the PSF and the array
-inds = map(intersect, axes(arr), axes(k))
+inds = map(intersect, axes(arr), axes(m))
 arr_stamp = @view arr[inds...]
-kern_stamp = @view k[inds...]
+kern_stamp = @view m[inds...]
 amp = 1.24
 resid = sum(abs2, arr_stamp .- amp .* kern_stamp) # chi-square loss
 ```

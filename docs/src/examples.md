@@ -34,12 +34,12 @@ end
 
 # objective function
 function loss(X::AbstractVector{T}, target) where T
-    k = model(X)
+    m = model(X)
     amp = X[5]
     # cheap way to enforce positivity
     all(>(0), X) || return T(Inf)
     # l2-distance loss (χ² loss)
-    return sum(abs2, target .- amp .* k[axes(target)...])
+    return sum(abs2, target .- amp .* m[axes(target)...])
 end
 
 # params are [x, y, fwhm_x, fwhm_y, amp]
@@ -71,11 +71,11 @@ best_fit_params = Optim.minimizer(best_res)
 ```
 
 ```@example fit
-model = model(best_fit_params)
+synth_psf = model(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),
-    plot(model, axes(psf); title="Model"),
+    plot(synth_psf, axes(psf); title="Model"),
     cbar=false,
     ticks=false,
     layout=2,
