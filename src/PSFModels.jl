@@ -77,9 +77,9 @@ Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the apert
 Since the models are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
 
 ```jldoctest
-julia> kbig = PSFModels.Gaussian{BigFloat}(12);
+julia> mbig = PSFModels.Gaussian{BigFloat}(12);
 
-julia> sum(kbig)
+julia> sum(mbig)
 163.07467408408593790971336380361822460116627553361468017101287841796875
 ```
 
@@ -94,7 +94,7 @@ plot(model, axes(other)) # use axes from other array
 ```
 
 !!! tip "Tip: Automatic Differentation"
-    Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the primal vector's element type to avoid these headaches
+    Forward-mode AD libraries tend to use dual numbers, which can cause headaches getting the types correct. We recommend using the *primal vector*'s element type to avoid these headaches
     ```julia
     # example generative model for position and scalar fwhm
     model(X::AbstractVector{T}) where {T} = PSFModels.Gaussian{T}(X...)
