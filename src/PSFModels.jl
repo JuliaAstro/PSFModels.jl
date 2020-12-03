@@ -54,9 +54,9 @@ By bounding the model, we get a cutout which can be applied to arrays with much 
 ```jldoctest
 julia> big_mat = ones(101, 101);
 
-julia> small_kern = PSFModels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
+julia> model = PSFModels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
 
-julia> ax = map(intersect, axes(big_mat), axes(small_kern))
+julia> ax = map(intersect, axes(big_mat), axes(model))
 (48:54, 48:54)
 
 julia> cutout = big_mat[ax...]
