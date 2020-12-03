@@ -41,11 +41,11 @@ or you can create an alias for `PSFModels`
 ```julia
 # julia version 1.5 or below
 using PSFModels
-const kerns = PSFModels
+const M = PSFModels
 # julia version 1.6 or above
-using PSFModels as kerns
+using PSFModels as M
 
-model = kerns.Gaussian(10)
+model = M.Gaussian(10)
 ```
 
 ```@docs
