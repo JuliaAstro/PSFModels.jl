@@ -86,7 +86,7 @@ m .* arr
 # get overlapped cutouts for the PSF and the array
 inds = map(intersect, axes(arr), axes(m))
 arr_stamp = @view arr[inds...]
-kern_stamp = @view m[inds...]
+m_stamp = @view m[inds...]
 amp = 1.24
-resid = sum(abs2, arr_stamp .- amp .* kern_stamp) # chi-square loss
+resid = sum(abs2, arr_stamp .- amp .* m_stamp) # chi-square loss
 ```
