@@ -1,7 +1,7 @@
 name = "PSFModels"
 uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
 authors = ["Miles Lucas <mdlucas@hawaii.edu> and contributors"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
@@ -14,6 +14,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 CoordinateTransformations = "0.6"
 Distances = "0.10"
 RecipesBase = "1"
-SpecialFunctions = "0.12, 1"
+SpecialFunctions = "0.10, 1"
 StaticArrays = "0.12, 1"
 julia = "1.3"

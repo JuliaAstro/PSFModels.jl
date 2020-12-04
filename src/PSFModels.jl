@@ -17,7 +17,7 @@ Using the models should feel just like an array. In fact, `PSFModels.PSFModel <:
 ```jldoctest model
 julia> m = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
-julia> m[0, 0]
+julia> m[0, 0] # [y, x] for indexing
 1.0
 ```
 because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
@@ -39,10 +39,10 @@ julia> stamp = collect(m);
 these axes are merely a convenience for bounding the model, since they accept any real number as input. 
 
 ```jldoctest model
-julia> m[100, 10000] # valid for index-like inputs
+julia> m[100, 10000] # index-like inputs [y, x]
 0.0
 
-julia> m(2.4, 1.7) # valid for any number
+julia> m(2.4, 1.7) # valid for any real (x, y)
 0.38315499005194587
 ```
 
@@ -69,7 +69,7 @@ julia> cutout = big_mat[ax...]
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
 
-julia> photsum = sum(cutout .* small_kern[ax...])
+julia> photsum = sum(cutout .* model[ax...])
 4.5322418212890625
 ```
 Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the aperture sum, and with some care we could make it allocation-free.
@@ -122,7 +122,7 @@ The interface to define a model is as follows (for an example model `Model`)
 | `Model()` | constructor(s) |
 | `Base.size(m::Model)` | size, necessary for `AbstractArray` interface |
 | `Base.axes(m::Model)` | axes, necessary for `AbstractArray` interface |
-| `(m::Model)(point::AbstractVector)` | evaluate the model at the point in 2d space |
+| `(m::Model)(point::AbstractVector)` | evaluate the model at the point in 2d space (x, y) |
 
 browsing through the implementation of [`PSFModels.Gaussian`](@ref) should give a good idea of how to create a model
 """
@@ -135,10 +135,11 @@ Base.checkbounds(::Type{Bool}, ::PSFModel, idx::CartesianIndex) = true
 # in general, parse to static vector
 (model::PSFModel)(point...) = model(SVector(point))
 (model::PSFModel)(point::Tuple) = model(SVector(point))
-(model::PSFModel)(idx::CartesianIndex) = model(SVector(idx.I))
+# make sure to reverse indices
+(model::PSFModel)(idx::CartesianIndex) = model(SVector(reverse(idx.I)))
 
-# getindex just calls model
-Base.getindex(model::PSFModel, idx::Vararg{Int,2}) = model(idx)
+# getindex just calls model with reversed indices
+Base.getindex(model::PSFModel, idx::Vararg{Int,2}) = model(reverse(idx))
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
 Broadcast.combine_axes(kern::PSFModel, other) = axes(other)

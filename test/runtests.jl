@@ -12,7 +12,7 @@ function test_model_interface(K)
     @test eltype(m) == Float64
 
     @test m[0, 0] ≈ m(0, 0) ≈ m(SA[0, 0]) ≈ m(CartesianIndex(0, 0)) ≈ 1
-    @test m[-100, -100] ≈ m(-100, -100)
+    @test m[-100, -10] ≈ m(-10, -100)
     @test_throws ArgumentError m[1.0, 1.0]
     @test maximum(m) ≈ 1
     @test 0 ≤ minimum(m) ≤ 1
@@ -56,12 +56,12 @@ end
 @testset "Gaussian" begin
     m = Gaussian(10)
     expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
-    @test m[1, 2] ≈ expected
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 
     m = Gaussian((10, 9))
     wdist = (1/10)^2 + (2/9)^2
     expected = exp(-4 * log(2) * wdist)
-    @test m[1, 2] ≈ expected
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 
     # test Normal alias
     @test Normal(10) === Gaussian(10)
@@ -90,10 +90,10 @@ end
 @testset "Moffat" begin
     m = Moffat(10)
     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
-    @test m[1, 2] ≈ expected
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 
     m = Moffat((10, 9))
     wdist = (1/5)^2 + (2/4.5)^2
     expected = inv(1 + wdist)
-    @test m[1, 2] ≈ expected
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 end
