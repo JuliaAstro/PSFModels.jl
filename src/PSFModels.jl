@@ -25,7 +25,7 @@ julia> m[0, 0] # [y, x] for indexing
 1.0
 ```
 
-To control the amplitude, the best method is using scalar multiplication or division. These operations create another lazy object that scales the original model without having to broadcast and potentially allocate.
+To control the amplitude, the best method is using scalar multiplication or division. These operations create another lazy object ([`ScaledPSFModel`](@ref)) that scales the original model without having to broadcast and potentially allocate.
 
 ```jldoctest model
 julia> m_scaled = 20 * m;
@@ -75,7 +75,7 @@ julia> model = PSFModels.Gaussian(51, 51, 2); # center of big_mat, fwhm=2
 julia> ax = map(intersect, axes(big_mat), axes(model))
 (48:54, 48:54)
 
-julia> cutout = big_mat[ax...]
+julia> cutout = @view big_mat[ax...]
 7×7 Array{Float64,2}:
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
@@ -85,10 +85,12 @@ julia> cutout = big_mat[ax...]
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
 
-julia> photsum = sum(cutout .* model[ax...])
+julia> stamp = @view model[ax...];
+
+julia> photsum = sum(cutout .* stamp)
 4.5322418212890625
 ```
-Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the aperture sum, and with some care we could make it allocation-free.
+Nice- we only had to reduce ~50 pixels instead of ~10,000 to calculate the aperture sum, all in under a microsecond (on my machine).
 
 Since the models are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
 
