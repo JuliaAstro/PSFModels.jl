@@ -10,6 +10,10 @@ The following models are currently implemented
 * [`PSFModels.AiryDisk`](@ref)
 * [`PSFModels.Moffat`](@ref)
 
+## Parameters
+
+In general, the PSFs have a position, a full-width at half-maximum (FWHM) measure, and an amplitude. The position a 1-based pixel coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and WCS. If a position is not specified, it is set to `(0, 0)`. The FWHM is a consistent scale parameter for the models. All models support a scalar (isotropic) FWHM and a FWHM for each axis (diagonal).
+
 ## Usage
 
 Using the models should feel just like an array. In fact, `PSFModels.PSFModel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the models as matrices is merely a convenience, since typically astronomical data is stored in dense arrays.
@@ -47,9 +51,6 @@ julia> m(2.4, 1.7) # valid for any real (x, y)
 ```
 
 By bounding the model, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
-
-!!! note "Coordinate System"
-    The PSFs follows a 1-based image coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This corresponds with Julia indexing, as well as DS9 and IRAF.
 
 ```jldoctest
 julia> big_mat = ones(101, 101);
@@ -169,6 +170,7 @@ end
 include("gaussian.jl")
 include("moffat.jl")
 include("airy.jl")
+include("scaled.jl")
 include("plotting.jl")
 
 end # module PSFModels
