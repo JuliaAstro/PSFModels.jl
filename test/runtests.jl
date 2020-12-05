@@ -60,6 +60,9 @@ function test_model_interface(K)
     comp = 20 * m2
     @test comp.amp ≈ 1 # amplitudes are combined; not just function chaining
     @test comp.model === m2.model
+    comp2 = comp / 100
+    @test comp2.amp ≈ 0.01
+    @test comp2.model === m2.model # model has propagated through many
 end
 
 @testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)

@@ -24,7 +24,22 @@ julia> m = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 julia> m[0, 0] # [y, x] for indexing
 1.0
 ```
-because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
+
+To control the amplitude, the best method is using scalar multiplication or division. These operations create another lazy object that scales the original model without having to broadcast and potentially allocate.
+
+```jldoctest model
+julia> m_scaled = 20 * m;
+
+julia> m_scaled(0, 0)
+20.0
+
+julia> m′ = m_scaled / 20;
+
+julia> m′(0, 0)
+1.0
+```
+
+Because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
 
 ```jldoctest model
 julia> size(m)

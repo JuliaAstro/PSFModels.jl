@@ -25,21 +25,25 @@ imshow(psf)
 ```
 
 ```@example fit
+using LossFunctions
+
 # generative model
 function model(X::AbstractVector{T}) where T
-    position = X[1:2] # x, y position
-    fwhm     = X[3:4] # fwhm_x, fwhm_y
-    return Gaussian{T}(position, fwhm)
+    position = @view X[1:2] # x, y position
+    fwhm     = @view X[3:4] # fwhm_x, fwhm_y
+    amp      =       X[5]   # amplitude
+    return amp * Gaussian{T}(position, fwhm)
 end
 
 # objective function
 function loss(X::AbstractVector{T}, target) where T
-    m = model(X)
-    amp = X[5]
     # cheap way to enforce positivity
     all(>(0), X) || return T(Inf)
-    # l2-distance loss (χ² loss)
-    return sum(abs2, target .- amp .* m[axes(target)...])
+    # get generative model
+    m = model(X)
+    # l2-distance loss (χ² loss) (LossFunctions.jl)
+    stamp = @view m[axes(target)...]
+    return value(L2DistLoss(), target, stamp, AggMode.Sum())
 end
 
 # params are [x, y, fwhm_x, fwhm_y, amp]

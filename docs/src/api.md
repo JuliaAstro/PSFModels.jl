@@ -10,6 +10,7 @@ using Plots
 
 ```@docs
 PSFModels.PSFModel
+PSFModels.ScaledPSFModel
 ```
 
 ## Gaussian

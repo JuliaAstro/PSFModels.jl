@@ -1,8 +1,8 @@
 
 """
-    ScaledPSFModel(amp, model) <: PSFModel
+    PSFModels.ScaledPSFModel(amp, model)
 
-A lazy wrapper for a [`PSFModel`](@ref) that adds the scalar amplitude `amp` to the given `model`. This is convenient to avoid broadcasting and materializing an array from a PSFModel when the scalar multiplication can occur during the function call.
+A lazy wrapper for a [`PSFModel`](@ref) that adds the scalar amplitude `amp` to the given `model`. This is convenient to avoid broadcasting and materializing an array from a PSFModel because the scalar multiplication can be chained to the original model's output.
 
 # Examples
 ```jldoctest
@@ -21,7 +21,7 @@ julia> maximum(g / 100) # scalar division works, too
 
 julia> m2 = PSFModels.ScaledPSFModel(20, g); # construct explicitly
 
-julia> m1 ≈ m2
+julia> m1 == m2
 true
 ```
 """
@@ -45,4 +45,4 @@ Base.:(*)(a::Number, m::ScaledPSFModel) = ScaledPSFModel(a * m.amp, m.model)
 Base.:(*)(m::ScaledPSFModel, a::Number) = *(a, m)
 
 Base.:(/)(m::PSFModel, a::Number) = ScaledPSFModel(1 / a, m)
-Base.:(/)(m::ScaledPSFModel, a::Number) = ScaledPSFModel(m.amp / a, m)
+Base.:(/)(m::ScaledPSFModel, a::Number) = ScaledPSFModel(m.amp / a, m.model)

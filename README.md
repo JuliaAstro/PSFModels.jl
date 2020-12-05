@@ -75,6 +75,10 @@ m[:, 0]
 m(0.3, 1.0)  # directly query value at (x, y)
 m([1.2, 0.4])
 
+# scalar multiplication or division will create a ScaledPSFModel
+20 * m # or `m * 20`
+m / 20
+
 # evaluate `m` over its indices forming an array
 collect(m)
 
@@ -86,7 +90,8 @@ m .* arr
 # get overlapped cutouts for the PSF and the array
 inds = map(intersect, axes(arr), axes(m))
 arr_stamp = @view arr[inds...]
-m_stamp = @view m[inds...]
+# use `amp * m` to create ScaledPSFModel (could also just broadcast)
 amp = 1.24
-resid = sum(abs2, arr_stamp .- amp .* m_stamp) # chi-square loss
+m_stamp = @view (amp * m)[inds...]
+resid = sum(abs2, arr_stamp .- m_stamp) # chi-square loss
 ```

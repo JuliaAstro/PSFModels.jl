@@ -1,6 +1,7 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 HCIDatasets = "1893dc6a-5236-4cb8-aa54-62ea411c10cd"
+LossFunctions = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 PSFModels = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -8,5 +9,6 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 [compat]
 Documenter = "0.25"
 HCIDatasets = "0.2"
+LossFunctions = "0.5, 0.6"
 Optim = "1"
 Plots = "1"
