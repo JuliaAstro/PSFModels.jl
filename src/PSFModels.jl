@@ -76,7 +76,7 @@ julia> ax = map(intersect, axes(big_mat), axes(model))
 (48:54, 48:54)
 
 julia> cutout = @view big_mat[ax...]
-7×7 Array{Float64,2}:
+7×7 view(::Array{Float64,2}, 48:54, 48:54) with eltype Float64:
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
  1.0  1.0  1.0  1.0  1.0  1.0  1.0
