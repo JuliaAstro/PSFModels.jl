@@ -95,6 +95,6 @@ table = CSV.File(benchdir("results.csv")) |> DataFrame
 
 ```@example bench
 @df table groupedbar(:name, [:psfmodels :astropy];
-    ylabel="time (s)", yscale=:log10, leg=:outerbottom,
-    label=["PSFModels.jl" "Astropy"])
+    ylabel="time (s)", yscale=:log10, leg=:outertopright,
+    label=["PSFModels.jl" "Astropy"], size=(500, 300))
 ```
