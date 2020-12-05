@@ -4,9 +4,12 @@ using DataFrames
 using PSFModels: Gaussian, AiryDisk, Moffat
 using PyCall
 
-apm = pyimport("astropy.modeling.functional_models")
-
 @info "Starting PSF evaluation benchmark"
+
+ap = pyimport("astropy")
+apm = pyimport("astropy.modeling.models")
+@info "Using astropy version $(ap.__version__)"
+
 
 julia_models = [
     Gaussian((5.3, 4.7)), 
@@ -19,7 +22,7 @@ astropy_models = [
     apm.Moffat2D(gamma=8.1, alpha=-1)
 ]
 
-names = ("Gaussian", "AiryDisk", "Moffat")
+names = ["Gaussian", "AiryDisk", "Moffat"]
 jl_times = []
 py_times = []
 
@@ -36,7 +39,8 @@ end
 filename = joinpath(@__DIR__, "results.csv")
 DataFrame(name=names, psfmodels=jl_times, astropy=py_times) |> CSV.write(filename)
 
+@info "Results saved to $filename"
 
-@info "Finished PSF evaluation benchmark. Results saved to $filename"
+@info "Finished PSF evaluation benchmark"
 
 nothing

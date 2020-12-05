@@ -51,3 +51,50 @@ model = M.Gaussian(10)
 ```@docs
 PSFModels
 ```
+
+## Benchmarks
+
+The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/master/bench) folder. To run them, first install the python dependencies
+
+```
+$ pip install -r bench/requirements.txt
+```
+
+Then run the benchmark
+
+```
+$ julia --project=bench bench/bench.jl
+```
+
+**System Information**
+
+```
+Julia Version 1.5.0
+Commit 96786e22cc (2020-08-01 23:44 UTC)
+Platform Info:
+  OS: macOS (x86_64-apple-darwin18.7.0)
+  CPU: Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
+  WORD_SIZE: 64
+  LIBM: libopenlibm
+  LLVM: libLLVM-9.0.1 (ORCJIT, skylake)
+Environment:
+  JULIA_NUM_THREADS = 4
+```
+
+```@setup bench
+using CSV, DataFrames
+using StatsPlots
+benchdir(args...) = joinpath("..", ".." ,"bench", args...);
+```
+
+---
+
+```@example bench
+table = CSV.File(benchdir("results.csv")) |> DataFrame
+```
+
+```@example bench
+@df table groupedbar(:name, [:psfmodels :astropy];
+    ylabel="time (s)", yscale=:log10, leg=:outerbottom,
+    label=["PSFModels.jl" "Astropy"])
+```
