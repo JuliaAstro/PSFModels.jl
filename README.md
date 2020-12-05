@@ -1,6 +1,6 @@
 # PSFModels.jl
 
-[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg)](https://github.com/juliaastro/PSFModels.jl/actions)
+[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/PSFModels.jl/actions)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/master/graph/badge.svg?branch=master)](https://codecov.io/gh/juliaastro/PSFModels.jl)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -90,8 +90,7 @@ m .* arr
 # get overlapped cutouts for the PSF and the array
 inds = map(intersect, axes(arr), axes(m))
 arr_stamp = @view arr[inds...]
-# use `amp * m` to create ScaledPSFModel (could also just broadcast)
+m_stamp = @view m[inds...]
 amp = 1.24
-m_stamp = @view (amp * m)[inds...]
-resid = sum(abs2, arr_stamp .- m_stamp) # chi-square loss
+resid = sum(abs2, arr_stamp .- amp .* m_stamp) # chi-square loss
 ```
