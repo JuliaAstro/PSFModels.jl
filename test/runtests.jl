@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: Gaussian, Normal, AiryDisk, Moffat
+using PSFModels: Gaussian, Normal, AiryDisk, Moffat, ScaledPSFModel
 using StaticArrays
 using Test
 
@@ -47,6 +47,19 @@ function test_model_interface(K)
     @test eltype(m) == BigFloat
     @test m[0, 0] isa BigFloat
 
+    # test scaling
+    m = 20 * K(10)
+    @test m isa ScaledPSFModel
+    @test m == K(10) * 20 == ScaledPSFModel(20, K(10))
+    @test m(0, 0) ≈ 20
+    m2 = K(10) / 20
+    @test m2 isa ScaledPSFModel
+    @test m2 == ScaledPSFModel(1 / 20, K(10))
+    @test m2(0, 0) ≈ 1 / 20
+    # composite
+    comp = 20 * m2
+    @test comp.amp ≈ 1 # amplitudes are combined; not just function chaining
+    @test comp.model === m2.model
 end
 
 @testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
