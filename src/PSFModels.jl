@@ -23,7 +23,14 @@ julia> m = PSFModels.Gaussian(5); # fwhm of 5 pixels, centered at (0, 0)
 
 julia> m[0, 0] # [y, x] for indexing
 1.0
+
+julia> m(0, 0) # (x, y) for evaluating
+1.0
 ```
+
+!!! note "axis order"
+
+    It's important to note the difference in the axis ordering between the index-style calls and the function-style calls. The index-style calls are reverse cartesian order (e.g., `(z, y, x)`), while function calls are the typical cartesian order `(x, y, z)`. Regardless, the constructors are always in cartesian order (`(x, y, z)`).
 
 To control the amplitude, the best method is using scalar multiplication or division. These operations create another lazy object ([`ScaledPSFModel`](@ref)) that scales the original model without having to broadcast and potentially allocate.
 
@@ -55,7 +62,7 @@ if we want to collect the model into a dense matrix, regardless of the indexing 
 julia> stamp = collect(m);
 ```
 
-these axes are merely a convenience for bounding the model, since they accept any real number as input. 
+these axes are merely a convenience for bounding the model, since they accept any real number as input.
 
 ```jldoctest model
 julia> m[100, 10000] # index-like inputs [y, x]
@@ -153,11 +160,11 @@ Base.checkbounds(::Type{Bool}, ::PSFModel, idx::CartesianIndex) = true
 # in general, parse to static vector
 (model::PSFModel)(point...) = model(SVector(point))
 (model::PSFModel)(point::Tuple) = model(SVector(point))
-# make sure to reverse indices
-(model::PSFModel)(idx::CartesianIndex) = model(SVector(reverse(idx.I)))
+# disallow index to avoid confusion 
+(model::PSFModel)(::CartesianIndex) = error("PSF models should be indexed using `getindex`, (equivalently `[]`)")
 
 # getindex just calls model with reversed indices
-Base.getindex(model::PSFModel, idx::Vararg{Int,2}) = model(reverse(idx))
+Base.getindex(model::PSFModel, idx::Vararg{<:Number,2}) = model(reverse(idx))
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
 Broadcast.combine_axes(kern::PSFModel, other) = axes(other)

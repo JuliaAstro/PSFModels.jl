@@ -74,7 +74,13 @@ m[0, 0]      # "index" the model at [y, x]
 m[:, 0]
 m(0.3, 1.0)  # directly query value at (x, y)
 m([1.2, 0.4])
+```
 
+**Important:**:
+
+It is important to recognize the difference in the order of the dimensions between indexing and calling. Indexing is reverse of the cartesian order, which is the natural way of indexing a multi-dimensional array. If you try calling a model as a function with an index, an error will be thrown.
+
+```julia
 # scalar multiplication or division will create a ScaledPSFModel
 20 * m # or `m * 20`
 m / 20

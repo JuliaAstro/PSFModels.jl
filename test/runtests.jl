@@ -11,9 +11,10 @@ function test_model_interface(K)
     @test m.pos ≈ SA[0, 0]
     @test eltype(m) == Float64
 
-    @test m[0, 0] ≈ m(0, 0) ≈ m(SA[0, 0]) ≈ m(CartesianIndex(0, 0)) ≈ 1
+    @test m[0, 0] ≈ m(0, 0) ≈ m(SA[0, 0]) ≈ 1
+    @test_throws ErrorException m(CartesianIndex(0, 0))
     @test m[-100, -10] ≈ m(-10, -100)
-    @test_throws ArgumentError m[1.0, 1.0]
+    @test m(1.0, 1.0) ≈ m[1.0, 1.0]
     @test maximum(m) ≈ 1
     @test 0 ≤ minimum(m) ≤ 1
     
