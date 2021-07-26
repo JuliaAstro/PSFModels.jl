@@ -24,22 +24,22 @@ function test_model_interface(K)
     m = K(12, 13, 10)
     @test m == K((12, 13), 10) == K(SA[12, 13], 10)
     @test size(m) == (31, 31)
-    @test axes(m) == (-3:27, -2:28)
+    @test axes(m) == (-2:28, -3:27)
     @test m.pos ≈ SA[12, 13]
     @test eltype(m) == Float64
 
     # test diagonal fwhm
     m = K((10, 9))
     @test m == K((10, 9)) == K(SA[10, 9])
-    @test size(m) == (31, 29)
-    @test axes(m) == (-15:15, -14:14)
+    @test size(m) == (29, 31)
+    @test axes(m) == (-14:14, -15:15)
     @test m.pos ≈ SA[0, 0]
     @test eltype(m) == Float64
 
     # test different maxsize
     m = K((10, 9); maxsize=2)
-    @test size(m) == (21, 19)
-    @test axes(m) == (-10:10, -9:9)
+    @test size(m) == (19, 21)
+    @test axes(m) == (-9:9, -10:10)
     @test m.pos ≈ SA[0, 0]
     @test eltype(m) == Float64
 

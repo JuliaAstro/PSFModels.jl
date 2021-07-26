@@ -170,18 +170,13 @@ Base.getindex(model::PSFModel, idx::Vararg{<:Number,2}) = model(reverse(idx))
 Broadcast.combine_axes(kern::PSFModel, other) = axes(other)
 Broadcast.combine_axes(other, kern::PSFModel) = axes(other)
 
-function indices_from_extent(pos, fwhm, maxsize)
-    halfextent = @. maxsize * fwhm / 2
-    lower = @. floor(Int, pos - halfextent)
-    upper = @. ceil(Int, pos + halfextent)
-    return (first(lower):first(upper), last(lower):last(upper))
-end
+indices_from_extent(pos, fwhm, maxsize) = indices_from_extent(pos, maxsize .* fwhm)
 
 function indices_from_extent(pos, extent)
     halfextent = @. extent / 2
     lower = @. round(Int, pos - halfextent)
     upper = @. round(Int, pos + halfextent)
-    return (first(lower):first(upper), last(lower):last(upper))
+    return last(lower):last(upper), first(lower):first(upper)
 end
 
 # TODO
