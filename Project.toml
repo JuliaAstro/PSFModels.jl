@@ -1,7 +1,7 @@
 name = "PSFModels"
 uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
 authors = ["Miles Lucas <mdlucas@hawaii.edu> and contributors"]
-version = "0.1.2"
+version = "0.2.0"
 
 [deps]
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
