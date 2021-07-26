@@ -47,7 +47,7 @@ or you can create an alias for `PSFModels`
 using PSFModels
 const M = PSFModels
 # julia version 1.6 or above
-using PSFModels as M
+import PSFModels as M
 
 model = M.Gaussian(10)
 ```
