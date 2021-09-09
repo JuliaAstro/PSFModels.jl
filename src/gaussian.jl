@@ -4,7 +4,7 @@
     PSFModels.Gaussian([T=Float64]; fwhm, pos=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
     PSFModels.Gaussian([T=Float64]; fwhm, r=0, theta=0, origin=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
 
-An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`.
+An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`, optionally centered around `origin`.
 
 The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
 

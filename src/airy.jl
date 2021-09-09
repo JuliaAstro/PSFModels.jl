@@ -1,16 +1,12 @@
 
 @doc raw"""
-    PSFModels.AiryDisk(fwhm; maxsize=3)
-    PSFModels.AiryDisk(position, fwhm; maxsize=3)
-    PSFModels.AiryDisk(x, y, fwhm; maxsize=3)
-    PSFModels.AiryDisk(::Polar, fwhm; maxsize=3, origin=(0, 0))
-    PSFModels.AiryDisk{T}(args...; kwargs...)
+    PSFModels.AiryDisk([T=Float64]; fwhm, x=0, y=0, amp=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.AiryDisk([T=Float64]; fwhm, pos=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.AiryDisk([T=Float64]; fwhm, r=0, theta=0, origin=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
 
-An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a `CoordinateTransformations.Polar`, optionally centered around `origin`.
+An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`, optionally centered around `origin`.
 
-The `fwhm` can be a scalar (isotropic) or vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis.
-
-The output type can be specified, and will default to `Float64`. The amplitude is unnormalized, meaning the maximum value will always be 1. This means the models act like a transmission weighting.
+The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
 
 # Functional form
 
