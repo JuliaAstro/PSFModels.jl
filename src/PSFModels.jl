@@ -189,7 +189,6 @@ end
 include("gaussian.jl")
 include("moffat.jl")
 include("airy.jl")
-include("scaled.jl")
 include("plotting.jl")
 
 end # module PSFModels
