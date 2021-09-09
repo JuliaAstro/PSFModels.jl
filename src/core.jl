@@ -36,6 +36,25 @@ Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
 Broadcast.combine_axes(::PSFModel, other) = axes(other)
 Broadcast.combine_axes(other, ::PSFModel) = axes(other)
 
+## get the position depending on the keyword inputs
+_position(nt::NamedTuple{(:x, :y)}) = SA[nt.x, nt.y]
+_position(nt::NamedTuple{(:pos,)}) = SVector(nt.pos)
+function _position(nt::NamedTuple{(:r, :theta, :origin)})
+    # note: theta is in degrees
+    th_rad = deg2rad(nt.theta)
+    xy = CartesianFromPolar()(Polar(nt.r, th_rad))
+    return xy + nt.origin
+end
+
+@kwcall _position(x=0, y=0)
+@kwcall _position(pos)
+# theta is in degrees
+@kwcall _position(r=0, theta=0, origin=SA[0, 0])
+@kwalias _position [
+    ρ => r,
+    θ => theta
+]
+
 indices_from_extent(pos, fwhm, maxsize) = indices_from_extent(pos, maxsize .* fwhm)
 
 function indices_from_extent(pos, extent)
