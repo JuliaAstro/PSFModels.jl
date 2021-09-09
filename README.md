@@ -1,8 +1,8 @@
 # PSFModels.jl
 
-[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/PSFModels.jl/actions)
+[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=main)](https://github.com/juliaastro/PSFModels.jl/actions)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
-[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/master/graph/badge.svg?branch=master)](https://codecov.io/gh/juliaastro/PSFModels.jl)
+[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/main/graph/badge.svg?branch=main)](https://codecov.io/gh/juliaastro/PSFModels.jl)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaastro.github.io/PSFModels.jl/stable)

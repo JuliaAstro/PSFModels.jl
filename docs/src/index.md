@@ -5,9 +5,9 @@ CurrentModule = PSFModels
 # PSFModels.jl
 
 [![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/PSFModels.jl)
-[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/PSFModels.jl/actions)
+[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=main)](https://github.com/juliaastro/PSFModels.jl/actions)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
-[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFModels.jl)
+[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFModels.jl)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Installation
@@ -54,7 +54,7 @@ PSFModels
 
 ## Benchmarks
 
-The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/master/bench) folder. To run them, first install the python dependencies
+The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/main/bench) folder. To run them, first install the python dependencies
 
 ```
 $ pip install -r bench/requirements.txt
