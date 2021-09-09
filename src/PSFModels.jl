@@ -32,20 +32,6 @@ julia> m(0, 0) # (x, y) for evaluating
 
     It's important to note the difference in the axis ordering between the index-style calls and the function-style calls. The index-style calls are reverse cartesian order (e.g., `(z, y, x)`), while function calls are the typical cartesian order `(x, y, z)`. Regardless, the constructors are always in cartesian order (`(x, y, z)`).
 
-To control the amplitude, the best method is using scalar multiplication or division. These operations create another lazy object ([`ScaledPSFModel`](@ref)) that scales the original model without having to broadcast and potentially allocate.
-
-```jldoctest model
-julia> m_scaled = 20 * m;
-
-julia> m_scaled(0, 0)
-20.0
-
-julia> m′ = m_scaled / 20;
-
-julia> m′(0, 0)
-1.0
-```
-
 Because the model is a matrix, it needs to have a size. In this case, the size is `maxsize * FWHM` pixels, centered around the origin, and rounded up. We can see how this alters the indices from a typical `Matrix`
 
 ```jldoctest model
