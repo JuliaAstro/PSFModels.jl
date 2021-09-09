@@ -115,6 +115,7 @@ module PSFModels
 
 using CoordinateTransformations
 using Distances
+using KeywordCalls
 using SpecialFunctions
 using StaticArrays
 
