@@ -55,7 +55,7 @@ function test_model_interface(K)
     @test m[0, 0] isa BigFloat
 end
 
-@testset "Model Interface - $K" for K in (Gaussian,)# AiryDisk, Moffat)
+@testset "Model Interface - $K" for K in (Gaussian, AiryDisk)#, Moffat)
     test_model_interface(K)
 end
 
@@ -74,24 +74,24 @@ end
 end
 
 
-# @testset "AiryDisk" begin
-#     m = AiryDisk(10)
-#     radius = m.fwhm * 1.18677
-#     # first radius is 0
-#     @test m(radius, 0) ≈ 0 atol=eps(Float64)
-#     @test m(-radius, 0) ≈ 0 atol=eps(Float64)
-#     @test m(0, radius) ≈ 0 atol=eps(Float64)
-#     @test m(0, -radius) ≈ 0 atol=eps(Float64)
+@testset "AiryDisk" begin
+    m = AiryDisk(fwhm=10)
+    radius = m.fwhm * 1.18677
+    # first radius is 0
+    @test m(radius, 0) ≈ 0 atol=eps(Float64)
+    @test m(-radius, 0) ≈ 0 atol=eps(Float64)
+    @test m(0, radius) ≈ 0 atol=eps(Float64)
+    @test m(0, -radius) ≈ 0 atol=eps(Float64)
 
-#     m = AiryDisk((10, 9))
-#     r1 = m.fwhm[1] * 1.18677
-#     r2 = m.fwhm[2] * 1.18677
-#     # first radius is 0
-#     @test m(r1, 0) ≈ 0 atol=eps(Float64)
-#     @test m(-r1, 0) ≈ 0 atol=eps(Float64)
-#     @test m(0, r2) ≈ 0 atol=eps(Float64)
-#     @test m(0, -r2) ≈ 0 atol=eps(Float64)
-# end
+    m = AiryDisk(fwhm=(10, 9))
+    r1 = m.fwhm[1] * 1.18677
+    r2 = m.fwhm[2] * 1.18677
+    # first radius is 0
+    @test m(r1, 0) ≈ 0 atol=eps(Float64)
+    @test m(-r1, 0) ≈ 0 atol=eps(Float64)
+    @test m(0, r2) ≈ 0 atol=eps(Float64)
+    @test m(0, -r2) ≈ 0 atol=eps(Float64)
+end
 
 # @testset "Moffat" begin
 #     m = Moffat(10)

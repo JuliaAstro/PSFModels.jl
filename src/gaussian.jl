@@ -36,7 +36,6 @@ const Normal = Gaussian
 ## constructors
 # default type is Float64
 Gaussian(; kwargs...) = Gaussian(Float64; kwargs...)
-# parse indices from maxsize
 function Gaussian(T; fwhm, amp=one(T), maxsize=3, extent = maxsize .* fwhm, position...)
     # get the position from keyword distpatch
     pos = _position(; position...)

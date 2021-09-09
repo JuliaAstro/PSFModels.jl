@@ -25,25 +25,24 @@ q ≈ π * r / (0.973 * FWHM)
 ```
 """
 struct AiryDisk{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
-    pos::VT
     fwhm::FT
+    pos::VT
+    amp::T
     indices::IT
 
-    AiryDisk{T}(pos::VT, fwhm::FT, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple} = new{T,FT,VT,IT}(pos, fwhm, indices)
+    function AiryDisk(::Type{T}, fwhm::FT, pos::VT, amp::T, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple}
+        new{T,FT,VT,IT}(fwhm, pos, amp, indices)
+    end
 end
 
 ## constructors
 # default type is Float64
-AiryDisk(args...; kwargs...) = AiryDisk{Float64}(args...; kwargs...)
-# parse indices from maxsize
-AiryDisk{T}(pos::AbstractVector, fwhm; maxsize=3) where {T} = AiryDisk{T}(pos, fwhm, indices_from_extent(pos, fwhm, maxsize))
-# default position is [0, 0]
-AiryDisk{T}(fwhm; kwargs...) where {T} = AiryDisk{T}(SA[0, 0], fwhm; kwargs...)
-# # parse position to vector
-AiryDisk{T}(x::Number, y::Number, fwhm; kwargs...) where {T} = AiryDisk{T}(SA[x, y], fwhm; kwargs...)
-AiryDisk{T}(xy::Tuple, fwhm; kwargs...) where {T} = AiryDisk{T}(SVector(xy), fwhm; kwargs...)
-# # translate polar coordinates to cartesian, optionally recentering
-AiryDisk{T}(p::Polar, fwhm; origin=SA[0, 0], kwargs...) where {T} = AiryDisk(CartesianFromPolar()(p) .+ origin, fwhm; kwargs...)
+AiryDisk(; kwargs...) = AiryDisk(Float64; kwargs...)
+function AiryDisk(T; fwhm, amp=one(T), maxsize=3, extent = maxsize .* fwhm, position...)
+    # get the position from keyword distpatch
+    pos = _position(; position...)
+    return AiryDisk(T, fwhm, pos, convert(T, amp), indices_from_extent(pos, extent))
+end
 
 Base.size(a::AiryDisk) = map(length, a.indices)
 Base.axes(a::AiryDisk) = a.indices
@@ -54,13 +53,13 @@ function (a::AiryDisk{T})(point::AbstractVector) where T
     radius = a.fwhm * 1.18677
     Δ = euclidean(point, a.pos)
     r = Δ / (radius / rz)
-    val = ifelse(iszero(r), one(T), (2 * besselj1(π * r) / (π * r))^2)
+    val = ifelse(iszero(r), a.amp, a.amp * (2 * besselj1(π * r) / (π * r))^2)
     return convert(T, val)
 end
 
 function (a::AiryDisk{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
     weights = SA[(rz / (first(a.fwhm) * 1.18677))^2, (rz / (last(a.fwhm) * 1.18677))^2]
     r = weuclidean(point, a.pos, weights)
-    val = ifelse(iszero(r), one(T), (2 * besselj1(π * r) / (π * r))^2)
+    val = ifelse(iszero(r), a.amp, a.amp * (2 * besselj1(π * r) / (π * r))^2)
     return convert(T, val)
 end
