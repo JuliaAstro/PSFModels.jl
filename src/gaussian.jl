@@ -1,12 +1,12 @@
 
 @doc raw"""
-PSFModels.Gaussian([T=Float64]; fwhm, x=0, y=0, amp=1, maxsize=3, extent=maxsize .* fwhm)
-PSFModels.Gaussian([T=Float64]; fwhm, pos=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
-PSFModels.Gaussian([T=Float64]; fwhm, r=0, theta=0, origin=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.Gaussian([T=Float64]; fwhm, x=0, y=0, amp=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.Gaussian([T=Float64]; fwhm, pos=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.Gaussian([T=Float64]; fwhm, r=0, theta=0, origin=(0, 0), amp=1, maxsize=3, extent=maxsize .* fwhm)
 
 An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`.
 
-The `fwhm` can be a scalar (isotropic), vector/tuple (diagonal), or a matrix (correlated). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
+The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
 
 # Functional form
 ```
@@ -40,7 +40,7 @@ Gaussian(; kwargs...) = Gaussian(Float64; kwargs...)
 function Gaussian(T; fwhm, amp=one(T), maxsize=3, extent = maxsize .* fwhm, position...)
     # get the position from keyword distpatch
     pos = _position(; position...)
-return Gaussian(fwhm, pos, convert(T, amp), indices_from_extent(pos, extent))
+    return Gaussian(fwhm, pos, convert(T, amp), indices_from_extent(pos, extent))
 end
 
 Base.size(g::Gaussian) = map(length, g.indices)
