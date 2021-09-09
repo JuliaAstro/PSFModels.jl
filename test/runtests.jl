@@ -55,7 +55,7 @@ function test_model_interface(K)
     @test m[0, 0] isa BigFloat
 end
 
-@testset "Model Interface - $K" for K in (Gaussian, AiryDisk)#, Moffat)
+@testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
     test_model_interface(K)
 end
 
@@ -93,13 +93,13 @@ end
     @test m(0, -r2) ≈ 0 atol=eps(Float64)
 end
 
-# @testset "Moffat" begin
-#     m = Moffat(10)
-#     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
-#     @test m[2, 1] ≈ m(1, 2) ≈ expected
+@testset "Moffat" begin
+    m = Moffat(fwhm=10)
+    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 
-#     m = Moffat((10, 9))
-#     wdist = (1/5)^2 + (2/4.5)^2
-#     expected = inv(1 + wdist)
-#     @test m[2, 1] ≈ m(1, 2) ≈ expected
-# end
+    m = Moffat(fwhm=(10, 9))
+    wdist = (1/5)^2 + (2/4.5)^2
+    expected = inv(1 + wdist)
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
+end

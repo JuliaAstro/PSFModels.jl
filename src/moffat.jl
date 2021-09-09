@@ -19,25 +19,25 @@ f(x | x̂, FWHM) = 1 / [1 + ||x - x̂|| / (FWHM / 2)^2]
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a vector or tuple, the weighting is applied along each axis.
 """
 struct Moffat{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
-    pos::VT
     fwhm::FT
+    pos::VT
+    amp::T
     indices::IT
 
-    Moffat{T}(pos::VT, fwhm::FT, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple} = new{T,FT,VT,IT}(pos, fwhm, indices)
+    function Moffat(::Type{T}, fwhm::FT, pos::VT, amp::T, indices::IT) where {T,FT,VT<:AbstractVector,IT<:Tuple}
+        new{T,FT,VT,IT}(fwhm, pos, amp, indices)
+    end
 end
 
 ## constructors
 # default type is Float64
-Moffat(args...; kwargs...) = Moffat{Float64}(args...; kwargs...)
-# parse indices from maxsize
-Moffat{T}(pos::AbstractVector, fwhm; maxsize=3) where {T} = Moffat{T}(pos, fwhm, indices_from_extent(pos, fwhm, maxsize))
-# default position is [0, 0]
-Moffat{T}(fwhm; kwargs...) where {T} = Moffat{T}(SA[0, 0], fwhm; kwargs...)
-# # parse position to vector
-Moffat{T}(x::Number, y::Number, fwhm; kwargs...) where {T} = Moffat{T}(SA[x, y], fwhm; kwargs...)
-Moffat{T}(xy::Tuple, fwhm; kwargs...) where {T} = Moffat{T}(SVector(xy), fwhm; kwargs...)
-# # translate polar coordinates to cartesian, optionally recentering
-Moffat{T}(p::Polar, fwhm; origin=SA[0, 0], kwargs...) where {T} = Moffat(CartesianFromPolar()(p) .+ origin, fwhm; kwargs...)
+Moffat(; kwargs...) = Moffat(Float64; kwargs...)
+function Moffat(T; fwhm, amp=one(T), maxsize=3, extent = maxsize .* fwhm, position...)
+    # get the position from keyword distpatch
+    pos = _position(; position...)
+    return Moffat(T, fwhm, pos, convert(T, amp), indices_from_extent(pos, extent))
+end
+
 
 Base.size(m::Moffat) = map(length, m.indices)
 Base.axes(m::Moffat) = m.indices
@@ -46,7 +46,7 @@ Base.axes(m::Moffat) = m.indices
 function (m::Moffat{T})(point::AbstractVector) where T
     hwhm = m.fwhm / 2
     Δ = sqeuclidean(point, m.pos)
-    val = inv(1 + Δ / hwhm^2)
+    val = m.amp * inv(1 + Δ / hwhm^2)
     return convert(T, val)
 end
 
@@ -54,6 +54,6 @@ end
 function (m::Moffat{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
     weights = SA[(2 / first(m.fwhm))^2, (2 / last(m.fwhm))^2]
     Δ = wsqeuclidean(point, m.pos, weights)
-    val = inv(1 + Δ)
+    val = m.amp * inv(1 + Δ)
     return convert(T, val)
 end
