@@ -20,7 +20,7 @@ PSFModels.Normal
 ```
 
 ```@example plots
-model = Gaussian(10)
+model = Gaussian(fwhm=10)
 plot(model; title="Gaussian(fwhm=10)")
 ```
 
@@ -31,7 +31,7 @@ PSFModels.AiryDisk
 ```
 
 ```@example plots
-model = AiryDisk(10)
+model = AiryDisk(fwhm=10)
 plot(model; title="AiryDisk(fwhm=10)")
 ```
 
@@ -42,6 +42,6 @@ PSFModels.Moffat
 ```
 
 ```@example plots
-model = Moffat(10)
+model = Moffat(fwhm=10)
 plot(model; title="Moffat(fwhm=10)")
 ```

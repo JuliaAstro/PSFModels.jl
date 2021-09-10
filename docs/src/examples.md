@@ -32,7 +32,7 @@ function model(X::AbstractVector{T}) where T
     position = @view X[1:2] # x, y position
     fwhm     = @view X[3:4] # fwhm_x, fwhm_y
     amp      =       X[5]   # amplitude
-    return amp * Gaussian{T}(position, fwhm)
+    return Gaussian(T, pos=position, fwhm=fwhm, amp=amp)
 end
 
 # objective function
@@ -41,13 +41,13 @@ function loss(X::AbstractVector{T}, target) where T
     all(>(0), X) || return T(Inf)
     # get generative model
     m = model(X)
-    # l2-distance loss (χ² loss) (LossFunctions.jl)
+    # l2-distance loss (χ² loss) (LossFunctions.jl) without cutting out
     stamp = @view m[axes(target)...]
     return value(L2DistLoss(), target, stamp, AggMode.Sum())
 end
 
 # params are [x, y, fwhm_x, fwhm_y, amp]
-test_params = Float32[20, 20, 5, 5, 1]
+test_params = eltype(psf)[20, 20, 5, 5, 1]
 loss(test_params, psf)
 ```
 
@@ -79,7 +79,7 @@ synth_psf = model(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),
-    plot(synth_psf, axes(psf); title="Model"),
+    plot(synth_psf, reverse(axes(psf)); title="Model"),
     cbar=false,
     ticks=false,
     layout=2,
