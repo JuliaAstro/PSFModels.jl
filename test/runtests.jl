@@ -102,4 +102,9 @@ end
     wdist = (1/5)^2 + (2/4.5)^2
     expected = inv(1 + wdist)
     @test m[2, 1] ≈ m(1, 2) ≈ expected
+
+    # different alpha
+    m = Moffat(fwhm=10, alpha=2)
+    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)^2
+    @test m[2, 1] ≈ m(1, 2) ≈ expected
 end
