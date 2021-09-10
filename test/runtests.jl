@@ -36,10 +36,10 @@ function test_model_interface(K)
     @test eltype(m) == Float64
 
     # test polar position
-    m = K(r=12, theta=0, fwhm=10)
-    @test m == K(ρ=12, θ=0, fwhm=10)
+    m = K(r=2, theta=90, fwhm=10)
+    @test m == K(ρ=2, θ=90, fwhm=10)
     @test size(m) == (31, 31)
-    @test m.pos ≈ SA[12, 0]
+    @test m.pos ≈ SA[0, 2]
 
     # test diagonal fwhm
     m = K(fwhm=(10, 9))
