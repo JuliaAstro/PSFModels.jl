@@ -29,8 +29,8 @@ abstract type PSFModel{T} <: AbstractMatrix{T} end
 # getindex just calls model with reversed indices
 Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
 # always inbounds
-Base.checkbounds(::Type{Bool}, ::PSFModel, idx) = true
-Base.checkbounds(::Type{Bool}, ::PSFModel, idx...) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, inds...) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, inds::CartesianIndex) = true
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
 Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = axes(other)
@@ -56,8 +56,8 @@ _position(nt::NamedTuple{()}) = SA[0, 0]
 ]
 
 function indices_from_extent(pos, extent)
-    halfextent = @. 0.5 * extent
-    lower = @. round(Int, pos - halfextent)
-    upper = @. round(Int, pos + halfextent)
+    half_extent = @. 0.5 * extent
+    lower = @. floor(Int, pos - half_extent)
+    upper = @. ceil(Int, pos + half_extent)
     return last(lower):last(upper), first(lower):first(upper)
 end
