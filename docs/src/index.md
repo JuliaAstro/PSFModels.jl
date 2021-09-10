@@ -69,16 +69,16 @@ $ julia --project=bench bench/bench.jl
 **System Information**
 
 ```
-Julia Version 1.5.0
-Commit 96786e22cc (2020-08-01 23:44 UTC)
+Julia Version 1.6.0
+Commit f9720dc2eb* (2021-03-24 12:55 UTC)
 Platform Info:
-  OS: macOS (x86_64-apple-darwin18.7.0)
+  OS: macOS (x86_64-apple-darwin20.3.0)
   CPU: Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-9.0.1 (ORCJIT, skylake)
+  LLVM: libLLVM-11.0.1 (ORCJIT, skylake)
 Environment:
-  JULIA_NUM_THREADS = 4
+  JULIA_NUM_THREADS = 1
 ```
 
 ```@setup bench

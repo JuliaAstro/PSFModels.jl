@@ -12,9 +12,9 @@ apm = pyimport("astropy.modeling.models")
 
 
 julia_models = [
-    Gaussian((5.3, 4.7)), 
-    AiryDisk(12.7), 
-    Moffat(8.1)
+    Gaussian(fwhm=(5.3, 4.7)), 
+    AiryDisk(fwhm=12.7), 
+    Moffat(fwhm=8.1)
 ]
 astropy_models = [
     apm.Gaussian2D(x_stddev=5.3, y_stddev=4.7),
