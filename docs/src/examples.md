@@ -29,10 +29,11 @@ using LossFunctions
 
 # generative model
 function model(X::AbstractVector{T}) where T
-    position = @view X[1:2] # x, y position
-    fwhm     = @view X[3:4] # fwhm_x, fwhm_y
-    amp      =       X[5]   # amplitude
-    return Gaussian(T, pos=position, fwhm=fwhm, amp=amp)
+    x    =       X[1]   # position
+    y    =       X[2]
+    fwhm = @view X[3:4] # fwhm_x, fwhm_y
+    amp  =       X[5]   # amplitude
+    return Gaussian(T; x, y, fwhm, amp)
 end
 
 # objective function
