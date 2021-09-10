@@ -29,7 +29,7 @@ function test_model_interface(K)
 
     # test new position
     m = K(x=12, y=13, fwhm=10)
-    @test m == K(pos=(12, 13), fwhm=10) == K(pos=SA[12, 13], fwhm=10)
+    @test m == K(pos=(12, 13), fwhm=10) == K(pos=SA[12, 13], fwhm=10) == K(pos=[12, 13], fwhm=10)
     @test size(m) == (31, 31)
     @test axes(m) == (-2:28, -3:27)
     @test m.pos ≈ SA[12, 13]

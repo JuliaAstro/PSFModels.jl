@@ -42,7 +42,10 @@ function _position(nt::NamedTuple{(:r, :theta)})
     th_rad = deg2rad(nt.theta)
     return CartesianFromPolar()(Polar(nt.r, th_rad))
 end
-_position(nt::NamedTuple{(:pos,)}) = SVector(nt.pos)
+_position(nt::NamedTuple{(:pos,)}) = _position(nt.pos)
+_position(pos::AbstractVector) = SVector{length(pos)}(pos)
+_position(pos::SVector) = pos
+_position(pos::Tuple) = SVector(pos)
 _position(nt::NamedTuple{(:x, :y)}) = SA[nt.x, nt.y]
 _position(nt::NamedTuple{()}) = SA[0, 0]
 
