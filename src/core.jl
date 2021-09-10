@@ -29,11 +29,12 @@ abstract type PSFModel{T} <: AbstractMatrix{T} end
 # getindex just calls model with reversed indices
 Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
 # always inbounds
-Base.checkbounds(::Type{Bool}, ::PSFModel, idx::Vararg{Int,2}) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, idx) = true
+Base.checkbounds(::Type{Bool}, ::PSFModel, idx...) = true
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
-Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = axes(other)#map(intersect, axes(other), axes(psf))
-Broadcast.combine_axes(other::AbstractMatrix, psf::PSFModel) = map(intersect, axes(other), axes(psf))
+Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = axes(other)
+Broadcast.combine_axes(other::AbstractMatrix, psf::PSFModel) = axes(other)
 
 ## get the position depending on the keyword inputs
 function _position(nt::NamedTuple{(:r, :theta)})

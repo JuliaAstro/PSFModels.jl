@@ -21,8 +21,8 @@ function test_model_interface(K)
     
     # broadcasting to an array that's smaller
     @test m .* ones(10, 10) ≈ ones(10, 10) .* m ≈ m[1:10, 1:10]
-    # broadcasting to a larger array cuts out a stamp
-    @test m .* ones(30, 30) ≈ ones(30, 30) .* m ≈ m[1:15, 1:15]
+    # broadcasting to a larger array
+    @test m .* ones(30, 30) ≈ ones(30, 30) .* m ≈ m[1:30, 1:30]
 
     # test new position
     m = K(x=12, y=13, fwhm=10)
