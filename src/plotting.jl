@@ -3,12 +3,12 @@ using RecipesBase
 @recipe function f(model::PSFModel, inds...)
     seriestype := :heatmap
     aspect_ratio --> 1
-    xlims --> extrema(first(inds))
-    ylims --> extrema(last(inds))
+    xlims --> extrema(last(inds))
+    ylims --> extrema(first(inds))
 
-    arr = model[reverse(inds)...]
+    arr = model[inds...]
 
-    return inds..., arr
+    return reverse(inds)..., arr
 end
 
-@recipe f(model::PSFModel, inds=reverse(axes(model))) = model, inds...
+@recipe f(model::PSFModel, inds=axes(model)) = model, inds...

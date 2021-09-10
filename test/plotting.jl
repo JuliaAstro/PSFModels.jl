@@ -6,11 +6,11 @@ using RecipesBase: apply_recipe
     for rec in recipes
         @test rec.args[1] === psf
         ys, xs = axes(psf)
-        @test rec.args[2] == xs
-        @test rec.args[3] == ys
+        @test rec.args[2] == ys
+        @test rec.args[3] == xs
     end
 
-    recipes_full = apply_recipe(Dict{Symbol,Any}(), psf, reverse(axes(psf))...)
+    recipes_full = apply_recipe(Dict{Symbol,Any}(), psf, axes(psf)...)
     for rec in recipes_full
         @test rec.plotattributes == Dict{Symbol,Any}(
             :seriestype => :heatmap,
