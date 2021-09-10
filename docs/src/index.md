@@ -87,6 +87,8 @@ Environment:
   JULIA_NUM_THREADS = 1
 ```
 
+---
+
 ### Evaluation benchmark
 
 This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000x1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
@@ -97,7 +99,6 @@ using StatsPlots
 benchdir(args...) = joinpath("..", ".." ,"bench", args...);
 ```
 
----
 
 ```@example bench
 table = CSV.File(benchdir("results.csv")) |> DataFrame
