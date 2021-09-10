@@ -27,5 +27,6 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/JuliaAstro/PSFModels.jl",
-    push_preview=true
+    push_preview=true,
+    devbranch="main"
 )
