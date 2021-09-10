@@ -27,7 +27,7 @@ end
 
 # Alias Normal -> Gaussian
 """
-PSFModels.Normal
+    PSFModels.Normal
 
 An alias for [`PSFModels.Gaussian`](@ref)
 """

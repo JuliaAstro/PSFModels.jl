@@ -19,9 +19,6 @@ browsing through the implementation of [`PSFModels.Gaussian`](@ref) should give 
 """
 abstract type PSFModel{T} <: AbstractMatrix{T} end
 
-# always inbounds
-Base.checkbounds(::Type{Bool}, ::PSFModel, idx...) = true
-Base.checkbounds(::Type{Bool}, ::PSFModel, idx::CartesianIndex) = true
 
 # in general, parse to static vector
 (model::PSFModel)(point...) = model(SVector(point))
@@ -31,10 +28,12 @@ Base.checkbounds(::Type{Bool}, ::PSFModel, idx::CartesianIndex) = true
 
 # getindex just calls model with reversed indices
 Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
+# always inbounds
+Base.checkbounds(::Type{Bool}, ::PSFModel, idx::Vararg{Int,2}) = true
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
-Broadcast.combine_axes(::PSFModel, other) = axes(other)
-Broadcast.combine_axes(other, ::PSFModel) = axes(other)
+Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = map(intersect, axes(other), axes(psf))
+Broadcast.combine_axes(other::AbstractMatrix, psf::PSFModel) = map(intersect, axes(other), axes(psf))
 
 ## get the position depending on the keyword inputs
 _position(nt::NamedTuple{(:x, :y)}) = SA[nt.x, nt.y]
@@ -43,7 +42,7 @@ function _position(nt::NamedTuple{(:r, :theta, :origin)})
     # note: theta is in degrees
     th_rad = deg2rad(nt.theta)
     xy = CartesianFromPolar()(Polar(nt.r, th_rad))
-    return xy + nt.origin
+    return xy .+ nt.origin
 end
 
 @kwcall _position(x=0, y=0)
@@ -56,7 +55,7 @@ end
 ]
 
 function indices_from_extent(pos, extent)
-    halfextent = @. extent / 2
+    halfextent = @. 0.5 * extent
     lower = @. round(Int, pos - halfextent)
     upper = @. round(Int, pos + halfextent)
     return last(lower):last(upper), first(lower):first(upper)
