@@ -55,8 +55,6 @@ end
     θ => theta
 ]
 
-indices_from_extent(pos, fwhm, maxsize) = indices_from_extent(pos, maxsize .* fwhm)
-
 function indices_from_extent(pos, extent)
     halfextent = @. extent / 2
     lower = @. round(Int, pos - halfextent)
