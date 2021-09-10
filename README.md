@@ -81,10 +81,6 @@ m([1.2, 0.4])
 It is important to recognize the difference in the order of the dimensions between indexing and calling. Indexing is reverse of the cartesian order, which is the natural way of indexing a multi-dimensional array. If you try calling a model as a function with an index, an error will be thrown.
 
 ```julia
-# scalar multiplication or division will create a ScaledPSFModel
-20 * m # or `m * 20`
-m / 20
-
 # evaluate `m` over its indices forming an array
 collect(m)
 
@@ -97,6 +93,5 @@ m .* arr
 inds = map(intersect, axes(arr), axes(m))
 arr_stamp = @view arr[inds...]
 m_stamp = @view m[inds...]
-amp = 1.24
 resid = sum(abs2, arr_stamp .- amp .* m_stamp) # chi-square loss
 ```
