@@ -80,7 +80,7 @@ synth_psf = model(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),
-    plot(synth_psf, reverse(axes(psf)); title="Model"),
+    plot(synth_psf, axes(psf); title="Model"),
     cbar=false,
     ticks=false,
     layout=2,

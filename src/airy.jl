@@ -15,7 +15,7 @@ The Airy disk is a distribution over the radius `r` (the square-Euclidean distan
 ```
 f(x | x̂, FWHM) = [ 2J₁(q) / q ]^2
 ```
-where `J₁` is the first order Bessel function of the first kind and
+where `J₁` is the first-order Bessel function of the first kind and
 ```
 q ≈ π * r / (0.973 * FWHM)
 ```
