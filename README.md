@@ -37,7 +37,7 @@ None of the models are exported to avoid namespace clashes, but it can be verbos
 ```julia
 julia> using PSFModels: Gaussian
 
-julia> model = Gaussian(8)
+julia> model = Gaussian(fwhm=8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -49,7 +49,7 @@ const M = PSFModels
 # julia version 1.6 or above
 import PSFModels as M
 
-model = M.Gaussian(10)
+model = M.Gaussian(fwhm=10)
 ```
 
 ## Usage
@@ -59,14 +59,14 @@ For more in-depth usage and examples, please see the [documentation](https://jul
 ```julia
 using PSFModels
 
-m = PSFModels.Gaussian(8)           # bivariate gaussian with a FWHM of 8 pixels
-m = PSFModels.Gaussian((7.4, 8.2))  # specify FWHM for each axis
-m = PSFModels.Gaussian([1 0; 0 1])  # specify FWHM as a correlated matrix
+m = PSFModels.Gaussian(fwhm=8)           # bivariate gaussian with a FWHM of 8 pixels
+m = PSFModels.Gaussian(fwhm=(7.4, 8.2))  # specify FWHM for each axis
 
-m = PSFModels.Gaussian(12, 25, 8.2) # specifiy location in pixel coordinates
-m = PSFModels.Gaussian([12, 25], 8.2)
+m = PSFModels.Gaussian(x=12, y=25, fwhm=8.2) # specifiy location in pixel coordinates
+m = PSFModels.Gaussian(pos=[12, 25], fwhm=8.2)
+m = PSFModels.Gaussian(r=5, theta=30, fwhm=8.2) # polar coordinates
 
-mf0 = PSFModels.Gaussian{Float32}(8.2) # output guaranteed to be Float32
+mf0 = PSFModels.Gaussian(Float32, fwhm=8.2) # output guaranteed to be Float32
 ```
 
 ```julia
