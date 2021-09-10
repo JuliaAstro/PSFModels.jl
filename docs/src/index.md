@@ -57,13 +57,19 @@ PSFModels
 The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/main/bench) folder. To run them, first install the python dependencies
 
 ```
-$ pip install -r bench/requirements.txt
+$ cd bench
+$ poetry install
+$ poetry shell
+```
+then get the Julia project set up
+```
+$ PYTHON=$(which python) julia --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.build("PyCall")'
 ```
 
 Then run the benchmark
 
 ```
-$ julia --project=bench bench/bench.jl
+$ julia --project=. bench.jl
 ```
 
 **System Information**
@@ -80,6 +86,10 @@ Platform Info:
 Environment:
   JULIA_NUM_THREADS = 1
 ```
+
+### Evaluation benchmark
+
+This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000x1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
 
 ```@setup bench
 using CSV, DataFrames
