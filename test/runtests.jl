@@ -13,12 +13,16 @@ function test_model_interface(K)
 
     @test m[0, 0] ≈ m(0, 0) ≈ m(SA[0, 0]) ≈ 1
     @test_throws ErrorException m(CartesianIndex(0, 0))
+    # out of bounds but it's cool
     @test m[-100, -10] ≈ m(-10, -100)
     @test m(1.0, 1.0) ≈ m[1, 1]
     @test maximum(m) ≈ 1
     @test 0 ≤ minimum(m) ≤ 1
     
-    @test m .* ones(10, 10) ≈ m[1:10, 1:10]
+    # broadcasting to an array that's smaller
+    @test m .* ones(10, 10) ≈ ones(10, 10) .* m ≈ m[1:10, 1:10]
+    # broadcasting to a larger array cuts out a stamp
+    @test m .* ones(30, 30) ≈ ones(30, 30) .* m ≈ m[1:15, 1:15]
 
     # test new position
     m = K(x=12, y=13, fwhm=10)
@@ -27,6 +31,16 @@ function test_model_interface(K)
     @test axes(m) == (-2:28, -3:27)
     @test m.pos ≈ SA[12, 13]
     @test eltype(m) == Float64
+
+    # test polar position
+    m = K(r=12, theta=0, fwhm=10)
+    @test m == K(ρ=12, θ=0, fwhm=10)
+    @test size(m) == (31, 31)
+    @test m.pos ≈ SA[12, 0]
+    # polar with diff origin
+    m = K(r=6, theta=0, origin=(6, 6), fwhm=10)
+    @test m == K(ρ=6, θ=0, origin=(6, 6), fwhm=10)
+    @test m.pos ≈ SA[12, 6]
 
     # test diagonal fwhm
     m = K(fwhm=(10, 9))
@@ -52,7 +66,7 @@ function test_model_interface(K)
     # test different type
     m = K(BigFloat, fwhm=10)
     @test eltype(m) == BigFloat
-    @test m[0, 0] isa BigFloat
+    @test m(m.pos) ≈ BigFloat(1)
 end
 
 @testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
@@ -108,3 +122,5 @@ end
     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)^2
     @test m[2, 1] ≈ m(1, 2) ≈ expected
 end
+
+include("plotting.jl")
