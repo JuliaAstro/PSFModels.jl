@@ -37,10 +37,6 @@ function test_model_interface(K)
     @test m == K(ρ=12, θ=0, fwhm=10)
     @test size(m) == (31, 31)
     @test m.pos ≈ SA[12, 0]
-    # polar with diff origin
-    m = K(r=6, theta=0, origin=(6, 6), fwhm=10)
-    @test m == K(ρ=6, θ=0, origin=(6, 6), fwhm=10)
-    @test m.pos ≈ SA[12, 6]
 
     # test diagonal fwhm
     m = K(fwhm=(10, 9))

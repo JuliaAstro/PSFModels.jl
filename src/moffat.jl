@@ -1,8 +1,8 @@
 
 @doc raw"""
     PSFModels.Moffat([T=Float64]; fwhm, x=0, y=0, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.Moffat([T=Float64]; fwhm, pos=(0, 0), amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.Moffat([T=Float64]; fwhm, r=0, theta=0, origin=(0, 0), amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.Moffat([T=Float64]; fwhm, pos, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
+    PSFModels.Moffat([T=Float64]; fwhm, r, theta, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
 
 Two dimensional Moffat model. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`, optionally centered around `origin`.
 

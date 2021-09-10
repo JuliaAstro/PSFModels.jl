@@ -32,23 +32,23 @@ Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
 Base.checkbounds(::Type{Bool}, ::PSFModel, idx::Vararg{Int,2}) = true
 
 # broadcasting hack to slurp other axes (doesn't work for numbers)
-Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = map(intersect, axes(other), axes(psf))
+Broadcast.combine_axes(psf::PSFModel, other::AbstractMatrix) = axes(other)#map(intersect, axes(other), axes(psf))
 Broadcast.combine_axes(other::AbstractMatrix, psf::PSFModel) = map(intersect, axes(other), axes(psf))
 
 ## get the position depending on the keyword inputs
-_position(nt::NamedTuple{(:x, :y)}) = SA[nt.x, nt.y]
-_position(nt::NamedTuple{(:pos,)}) = SVector(nt.pos)
-function _position(nt::NamedTuple{(:r, :theta, :origin)})
+function _position(nt::NamedTuple{(:r, :theta)})
     # note: theta is in degrees
     th_rad = deg2rad(nt.theta)
-    xy = CartesianFromPolar()(Polar(nt.r, th_rad))
-    return xy .+ nt.origin
+    return CartesianFromPolar()(Polar(nt.r, th_rad))
 end
+_position(nt::NamedTuple{(:pos,)}) = SVector(nt.pos)
+_position(nt::NamedTuple{(:x, :y)}) = SA[nt.x, nt.y]
+_position(nt::NamedTuple{()}) = SA[0, 0]
 
-@kwcall _position(x=0, y=0)
+@kwcall _position(r, theta)
 @kwcall _position(pos)
+@kwcall _position(x=0, y=0)
 # theta is in degrees
-@kwcall _position(r=0, theta=0, origin=SA[0, 0])
 @kwalias _position [
     ρ => r,
     θ => theta
