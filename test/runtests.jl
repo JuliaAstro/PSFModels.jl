@@ -5,13 +5,16 @@ using Test
 
 function test_model_interface(K)
     # test defaults
-    m = K(fwhm=10)
+    m = @inferred K(fwhm=10)
     @test size(m) == (31, 31)
     @test axes(m) == (-15:15, -15:15)
     @test m.pos ≈ SA[0, 0]
     @test eltype(m) == Float64
 
-    @test m[0, 0] ≈ m(0, 0) ≈ m(SA[0, 0]) ≈ 1
+    val_idx = @inferred m[0, 0]
+    val_call = @inferred m(0, 0)
+    val_tup = @inferred m(SA[0, 0])
+    @test val_idx ≈ val_call ≈ val_tup ≈ 1
     @test_throws ErrorException m(CartesianIndex(0, 0))
     # out of bounds but it's cool
     @test m[-100, -10] ≈ m(-10, -100)
