@@ -43,6 +43,9 @@ end
 Base.size(a::AiryDisk) = map(length, a.indices)
 Base.axes(a::AiryDisk) = a.indices
 
+# short printing
+Base.show(io::IO, a::AiryDisk{T}) where {T} = print(io, "AiryDisk{$T}(pos=$(a.pos), fwhm=$(a.fwhm), amp=$(a.amp))")
+
 const rz = 3.8317059702075125 / π
 
 function (a::AiryDisk{T})(point::AbstractVector) where T

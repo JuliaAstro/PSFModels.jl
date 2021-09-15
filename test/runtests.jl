@@ -82,11 +82,13 @@ end
     m = Gaussian(fwhm=10)
     expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
     @test m[2, 1] ≈ m(1, 2) ≈ expected
-
+    @test repr(m) == "Gaussian{Float64}(pos=[0, 0], fwhm=10, amp=1.0)"
+    
     m = Gaussian(fwhm=(10, 9))
     wdist = (1/10)^2 + (2/9)^2
     expected = exp(-4 * log(2) * wdist)
     @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @test repr(m) == "Gaussian{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0)"
 
     # test Normal alias
     @test Normal(fwhm=10) === Gaussian(fwhm=10)
@@ -101,6 +103,7 @@ end
     @test m(-radius, 0) ≈ 0 atol=eps(Float64)
     @test m(0, radius) ≈ 0 atol=eps(Float64)
     @test m(0, -radius) ≈ 0 atol=eps(Float64)
+    @test repr(m) == "AiryDisk{Float64}(pos=[0, 0], fwhm=10, amp=1.0)"
 
     m = AiryDisk(fwhm=(10, 9))
     r1 = m.fwhm[1] * 1.18677
@@ -110,22 +113,26 @@ end
     @test m(-r1, 0) ≈ 0 atol=eps(Float64)
     @test m(0, r2) ≈ 0 atol=eps(Float64)
     @test m(0, -r2) ≈ 0 atol=eps(Float64)
+    @test repr(m) == "AiryDisk{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0)"
 end
 
 @testset "Moffat" begin
     m = Moffat(fwhm=10)
     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
     @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=10, amp=1.0, alpha=1)"
 
     m = Moffat(fwhm=(10, 9))
     wdist = (1/5)^2 + (2/4.5)^2
     expected = inv(1 + wdist)
     @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0, alpha=1)"
 
     # different alpha
     m = Moffat(fwhm=10, alpha=2)
     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)^2
     @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=10, amp=1.0, alpha=2)"
 end
 
 include("plotting.jl")
