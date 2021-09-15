@@ -7,6 +7,8 @@ using StableRNGs
 using StaticArrays
 using Test
 
+ChainRulesCore.debug_mode() = true
+
 rng = StableRNG(112358)
 
 modname(::typeof(gaussian)) = "gaussian"
