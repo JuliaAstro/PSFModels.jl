@@ -1,4 +1,7 @@
+using ChainRulesCore: ChainRulesCore, Tangent, NoTangent
+using ChainRulesTestUtils: test_frule, test_rrule, ⊢
 using Distributions
+using FiniteDifferences
 using PSFModels
 using StableRNGs
 using StaticArrays
@@ -78,6 +81,21 @@ end
 
         # test Normal alias
         @test normal(0, 0; x = 0, y = 0, fwhm = 10) === gaussian(0, 0; x = 0, y = 0, fwhm = 10)
+
+        @testset "gradients" begin
+            FiniteDifferences.to_vec(x::Integer) = Bool[], _ -> x
+            # have to make sure PSFs are all floating point so tangents don't have type issues
+            psf_iso = gaussian(fwhm = 10.0, pos = zeros(2))
+            psf_tang = Tangent{typeof(gaussian)}(fwhm = rand(rng), pos = rand(rng, 2), amp = rand(rng), indices = NoTangent())
+            point = Float64[1, 2]
+            test_frule(psf_iso ⊢ psf_tang, point)
+            test_rrule(psf_iso ⊢ psf_tang, point)
+
+            psf_diag = gaussian(fwhm = Float64[10, 8], pos = zeros(2))
+            psf_tang = Tangent{typeof(gaussian)}(fwhm = rand(rng, 2), pos = rand(rng, 2), amp = rand(rng), indices = NoTangent())
+            test_frule(psf_diag ⊢ psf_tang, point)
+            test_rrule(psf_diag ⊢ psf_tang, point)
+        end
     end
 
 
@@ -117,7 +135,6 @@ end
         @test mratio(-radius, 0) > m(-radius, 0)
         @test mratio(0, radius) > m(0, radius)
         @test mratio(0, -radius) > m(0, -radius)
-
 
         mratio = airydisk(x = 0, y = 0, fwhm = (10, 6), ratio = sqrt(0.5), amp = 4)
         r1 = fwhm[1] * 1.18677
