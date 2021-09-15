@@ -1,3 +1,5 @@
+using ChainRulesCore
+using ChainRulesTestUtils
 using PSFModels
 using PSFModels: Gaussian, Normal, AiryDisk, Moffat
 using StaticArrays
@@ -66,6 +68,10 @@ function test_model_interface(K)
     m = K(BigFloat, fwhm=10)
     @test eltype(m) == BigFloat
     @test m(m.pos) ≈ BigFloat(1)
+end
+
+function test_model_grads(K)
+
 end
 
 @testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
