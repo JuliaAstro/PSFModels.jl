@@ -97,6 +97,14 @@ end
     @testset "gradients" begin
         psf_iso = Gaussian(fwhm=10)
         psf_tang = Tangent{Gaussian}(fwhm=rand(rng), pos=rand(rng, 2), amp=rand(rng), indices=ZeroTangent())
+        point = [1, 2]
+        test_frule(psf_iso ⊢ psf_tang, point)
+        test_rrule(psf_iso ⊢ psf_tang, point)
+
+        psf_diag = Gaussian(fwhm=[10, 8])
+        psf_tang = Tangent{Gaussian}(fwhm=rand(rng, 2), pos=rand(rng, 2), amp=rand(rng), indices=ZeroTangent())
+        test_frule(psf_diag ⊢ psf_tang, point)
+        test_rrule(psf_diag ⊢ psf_tang, point)
     end
 end
 
