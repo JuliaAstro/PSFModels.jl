@@ -1,5 +1,6 @@
 using ChainRulesCore
 using ChainRulesTestUtils
+using FiniteDifferences
 using PSFModels
 using PSFModels: Gaussian, Normal, AiryDisk, Moffat
 using StableRNGs
@@ -97,15 +98,16 @@ end
     @test Normal(fwhm=10) === Gaussian(fwhm=10)
 
     @testset "gradients" begin
+        FiniteDifferences.to_vec(x::Integer) = Bool[], _ -> x
         # have to make sure PSFs are all floating point so tangents don't have type issues
         psf_iso = Gaussian(fwhm=10.0, pos=zeros(2))
-        psf_tang = Tangent{Gaussian}(fwhm=rand(rng), pos=rand(rng, 2), amp=rand(rng), indices=ZeroTangent())
+        psf_tang = Tangent{Gaussian}(fwhm=rand(rng), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
         point = Float64[1, 2]
         test_frule(psf_iso ⊢ psf_tang, point)
         test_rrule(psf_iso ⊢ psf_tang, point)
 
         psf_diag = Gaussian(fwhm=Float64[10, 8], pos=zeros(2))
-        psf_tang = Tangent{Gaussian}(fwhm=rand(rng, 2), pos=rand(rng, 2), amp=rand(rng), indices=ZeroTangent())
+        psf_tang = Tangent{Gaussian}(fwhm=rand(rng, 2), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
         test_frule(psf_diag ⊢ psf_tang, point)
         test_rrule(psf_diag ⊢ psf_tang, point)
     end

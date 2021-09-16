@@ -45,6 +45,9 @@ end
 Base.size(g::Gaussian) = map(length, g.indices)
 Base.axes(g::Gaussian) = g.indices
 
+# short printing
+Base.show(io::IO, g::Gaussian{T}) where {T} = print(io, "Gaussian{$T}(pos=$(g.pos), fwhm=$(g.fwhm), amp=$(g.amp))")
+
 # Gaussian pre-factor for normalizing the exponential
 const GAUSS_PRE = -4 * log(2)
 
@@ -76,9 +79,6 @@ function fgrad(g::Gaussian, point::AbstractVector)
     return f, dfdpos, dfdfwhm, dfdamp
 end
 
-# short printing
-Base.show(io::IO, g::Gaussian{T}) where {T} = print(io, "Gaussian{$T}(pos=$(g.pos), fwhm=$(g.fwhm), amp=$(g.amp))")
-
 # diagonal
 function fgrad(g::Gaussian{T,<:Union{Tuple,AbstractVector}}, point::AbstractVector) where T
     f = g(point)
@@ -103,7 +103,7 @@ function rrule(g::G, point::AbstractVector) where {G<:Gaussian}
     function Gaussian_pullback(Δf)
         ∂pos = dfdpos .* Δf
         ∂fwhm = dfdfwhm .* Δf
-        ∂g = Tangent{G}(pos=∂pos, fwhm=∂fwhm, amp=dfda * Δf, indices=ZeroTangent())
+        ∂g = Tangent{G}(pos=∂pos, fwhm=∂fwhm, amp=dfda * Δf, indices=NoTangent())
         ∂pos = dfdpos .* -Δf
         return ∂g, ∂pos
     end
