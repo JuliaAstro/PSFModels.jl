@@ -39,6 +39,10 @@ end
 Base.size(m::Moffat) = map(length, m.indices)
 Base.axes(m::Moffat) = m.indices
 
+# short printing
+Base.show(io::IO, m::Moffat{T}) where {T} = print(io, "Moffat{$T}(pos=$(m.pos), fwhm=$(m.fwhm), amp=$(m.amp), alpha=$(m.alpha))")
+
+
 # scalar case
 function (m::Moffat{T})(point::AbstractVector) where T
     hwhm = m.fwhm / 2

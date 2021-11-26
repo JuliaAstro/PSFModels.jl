@@ -1,7 +1,15 @@
+using ChainRulesCore
+using ChainRulesTestUtils
+using FiniteDifferences
 using PSFModels
 using PSFModels: Gaussian, Normal, AiryDisk, Moffat
+using StableRNGs
 using StaticArrays
 using Test
+
+ChainRulesCore.debug_mode() = true
+
+rng = StableRNG(122)
 
 function test_model_interface(K)
     # test defaults
@@ -68,58 +76,95 @@ function test_model_interface(K)
     @test m(m.pos) ≈ BigFloat(1)
 end
 
-@testset "Model Interface - $K" for K in (Gaussian, AiryDisk, Moffat)
-    test_model_interface(K)
-end
-
 @testset "Gaussian" begin
-    m = Gaussian(fwhm=10)
-    expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
-    @test m[2, 1] ≈ m(1, 2) ≈ expected
+    test_model_interface(Gaussian)
 
-    m = Gaussian(fwhm=(10, 9))
-    wdist = (1/10)^2 + (2/9)^2
-    expected = exp(-4 * log(2) * wdist)
-    @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @testset "isotropic" begin
+        m = Gaussian(fwhm=10)
+        expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
+        @test m[2, 1] ≈ m(1, 2) ≈ expected
+        @test repr(m) == "Gaussian{Float64}(pos=[0, 0], fwhm=10, amp=1.0)"
+    end
+    
+    @testset "diagonal" begin
+        m = Gaussian(fwhm=(10, 9))
+        wdist = (1/10)^2 + (2/9)^2
+        expected = exp(-4 * log(2) * wdist)
+        @test m[2, 1] ≈ m(1, 2) ≈ expected
+        @test repr(m) == "Gaussian{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0)"
+    end
 
     # test Normal alias
     @test Normal(fwhm=10) === Gaussian(fwhm=10)
+
+    @testset "gradients" begin
+        FiniteDifferences.to_vec(x::Integer) = Bool[], _ -> x
+        # have to make sure PSFs are all floating point so tangents don't have type issues
+        psf_iso = Gaussian(fwhm=10.0, pos=zeros(2))
+        psf_tang = Tangent{Gaussian}(fwhm=rand(rng), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
+        point = Float64[1, 2]
+        test_frule(psf_iso ⊢ psf_tang, point)
+        test_rrule(psf_iso ⊢ psf_tang, point)
+
+        psf_diag = Gaussian(fwhm=Float64[10, 8], pos=zeros(2))
+        psf_tang = Tangent{Gaussian}(fwhm=rand(rng, 2), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
+        test_frule(psf_diag ⊢ psf_tang, point)
+        test_rrule(psf_diag ⊢ psf_tang, point)
+    end
 end
 
 
 @testset "AiryDisk" begin
-    m = AiryDisk(fwhm=10)
-    radius = m.fwhm * 1.18677
-    # first radius is 0
-    @test m(radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(-radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(0, radius) ≈ 0 atol=eps(Float64)
-    @test m(0, -radius) ≈ 0 atol=eps(Float64)
+    test_model_interface(AiryDisk)
 
-    m = AiryDisk(fwhm=(10, 9))
-    r1 = m.fwhm[1] * 1.18677
-    r2 = m.fwhm[2] * 1.18677
-    # first radius is 0
-    @test m(r1, 0) ≈ 0 atol=eps(Float64)
-    @test m(-r1, 0) ≈ 0 atol=eps(Float64)
-    @test m(0, r2) ≈ 0 atol=eps(Float64)
-    @test m(0, -r2) ≈ 0 atol=eps(Float64)
+    @testset "isotropic" begin
+        m = AiryDisk(fwhm=10)
+        radius = m.fwhm * 1.18677
+        # first radius is 0
+        @test m(radius, 0) ≈ 0 atol=eps(Float64)
+        @test m(-radius, 0) ≈ 0 atol=eps(Float64)
+        @test m(0, radius) ≈ 0 atol=eps(Float64)
+        @test m(0, -radius) ≈ 0 atol=eps(Float64)
+        @test repr(m) == "AiryDisk{Float64}(pos=[0, 0], fwhm=10, amp=1.0)"
+    end
+
+    @testset "diagonal" begin
+        m = AiryDisk(fwhm=(10, 9))
+        r1 = m.fwhm[1] * 1.18677
+        r2 = m.fwhm[2] * 1.18677
+        # first radius is 0
+        @test m(r1, 0) ≈ 0 atol=eps(Float64)
+        @test m(-r1, 0) ≈ 0 atol=eps(Float64)
+        @test m(0, r2) ≈ 0 atol=eps(Float64)
+        @test m(0, -r2) ≈ 0 atol=eps(Float64)
+        @test repr(m) == "AiryDisk{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0)"
+    end
 end
 
 @testset "Moffat" begin
-    m = Moffat(fwhm=10)
-    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
-    @test m[2, 1] ≈ m(1, 2) ≈ expected
+    test_model_interface(Moffat)
 
-    m = Moffat(fwhm=(10, 9))
-    wdist = (1/5)^2 + (2/4.5)^2
-    expected = inv(1 + wdist)
-    @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @testset "isotropic" begin
+        m = Moffat(fwhm=10)
+        expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
+        @test m[2, 1] ≈ m(1, 2) ≈ expected
+        @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=10, amp=1.0, alpha=1)"
+    end
 
-    # different alpha
-    m = Moffat(fwhm=10, alpha=2)
-    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)^2
-    @test m[2, 1] ≈ m(1, 2) ≈ expected
+    @testset "diagonal" begin
+        m = Moffat(fwhm=(10, 9))
+        wdist = (1/5)^2 + (2/4.5)^2
+        expected = inv(1 + wdist)
+        @test m[2, 1] ≈ m(1, 2) ≈ expected
+        @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=(10, 9), amp=1.0, alpha=1)"
+    end
+
+    @testset "alpha" begin
+        m = Moffat(fwhm=10, alpha=2)
+        expected = inv(1 + sum(abs2, SA[1, 2]) / 25)^2
+        @test m[2, 1] ≈ m(1, 2) ≈ expected
+        @test repr(m) == "Moffat{Float64}(pos=[0, 0], fwhm=10, amp=1.0, alpha=2)"
+    end
 end
 
 include("plotting.jl")

@@ -111,9 +111,12 @@ plot(model, axes(other)) # use axes from other array
 """
 module PSFModels
 
+using ChainRulesCore
+import ChainRulesCore: frule, rrule
 using CoordinateTransformations
 using Distances
 using KeywordCalls
+using LinearAlgebra
 using SpecialFunctions
 using StaticArrays
 
