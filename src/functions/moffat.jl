@@ -28,8 +28,8 @@ end
 
 ## constructors
 # default type is Float64
-Moffat(; kwargs...) = Moffat(Float64; kwargs...)
-function Moffat(T; fwhm, amp=one(T), alpha=1, maxsize=3, extent = maxsize .* fwhm, position...)
+moffat(; kwargs...) = moffat(Float64; kwargs...)
+function moffat(;fwhm, amp=one(T), alpha=1, maxsize=3, extent = maxsize .* fwhm, position...)
     # get the position from keyword distpatch
     pos = _position(; position...)
     return Moffat(T, fwhm, pos, convert(T, amp), alpha, indices_from_extent(pos, extent))

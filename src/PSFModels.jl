@@ -110,13 +110,14 @@ module PSFModels
 using CoordinateTransformations
 using Distances
 using KeywordCalls
+using Rotations
 using SpecialFunctions
 using StaticArrays
 
 include("core.jl")
-include("gaussian.jl")
-include("moffat.jl")
-include("airy.jl")
+include("functions/gaussian.jl")
+include("functions/moffat.jl")
+include("functions/airy.jl")
 include("plotting.jl")
 
 end # module PSFModels
