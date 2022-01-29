@@ -117,7 +117,7 @@ using StaticArrays
 include("core.jl")
 include("functions/gaussian.jl")
 include("functions/airy.jl")
-# include("functions/moffat.jl")
+include("functions/moffat.jl")
 # include("plotting.jl")
 
 end # module PSFModels
