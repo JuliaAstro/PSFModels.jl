@@ -70,7 +70,7 @@ mf0 = PSFModels.Gaussian(Float32, fwhm=8.2) # output guaranteed to be Float32
 ```
 
 ```julia
-m[0, 0]      # "index" the model at [y, x]
+m[0, 0]      # "index" the model at [x, y]
 m[:, 0]
 m(0.3, 1.0)  # directly query value at (x, y)
 m([1.2, 0.4])
