@@ -32,7 +32,7 @@ function _airydisk(px, py, x, y, fwhm, amp, theta)
     # find offset from center
     dx = px - x
     dy = py - y
-    # rotate 
+    # rotate
     !iszero(theta) && @warn "isotropic airydisk is not affected by non-zero rotation angle $theta"
     # unnormalized airydisk
     r = sqrt(dx^2 + dy^2)

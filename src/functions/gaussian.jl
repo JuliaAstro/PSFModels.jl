@@ -33,7 +33,7 @@ function _gaussian(px, py, x, y, fwhm, amp, theta)
     # find offset from center
     dx = px - x
     dy = py - y
-    # rotate 
+    # rotate
     !iszero(theta) && @warn "isotropic gaussian is not affected by non-zero rotation angle $theta"
     # unnormalized gaussian likelihood
     sqmahab = dx^2 + dy^2
