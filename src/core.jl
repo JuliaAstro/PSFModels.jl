@@ -27,7 +27,7 @@ abstract type PSFModel{T} <: AbstractMatrix{T} end
 (model::PSFModel)(::CartesianIndex) = error("PSF models should be indexed using `getindex`, (equivalently `[]`)")
 
 # getindex just calls model with reversed indices
-Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(reverse(idx))
+Base.getindex(model::PSFModel, idx::Vararg{<:Integer,2}) = model(idx)
 # always inbounds
 Base.checkbounds(::Type{Bool}, ::PSFModel, inds...) = true
 Base.checkbounds(::Type{Bool}, ::PSFModel, inds::CartesianIndex) = true

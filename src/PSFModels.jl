@@ -22,16 +22,12 @@ Using the models should feel just like an array. In fact, `PSFModels.PSFModel <:
 julia> m = PSFModels.Gaussian(fwhm=3); # centered at (0, 0)
 
 
-julia> m[0, 0] # [y, x] for indexing
+julia> m[0, 0] # [x, y] for indexing
 1.0
 
 julia> m(0, 0) # (x, y) for evaluating
 1.0
 ```
-
-!!! note "axis order"
-
-    It's important to note the difference in the axis ordering between the index-style calls and the function-style calls. The index-style calls are reverse cartesian order (e.g., `(z, y, x)`), while function calls are the typical cartesian order `(x, y, z)`. Regardless, the constructors are always in cartesian order (`(x, y, z)`).
 
 Because the model is a matrix, it needs to have a size. Each model has a bounding box which can be controlled with the `extent` keyword. By default the extent is set by a scalar factor of the FWHM (e.g., `maxsize * FWHM` pixels), centered around the PSF, and rounded up. We can see how this alters the indices from a typical `Matrix`
 
@@ -53,7 +49,7 @@ julia> stamp = collect(m);
 these axes are merely a convenience for bounding the model, since they accept any real number as input.
 
 ```jldoctest model
-julia> m[100, 10000] # index-like inputs [y, x]
+julia> m[100, 10000] # index-like inputs [x, y]
 0.0
 
 julia> m(2.4, 1.7) # valid for any real (x, y)
@@ -105,7 +101,7 @@ finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/Ju
 using Plots
 model = PSFModels.Gaussian(8)
 plot(model)              # default axes
-plot(model, :, 1:5)    # custom axes (y, x)
+plot(model, 1:5, :)    # custom axes (x, y)
 plot(model, axes(other)) # use axes from other array
 ```
 """
