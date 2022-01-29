@@ -108,7 +108,6 @@ plot(model, axes(other)) # use axes from other array
 module PSFModels
 
 using CoordinateTransformations
-using Distances
 using KeywordCalls
 using Rotations
 using SpecialFunctions

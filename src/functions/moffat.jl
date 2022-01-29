@@ -34,7 +34,7 @@ function _moffat(px, py, x, y, fwhm, alpha, amp, theta)
 end
 
 # bivariate
-function _moffat(px, py, x, y, fwhm::BivariateLike, amp, theta)
+function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta)
     # find offset from center
     dx = px - x
     dy = py - y
