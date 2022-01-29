@@ -62,5 +62,5 @@ function indices_from_extent(pos, extent)
     half_extent = @. 0.5 * extent
     lower = @. floor(Int, pos - half_extent)
     upper = @. ceil(Int, pos + half_extent)
-    return last(lower):last(upper), first(lower):first(upper)
+    return first(lower):first(upper), last(lower):last(upper)
 end
