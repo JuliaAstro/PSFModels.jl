@@ -31,9 +31,9 @@ julia> using PSFModels
 None of the models are exported to avoid namespace clashes, but it can be verbose to continuously rewrite `PSFModels`. You can either import names directly
 
 ```julia
-julia> using PSFModels: Gaussian
+julia> using PSFModels: gaussian
 
-julia> model = Gaussian(fwhm=8)
+julia> model = gaussian(x=0, y=0, fwhm=8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -45,7 +45,7 @@ const M = PSFModels
 # julia version 1.6 or above
 import PSFModels as M
 
-model = M.Gaussian(fwhm=10)
+model = M.gaussian(x=0, y=0, fwhm=10)
 ```
 
 ```@docs
@@ -109,3 +109,7 @@ table = CSV.File(benchdir("results.csv")) |> DataFrame
     ylabel="time (s)", yscale=:log10, leg=:outertopright,
     label=["PSFModels.jl" "Astropy"], size=(500, 300))
 ```
+
+## Contributing and Support
+
+If you would like to contribute, feel free to open a [pull request](https://github.com/JuliaAstro/PSFModels.jl/pulls). If you want to discuss something before contributing, head over to [discussions](https://github.com/JuliaAstro/PSFModels.jl/discussions) and join or open a new topic. If you're having problems with something, please open an [issue](https://github.com/JuliaAstro/PSFModels.jl/issues).
