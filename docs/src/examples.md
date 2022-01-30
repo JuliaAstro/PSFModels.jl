@@ -6,34 +6,33 @@
 Here is a brief example which shows how to construct a loss function for fitting a `PSFModel` to some data.
 
 ```@example fit
-using PSFModels: Gaussian
+using PSFModels
 using HCIDatasets: BetaPictoris
 using Plots
+using Statistics
 
 # convenience function for plotting
 function imshow(data; kwargs...)
-    xlim = extrema(axes(data, 2))
-    ylim = extrema(axes(data, 1))
-    heatmap(data; xlim=xlim, ylim=ylim, aspect_ratio=1, kwargs...)
+    xlim = extrema(axes(data, 1))
+    ylim = extrema(axes(data, 2))
+    heatmap(transpose(data); xlim=xlim, ylim=ylim, aspect_ratio=1, kwargs...)
 end
 
 # get a PSF from HCIDatasets.jl;
 # you may be prompted to download the file
-psf = BetaPictoris[:psf]
+psf = transpose(BetaPictoris[:psf])
 
 imshow(psf)
 ```
 
 ```@example fit
-using LossFunctions
-
 # generative model
 function model(X::AbstractVector{T}) where T
     x    =       X[1]   # position
     y    =       X[2]
     fwhm = @view X[3:4] # fwhm_x, fwhm_y
     amp  =       X[5]   # amplitude
-    return Gaussian(T; x, y, fwhm, amp)
+    return gaussian(T; x, y, fwhm, amp)
 end
 
 # objective function
@@ -42,9 +41,8 @@ function loss(X::AbstractVector{T}, target) where T
     all(>(0), X) || return T(Inf)
     # get generative model
     m = model(X)
-    # l2-distance loss (χ² loss) (LossFunctions.jl) without cutting out
-    stamp = @view m[axes(target)...]
-    return value(L2DistLoss(), target, stamp, AggMode.Sum())
+    # mean square error
+    return mean(idx -> (m(idx) - psf[idx])^2, CartesianIndices(psf))
 end
 
 # params are [x, y, fwhm_x, fwhm_y, amp]
@@ -80,7 +78,7 @@ synth_psf = model(best_fit_params)
 
 plot(
     imshow(psf, title="Data"),
-    plot(synth_psf, axes(psf); title="Model"),
+    psfplot(synth_psf, axes(psf); title="Model"),
     cbar=false,
     ticks=false,
     layout=2,
