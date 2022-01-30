@@ -2,6 +2,10 @@ using PSFModels
 using StaticArrays
 using Test
 
+modname(::typeof(gaussian)) = "gaussian"
+modname(::typeof(airydisk)) = "airydisk"
+modname(::typeof(moffat)) = "moffat"
+
 function test_model_interface(K)
     # test defaults
     m = K(x=0, y=0, fwhm=10)
@@ -24,6 +28,10 @@ function test_model_interface(K)
     m = K(x=0, y=0, fwhm=(3, 5))
     m90 = K(x=0, y=0, fwhm=(5, 3), theta=90)
     @test m(7, 8) ≈ m90(7, 8)
+
+    mwarn = K(x=0, y=0, fwhm=10, theta=30)
+    name = modname(K)
+    @test_warn "isotropic $name is not affected by non-zero rotation angle 30" mwarn(0, 0)
 
     # test different amplitude
     m = K(x=0, y=0, amp=2, fwhm=9)

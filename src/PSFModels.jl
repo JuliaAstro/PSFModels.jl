@@ -41,7 +41,7 @@ If we want to collect the model into a dense matrix, simply iterate over indices
 julia> inds = CartesianIndices((-2:2, -2:2));
 
 julia> model.(inds) # broadcasting
-5×5 Matrix{Float64}:
+5x5 Matrix{Float64}:
  0.0850494  0.214311  0.291632  0.214311  0.0850494
  0.214311   0.54003   0.734867  0.54003   0.214311
  0.291632   0.734867  1.0       0.734867  0.291632
@@ -55,7 +55,7 @@ This makes it very easy to evaluate the PSF on the same axes as an image (array)
 julia> img = randn(5, 5);
 
 julia> model.(CartesianIndices(img))
-5×5 Matrix{Float64}:
+5x5 Matrix{Float64}:
  0.54003      0.214311     0.0459292    0.00531559   0.000332224
  0.214311     0.0850494    0.018227     0.00210949   0.000131843
  0.0459292    0.018227     0.00390625   0.000452087  2.82555e-5
