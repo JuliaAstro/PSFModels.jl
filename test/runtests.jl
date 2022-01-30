@@ -31,7 +31,8 @@ function test_model_interface(K)
 
     mwarn = K(x=0, y=0, fwhm=10, theta=30)
     name = modname(K)
-    @test_warn "isotropic $name is not affected by non-zero rotation angle 30" mwarn(0, 0)
+    expected_log = (:warn, "isotropic $name is not affected by non-zero rotation angle 30")
+    @test_logs expected_log mwarn(0, 0)
 
     # test different amplitude
     m = K(x=0, y=0, amp=2, fwhm=9)
