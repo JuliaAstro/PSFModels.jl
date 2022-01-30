@@ -1,7 +1,7 @@
 
 @doc raw"""
-    PSFModels.gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0)
-    PSFModels.gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0)
+    gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0)
+    gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0)
 
 An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis.
 
@@ -17,9 +17,9 @@ gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0) = convert(T, _gaussian(px, 
 
 
 """
-    PSFModels.normal
+    normal
 
-An alias for [`PSFModels.gaussian`](@ref)
+An alias for [`gaussian`](@ref)
 """
 const normal = gaussian
 
