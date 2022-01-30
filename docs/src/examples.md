@@ -11,8 +11,6 @@ using HCIDatasets: BetaPictoris
 using Plots
 using Statistics
 
-default(colorbar_scale=:linear, clims=(NaN, NaN))
-
 # convenience function for plotting
 function imshow(data; kwargs...)
     xlim = extrema(axes(data, 1))
@@ -83,6 +81,8 @@ plot(
     psfplot(synth_psf, axes(psf); title="Model"),
     cbar=false,
     ticks=false,
+    xlabel="",
+    ylabel="",
     layout=2,
     size=(600, 300)
 )
