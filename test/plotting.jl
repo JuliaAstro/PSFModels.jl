@@ -1,13 +1,15 @@
+using PSFModels: PsfPlot
 using RecipesBase: apply_recipe
 
-@testset "plotting - $K" for K in (Gaussian, AiryDisk, Moffat)
+@testset "plotting - $K" for K in (gaussian, airydisk, moffat)
     psf = K(x=0, y=1, fwhm=5)
-    recipes = apply_recipe(Dict{Symbol,Any}(), psf)
+    inds = (-8:8, -7:9)
+    recipes = apply_recipe(Dict{Symbol,Any}(), PsfPlot(psf, inds))
     for rec in recipes
         @test rec.args[1] === psf
-        xs, ys = axes(psf)
-        @test rec.args[2] == xs
-        @test rec.args[3] == ys
+        xs, ys = rec.args[2]
+        @test xs == inds[1]
+        @test ys == inds[2]
     end
 
     recipes_full = apply_recipe(Dict{Symbol,Any}(), psf, axes(psf)...)

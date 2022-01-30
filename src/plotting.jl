@@ -1,6 +1,12 @@
 using RecipesBase
 
-@recipe function f(model::PSFModel, inds...)
+@userplot PsfPlot
+
+PsfPlot(model, inds...) = PsfPlot(model, Tuple(inds))
+
+@recipe function f(p::PsfPlot)
+    model, inds = p.args
+
     seriestype := :heatmap
     aspect_ratio --> 1
     xlims --> extrema(first(inds))
@@ -8,9 +14,7 @@ using RecipesBase
     xguide --> "x"
     yguide --> "y"
 
-    arr = model[inds...]
+    arr = model.(CartesianIndices(inds))
 
     return inds..., transpose(arr)
 end
-
-@recipe f(model::PSFModel, inds=axes(model)) = model, inds...

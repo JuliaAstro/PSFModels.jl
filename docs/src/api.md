@@ -1,47 +1,43 @@
 # API/Reference
 
 ```@setup plots
-using PSFModels: Gaussian, Moffat, AiryDisk
+using PSFModels
 using Plots
 ```
 
 ```@index
 ```
 
-```@docs
-PSFModels.PSFModel
-```
-
 ## Gaussian
 
 ```@docs
-PSFModels.Gaussian
-PSFModels.Normal
+gaussian
+normal
 ```
 
 ```@example plots
-model = Gaussian(fwhm=10)
-plot(model; title="Gaussian(fwhm=10)")
+model = gaussian(x=0, y=0, fwhm=10)
+psfplot(model, (-30:30, -30:30); title="gaussian(fwhm=10)")
 ```
 
 ## Airy Disk
 
 ```@docs
-PSFModels.AiryDisk
+airydisk
 ```
 
 ```@example plots
-model = AiryDisk(fwhm=10)
-plot(model; title="AiryDisk(fwhm=10)")
+model = airydisk(fwhm=10)
+psfplot(model, (-30:30, -30:30); title="airydisk(fwhm=10)")
 ```
 
 ## Moffat
 
 ```@docs
-PSFModels.Moffat
+moffat
 ```
 
 ```@example plots
-model = Moffat(fwhm=10)
-plot(model; title="Moffat(fwhm=10)")
+model = moffat(fwhm=10)
+psfplot(model, (-30:30, -30:30); title="moffat(fwhm=10)")
 ```

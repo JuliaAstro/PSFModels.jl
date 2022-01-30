@@ -1,5 +1,4 @@
 using PSFModels
-using PSFModels: gaussian, normal, airydisk, moffat
 using StaticArrays
 using Test
 
@@ -66,6 +65,12 @@ end
     @test m(-radius, 0) ≈ 0 atol=eps(Float64)
     @test m(0, radius) ≈ 0 atol=eps(Float64)
     @test m(0, -radius) ≈ 0 atol=eps(Float64)
+
+    # second radius is 0
+    @test m(2radius, 0) ≈ 0 atol=eps(Float64)
+    @test m(-2radius, 0) ≈ 0 atol=eps(Float64)
+    @test m(0, 2radius) ≈ 0 atol=eps(Float64)
+    @test m(0, -2radius) ≈ 0 atol=eps(Float64)
 
     fwhm = (10, 9)
     m = airydisk(x=0, y=0, fwhm=fwhm)

@@ -12,9 +12,9 @@ Fast, allocation-free point-spread function (PSF) representations
 
 ## Models
 
-* `PSFModels.Gaussian` (or `Normal`)
-* `PSFModels.AiryDisk`
-* `PSFModels.Moffat`
+* `gaussian` (or `normal`)
+* `airydisk`
+* `moffat`
 
 ## Installation
 
@@ -32,12 +32,10 @@ To import the library
 julia> using PSFModels
 ```
 
-None of the models are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
-
 ```julia
-julia> using PSFModels: Gaussian
+julia> using PSFModels: gaussian
 
-julia> model = Gaussian(fwhm=8)
+julia> model = gaussian(x=0, y=0, fwhm=8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -49,7 +47,7 @@ const M = PSFModels
 # julia version 1.6 or above
 import PSFModels as M
 
-model = M.Gaussian(fwhm=10)
+model = M.gaussian(fwhm=10)
 ```
 
 ## Usage
@@ -65,17 +63,17 @@ julia> using PSFModels
 Directly evaluating the functions is the most straightforward way to use this package
 
 ```julia
-julia> PSFModels.gaussian(0, 0; x=0, y=0, fwhm=3)
+julia> gaussian(0, 0; x=0, y=0, fwhm=3)
 1.0
 
-julia> PSFModels.gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
+julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
 0.1000000000000000055511151231257827021181583404541015625
 ```
 
 We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
 
 ```julia
-julia> model = PSFModels.gaussian(x=0, y=0, fwhm=3);
+julia> model = gaussian(x=0, y=0, fwhm=3);
 
 julia> model(0, 0)
 1.0

@@ -1,7 +1,7 @@
 
 @doc raw"""
-    PSFModels.moffat([T=Float64], point; x, y, fwhm, alpha=1, amp=1, theta=0)
-    PSFModels.moffat([T=Float64], px, py; x, y, fwhm, alpha=1, amp=1, theta=0)
+    moffat([T=Float64], point; x, y, fwhm, alpha=1, amp=1, theta=0)
+    moffat([T=Float64], px, py; x, y, fwhm, alpha=1, amp=1, theta=0)
 
 Two dimensional Moffat model. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis.
 

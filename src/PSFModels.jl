@@ -6,9 +6,9 @@ Statistical models for constructing point-spread functions (PSFs).
 ## Models
 
 The following models are currently implemented
-* [`PSFModels.gaussian`](@ref)/[`PSFModels.normal`](@ref)
-* [`PSFModels.airydisk`](@ref)
-* [`PSFModels.moffat`](@ref)
+* [`gaussian`](@ref)/[`normal`](@ref)
+* [`airydisk`](@ref)
+* [`moffat`](@ref)
 
 ## Parameters
 
@@ -19,17 +19,17 @@ In general, the PSFs have a position, a full-width at half-maximum (FWHM) measur
 Directly evaluating the functions is the most straightforward way to use this package
 
 ```jldoctest model
-julia> PSFModels.gaussian(0, 0; x=0, y=0, fwhm=3)
+julia> gaussian(0, 0; x=0, y=0, fwhm=3)
 1.0
 
-julia> PSFModels.gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
+julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
 0.1000000000000000055511151231257827021181583404541015625
 ```
 
 We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
 
 ```jldoctest model
-julia> model = PSFModels.gaussian(x=0, y=0, fwhm=3);
+julia> model = gaussian(x=0, y=0, fwhm=3);
 
 julia> model(0, 0)
 1.0
@@ -87,10 +87,9 @@ finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/Ju
 
 ```julia
 using Plots
-model = PSFModels.Gaussian(8)
-plot(model)              # default axes
-plot(model, 1:5, :)    # custom axes (x, y)
-plot(model, axes(other)) # use axes from other array
+default(colorbar_scale=:log10)
+model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
+psfplot(model, (-30:30, -30:30))              # default axes
 ```
 """
 module PSFModels
@@ -100,6 +99,8 @@ using KeywordCalls
 using Rotations
 using SpecialFunctions
 using StaticArrays
+
+export gaussian, normal, airydisk, moffat
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
@@ -114,7 +115,7 @@ end
 include("gaussian.jl")
 include("airy.jl")
 include("moffat.jl")
-# include("plotting.jl")
+include("plotting.jl")
 
 # codegen for common functionality
 # if you add a new model, make sure it gets added here
