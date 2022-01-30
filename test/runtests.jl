@@ -74,7 +74,7 @@ end
     @test m(0, radius2) ≈ 0 atol=1e-5
     @test m(0, -radius2) ≈ 0 atol=1e-5
 
-    fwhm = (10, 9)
+    fwhm = (10, 10)
     m = airydisk(x=0, y=0, fwhm=fwhm)
     r1 = fwhm[1] * 1.18677
     r2 = fwhm[2] * 1.18677
@@ -83,6 +83,9 @@ end
     @test m(-r1, 0) ≈ 0 atol=1e-5
     @test m(0, r2) ≈ 0 atol=1e-5
     @test m(0, -r2) ≈ 0 atol=1e-5
+
+    # test with ratio
+    mratio = airydisk(x=0, y=0, fwhm=10, ratio=sqrt(0.5))
 end
 
 @testset "moffat" begin
