@@ -2,10 +2,13 @@ using RecipesBase
 
 @userplot PsfPlot
 
-PsfPlot(model, inds...) = PsfPlot(model, Tuple(inds))
-
 @recipe function f(p::PsfPlot)
-    model, inds = p.args
+    model = p.args[1]
+    inds = p.args[2:end]
+    # if `inds` is a vector/tuple, this effectively unpacks it
+    if length(inds) == 1
+        inds = inds[1]
+    end
 
     seriestype := :heatmap
     aspect_ratio --> 1
@@ -14,7 +17,7 @@ PsfPlot(model, inds...) = PsfPlot(model, Tuple(inds))
     xguide --> "x"
     yguide --> "y"
 
-    arr = model.(CartesianIndices(inds))
+    arr = map(model, CartesianIndices(inds))
 
     return inds..., transpose(arr)
 end

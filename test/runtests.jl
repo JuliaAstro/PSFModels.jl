@@ -74,7 +74,7 @@ end
     @test m(0, radius2) ≈ 0 atol=1e-5
     @test m(0, -radius2) ≈ 0 atol=1e-5
 
-    fwhm = (10, 10)
+    fwhm = (10, 6)
     m = airydisk(x=0, y=0, fwhm=fwhm)
     r1 = fwhm[1] * 1.18677
     r2 = fwhm[2] * 1.18677
@@ -86,6 +86,12 @@ end
 
     # test with ratio
     mratio = airydisk(x=0, y=0, fwhm=10, ratio=sqrt(0.5))
+    # test attenuation
+    @test mratio(0, 0) ≈ 4
+    @test mratio(radius, 0) > m(radius, 0)
+    @test mratio(-radius, 0) > m(-radius, 0)
+    @test mratio(0, radius) > m(0, radius)
+    @test mratio(0, -radius) > m(0, -radius)
 end
 
 @testset "moffat" begin
@@ -104,4 +110,4 @@ end
     @test m(1, 2) ≈ expected
 end
 
-# include("plotting.jl")
+include("plotting.jl")
