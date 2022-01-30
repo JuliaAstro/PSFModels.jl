@@ -59,28 +59,30 @@ end
 @testset "airydisk" begin
     fwhm = 10
     m = airydisk(x=0, y=0, fwhm=fwhm)
-    radius = fwhm * 1.18677
+    ld = fwhm / 1.028
+    radius = 1.22 * ld
     # first radius is 0
-    @test m(radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(-radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(0, radius) ≈ 0 atol=eps(Float64)
-    @test m(0, -radius) ≈ 0 atol=eps(Float64)
+    @test m(radius, 0) ≈ 0 atol=1e-5
+    @test m(-radius, 0) ≈ 0 atol=1e-5
+    @test m(0, radius) ≈ 0 atol=1e-5
+    @test m(0, -radius) ≈ 0 atol=1e-5
 
     # second radius is 0
-    @test m(2radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(-2radius, 0) ≈ 0 atol=eps(Float64)
-    @test m(0, 2radius) ≈ 0 atol=eps(Float64)
-    @test m(0, -2radius) ≈ 0 atol=eps(Float64)
+    radius2 = 2.23 * ld
+    @test m(radius2, 0) ≈ 0 atol=1e-5
+    @test m(-radius2, 0) ≈ 0 atol=1e-5
+    @test m(0, radius2) ≈ 0 atol=1e-5
+    @test m(0, -radius2) ≈ 0 atol=1e-5
 
     fwhm = (10, 9)
     m = airydisk(x=0, y=0, fwhm=fwhm)
     r1 = fwhm[1] * 1.18677
     r2 = fwhm[2] * 1.18677
     # first radius is 0
-    @test m(r1, 0) ≈ 0 atol=eps(Float64)
-    @test m(-r1, 0) ≈ 0 atol=eps(Float64)
-    @test m(0, r2) ≈ 0 atol=eps(Float64)
-    @test m(0, -r2) ≈ 0 atol=eps(Float64)
+    @test m(r1, 0) ≈ 0 atol=1e-5
+    @test m(-r1, 0) ≈ 0 atol=1e-5
+    @test m(0, r2) ≈ 0 atol=1e-5
+    @test m(0, -r2) ≈ 0 atol=1e-5
 end
 
 @testset "moffat" begin
