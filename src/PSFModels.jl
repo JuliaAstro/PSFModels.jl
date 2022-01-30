@@ -1,122 +1,137 @@
 """
 # PSFModels
 
-Statistical models for constructing point-spread functions (PSFs). These models act like matrices but without allocating any memory, which makes them efficient to fit and apply.
+Statistical models for constructing point-spread functions (PSFs).
 
 ## Models
 
 The following models are currently implemented
-* [`PSFModels.Gaussian`](@ref)/[`PSFModels.Normal`](@ref)
-* [`PSFModels.AiryDisk`](@ref)
-* [`PSFModels.Moffat`](@ref)
+* [`gaussian`](@ref)/[`normal`](@ref)
+* [`airydisk`](@ref)
+* [`moffat`](@ref)
 
 ## Parameters
 
-In general, the PSFs have a position, a full-width at half-maximum (FWHM) measure, and an amplitude. The position follows a 1-based pixel coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and WCS. If a position is not specified, it is set to `(0, 0)`. The FWHM is a consistent scale parameter for the models. All models support a scalar (isotropic) FWHM and a FWHM for each axis (diagonal).
+In general, the PSFs have a position, a full-width at half-maximum (FWHM) measure, and an amplitude. The position follows a 1-based pixel coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and WCS. The FWHM is a consistent scale parameter for the models. That means a `gaussian` with a FWHM of 5 will be visually similar to an `airydisk` with a FWHM of 5. All models support a scalar (isotropic) FWHM and a FWHM for each axis (diagonal), as well as arbitrarily rotating the PSF.
 
 ## Usage
 
-Using the models should feel just like an array. In fact, `PSFModels.PSFModel <: AbstractMatrix`. However, no data is stored and no allocations have to be made. In other words, representing the models as matrices is merely a convenience, since typically astronomical data is stored in dense arrays. Another way of thinking of these is a lazy array that applies a function when indexed, rather than returning data stored in memory.
+Directly evaluating the functions is the most straightforward way to use this package
 
 ```jldoctest model
-julia> m = PSFModels.Gaussian(fwhm=3); # centered at (0, 0)
-
-
-julia> m[0, 0] # [x, y] for indexing
+julia> gaussian(0, 0; x=0, y=0, fwhm=3)
 1.0
 
-julia> m(0, 0) # (x, y) for evaluating
+julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
+0.1000000000000000055511151231257827021181583404541015625
+```
+
+We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
+
+```jldoctest model
+julia> model = gaussian(x=0, y=0, fwhm=3);
+
+julia> model(0, 0)
 1.0
 ```
 
-Because the model is a matrix, it needs to have a size. Each model has a bounding box which can be controlled with the `extent` keyword. By default the extent is set by a scalar factor of the FWHM (e.g., `maxsize * FWHM` pixels), centered around the PSF, and rounded up. We can see how this alters the indices from a typical `Matrix`
+If we want to collect the model into a dense matrix, simply iterate over indices
 
 ```jldoctest model
-julia> size(m) # default 'stamp' size is fwhm * 3
-(11, 11)
+julia> inds = CartesianIndices((-2:2, -2:2));
 
-julia> axes(m)
-(-5:5, -5:5)
+julia> model.(inds) # broadcasting
+5x5 Matrix{Float64}:
+ 0.0850494  0.214311  0.291632  0.214311  0.0850494
+ 0.214311   0.54003   0.734867  0.54003   0.214311
+ 0.291632   0.734867  1.0       0.734867  0.291632
+ 0.214311   0.54003   0.734867  0.54003   0.214311
+ 0.0850494  0.214311  0.291632  0.214311  0.0850494
 ```
 
-if we want to collect the model into a dense matrix, regardless of the indexing (e.g. to prepare for cross-correlation), we can simply
+This makes it very easy to evaluate the PSF on the same axes as an image (array)
 
 ```jldoctest model
-julia> stamp = collect(m);
+julia> img = randn(5, 5);
 
+julia> model.(CartesianIndices(img))
+5x5 Matrix{Float64}:
+ 0.54003      0.214311     0.0459292    0.00531559   0.000332224
+ 0.214311     0.0850494    0.018227     0.00210949   0.000131843
+ 0.0459292    0.018227     0.00390625   0.000452087  2.82555e-5
+ 0.00531559   0.00210949   0.000452087  5.2322e-5    3.27013e-6
+ 0.000332224  0.000131843  2.82555e-5   3.27013e-6   2.04383e-7
 ```
 
-these axes are merely a convenience for bounding the model, since they accept any real number as input.
+this is trivially expanded to fit "stamps" in images
 
 ```jldoctest model
-julia> m[100, 10000] # index-like inputs [x, y]
-0.0
+julia> big_img = randn(1000, 1000);
 
-julia> m(2.4, 1.7) # valid for any real (x, y)
-0.0696156536973086
+julia> stamp_inds = (750:830, 400:485);
+
+julia> stamp = @view big_img[stamp_inds...];
+
+julia> stamp_model = model.(CartesianIndices(stamp_inds));
 ```
 
-By bounding the model, we get a cutout which can be applied to arrays with much larger dimensions without having to iterate over the whole matrix
+or we can create a loss function for fitting PSFs without allocating any memory. We are simply iterating over the image array!
 
-```jldoctest
-julia> big_mat = ones(1001, 1001);
+```jldoctest model
+julia> using Statistics
 
-julia> model = PSFModels.Gaussian(x=51, y=51, fwhm=2);
-
-
-julia> ax = map(intersect, axes(big_mat), axes(model))
-(48:54, 48:54)
-
-julia> cutout = @view big_mat[ax...]
-7×7 view(::Matrix{Float64}, 48:54, 48:54) with eltype Float64:
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
- 1.0  1.0  1.0  1.0  1.0  1.0  1.0
-
-julia> stamp = @view model[ax...];
-
-
-julia> photsum = sum(cutout .* stamp)
-4.5322418212890625
-```
-Nice- we only had to reduce ~50 pixels instead of ~1,000,000 to calculate the aperture sum, all in under a microsecond (on my machine).
-
-Since the models are lazy, that means the type of the output can be specified, as long as it can be converted to from a real number (so no integer types).
-
-```jldoctest
-julia> mbig = PSFModels.Gaussian(BigFloat, fwhm=12);
-
-
-julia> sum(mbig)
-163.07467408408593885562554918859656805096847165259532630443572998046875
+julia> mse = mean(I -> (big_img[I] - model(I))^2, CartesianIndices(stamp_inds));
 ```
 
 finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be seen in use in the [API/Reference](@ref) section.
 
 ```julia
 using Plots
-model = PSFModels.Gaussian(8)
-plot(model)              # default axes
-plot(model, 1:5, :)    # custom axes (x, y)
-plot(model, axes(other)) # use axes from other array
+default(colorbar_scale=:log10)
+model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
+psfplot(model, (-30:30, -30:30))              # default axes
 ```
 """
 module PSFModels
 
 using CoordinateTransformations
-using Distances
 using KeywordCalls
+using Rotations
 using SpecialFunctions
 using StaticArrays
 
-include("core.jl")
+export gaussian, normal, airydisk, moffat
+
+const BivariateLike = Union{<:Tuple,<:AbstractVector}
+
+function rotate_point(dx, dy, theta)
+    # generate rotation matrix
+    # (theta is degrees CCW from x-axis)
+    R = RotMatrix{2}(-deg2rad(theta))
+    # rotate points
+    return R * SA[dx, dy]
+end
+
 include("gaussian.jl")
-include("moffat.jl")
 include("airy.jl")
+include("moffat.jl")
 include("plotting.jl")
+
+# codegen for common functionality
+# if you add a new model, make sure it gets added here
+for model in (:gaussian, :airydisk, :moffat)
+    @eval begin
+        $model(px, py; kwargs...) = $model(Float64, px, py; kwargs...)
+        $model(point::BivariateLike; kwargs...) = $model(point...; kwargs...)
+        $model(T, point::BivariateLike; kwargs...) = $model(T, point...; kwargs...)
+        $model(idx::CartesianIndex; kwargs...) = $model(idx.I; kwargs...)
+        $model(T, idx::CartesianIndex; kwargs...) = $model(T, idx.I; kwargs...)
+        $model(; kwargs...) = (point...) -> $model(_curried_point(point...); kwargs...)
+        $model(::Type{T}; kwargs...) where {T} = (point...) -> $model(T, _curried_point(point...); kwargs...)
+    end
+end
+
+_curried_point(P::BivariateLike) = P
+_curried_point(point...) = Tuple(point)
 
 end # module PSFModels

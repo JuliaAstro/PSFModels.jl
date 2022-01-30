@@ -31,9 +31,9 @@ julia> using PSFModels
 None of the models are exported to avoid namespace clashes, but it can be verbose to continuously rewrite `PSFModels`. You can either import names directly
 
 ```julia
-julia> using PSFModels: Gaussian
+julia> using PSFModels: gaussian
 
-julia> model = Gaussian(fwhm=8)
+julia> model = gaussian(x=0, y=0, fwhm=8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -45,7 +45,7 @@ const M = PSFModels
 # julia version 1.6 or above
 import PSFModels as M
 
-model = M.Gaussian(fwhm=10)
+model = M.gaussian(x=0, y=0, fwhm=10)
 ```
 
 ```@docs
@@ -91,6 +91,9 @@ Environment:
 
 ### Evaluation benchmark
 
+!!! warning "Out of date"
+  These benchmarks are out of date, but will be re-ran using the new, functional interface soon!
+
 This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000x1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
 
 ```@setup bench
@@ -109,3 +112,7 @@ table = CSV.File(benchdir("results.csv")) |> DataFrame
     ylabel="time (s)", yscale=:log10, leg=:outertopright,
     label=["PSFModels.jl" "Astropy"], size=(500, 300))
 ```
+
+## Contributing and Support
+
+If you would like to contribute, feel free to open a [pull request](https://github.com/JuliaAstro/PSFModels.jl/pulls). If you want to discuss something before contributing, head over to [discussions](https://github.com/JuliaAstro/PSFModels.jl/discussions) and join or open a new topic. If you're having problems with something, please open an [issue](https://github.com/JuliaAstro/PSFModels.jl/issues).

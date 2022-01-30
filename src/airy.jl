@@ -1,12 +1,13 @@
 
 @doc raw"""
-    PSFModels.AiryDisk([T=Float64]; fwhm, x=0, y=0, amp=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.AiryDisk([T=Float64]; fwhm, pos, amp=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.AiryDisk([T=Float64]; fwhm, r, theta, amp=1, maxsize=3, extent=maxsize .* fwhm)
+    airydisk([T=Float64], point; x, y, fwhm, ratio=0, amp=1, theta=0)
+    airydisk([T=Float64], px, py; x, y, fwhm, ratio=0, amp=1, theta=0)
 
-An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`, optionally centered around `origin`.
+An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis.
 
-The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
+The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in mind that `theta` has no effect for isotropic distributions and is degenerate with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm` tuple)
+
+If `ratio` is supplied, this will be the Airy pattern for a centrally-obscured aperture (e.g., a Newtonian telescope). This has a slightly expanded functional form, and in general the central Airy disk will be smaller and the first Airy ring will be brighter.
 
 # Functional form
 
@@ -17,45 +18,59 @@ f(x | x̂, FWHM) = [ 2J₁(q) / q ]^2
 ```
 where `J₁` is the first-order Bessel function of the first kind and
 ```
-q ≈ π * r / (0.973 * FWHM)
+q ≈ π * r * D/ λ ≈ π * r / (0.973 * FWHM)
 ```
+
+If user a non-zero central obscuration via `ratio`, the functional form becomes
+
+```
+f(x | x̂, FWHM, ϵ) = [ 2J₁(q) / q - 2ϵJ₁(ϵq) / q ]^2 / (1 - ϵ^2)^2
+```
+where `ϵ` is the ratio (0 ≤ `ϵ` < 1).
 """
-struct AiryDisk{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
-    fwhm::FT
-    pos::VT
-    amp::T
-    indices::IT
+airydisk(T, px, py; x, y, fwhm, ratio=0, amp=one(T), theta=0) = convert(T, _airydisk(px, py, x, y, fwhm, ratio, amp, theta))
 
-    function AiryDisk(::Type{T}, fwhm::FT, pos::VT, amp::T, indices::IT) where {T,VT<:AbstractVector,FT,IT<:Tuple}
-        new{T,FT,VT,IT}(fwhm, pos, amp, indices)
+# factor for scaling radius in terms of the fwhm
+const AIRY_PRE = π / 0.973
+
+# isotropic
+function _airydisk(px, py, x, y, fwhm, ratio, amp, theta)
+    # find offset from center
+    dx = px - x
+    dy = py - y
+    # rotate
+    !iszero(theta) && @warn "isotropic airydisk is not affected by non-zero rotation angle $theta"
+    # unnormalized airydisk
+    r = sqrt(dx^2 + dy^2)
+    # short-circuit
+    iszero(r) && return amp / (1 - ratio^2)^2
+    q = AIRY_PRE * r / fwhm
+    I1 = 2 * besselj1(q) / q
+    if iszero(ratio)
+        return amp * I1^2
     end
+    I2 = 2 * ratio * besselj1(q * ratio) / q
+    return amp * ((I1 - I2) / (1 - ratio^2))^2
 end
 
-## constructors
-# default type is Float64
-AiryDisk(; kwargs...) = AiryDisk(Float64; kwargs...)
-function AiryDisk(T; fwhm, amp=one(T), maxsize=3, extent = maxsize .* fwhm, position...)
-    # get the position from keyword distpatch
-    pos = _position(; position...)
-    return AiryDisk(T, fwhm, pos, convert(T, amp), indices_from_extent(pos, extent))
-end
-
-Base.size(a::AiryDisk) = map(length, a.indices)
-Base.axes(a::AiryDisk) = a.indices
-
-const rz = 3.8317059702075125 / π
-
-function (a::AiryDisk{T})(point::AbstractVector) where T
-    radius = a.fwhm * 1.18677
-    Δ = euclidean(point, a.pos)
-    r = Δ / (radius / rz)
-    val = ifelse(iszero(r), a.amp, a.amp * (2 * besselj1(π * r) / (π * r))^2)
-    return convert(T, val)
-end
-
-function (a::AiryDisk{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
-    weights = SA[(rz / (first(a.fwhm) * 1.18677))^2, (rz / (last(a.fwhm) * 1.18677))^2]
-    r = weuclidean(point, a.pos, weights)
-    val = ifelse(iszero(r), a.amp, a.amp * (2 * besselj1(π * r) / (π * r))^2)
-    return convert(T, val)
+# bivariate
+function _airydisk(px, py, x, y, fwhm::BivariateLike, ratio, amp, theta)
+    # find offset from center
+    dx = px - x
+    dy = py - y
+    # rotate
+    if !iszero(theta)
+        dx, dy = rotate_point(dx, dy, theta)
+    end
+    # unnormalized airy disk
+    fwhmx, fwhmy = fwhm
+    q = AIRY_PRE * sqrt((dx / fwhmx)^2 + (dy / fwhmy)^2)
+    # short-circuit
+    iszero(q) && return amp / (1 - ratio^2)^2
+    I1 = 2 * besselj1(q) / q
+    if iszero(ratio)
+        return amp * I1^2
+    end
+    I2 = 2 * ratio * besselj1(q * ratio) / q
+    return amp * ((I1 - I2) / (1 - ratio^2))^2
 end

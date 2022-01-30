@@ -12,9 +12,9 @@ Fast, allocation-free point-spread function (PSF) representations
 
 ## Models
 
-* `PSFModels.Gaussian` (or `Normal`)
-* `PSFModels.AiryDisk`
-* `PSFModels.Moffat`
+* `gaussian` (or `normal`)
+* `airydisk`
+* `moffat`
 
 ## Installation
 
@@ -32,12 +32,10 @@ To import the library
 julia> using PSFModels
 ```
 
-None of the models are exported to avoid namespace clashes, but it can be verbose. You can either import names directly
-
 ```julia
-julia> using PSFModels: Gaussian
+julia> using PSFModels: gaussian
 
-julia> model = Gaussian(fwhm=8)
+julia> model = gaussian(x=0, y=0, fwhm=8)
 ```
 
 or you can create an alias for `PSFModels`
@@ -49,49 +47,86 @@ const M = PSFModels
 # julia version 1.6 or above
 import PSFModels as M
 
-model = M.Gaussian(fwhm=10)
+model = M.gaussian(fwhm=10)
 ```
 
 ## Usage
 
 For more in-depth usage and examples, please see the [documentation](https://juliaastro.github.io/PSFModels.jl/dev/).
 
-```julia
-using PSFModels
-
-m = PSFModels.Gaussian(fwhm=8)           # bivariate gaussian with a FWHM of 8 pixels
-m = PSFModels.Gaussian(fwhm=(7.4, 8.2))  # specify FWHM for each axis
-
-m = PSFModels.Gaussian(x=12, y=25, fwhm=8.2) # specifiy location in pixel coordinates
-m = PSFModels.Gaussian(pos=[12, 25], fwhm=8.2)
-m = PSFModels.Gaussian(r=5, theta=30, fwhm=8.2) # polar coordinates
-
-mf0 = PSFModels.Gaussian(Float32, fwhm=8.2) # output guaranteed to be Float32
-```
+First, load the package
 
 ```julia
-m[0, 0]      # "index" the model at [x, y]
-m[:, 0]
-m(0.3, 1.0)  # directly query value at (x, y)
-m([1.2, 0.4])
+julia> using PSFModels
 ```
 
-**Important:**:
-
-It is important to recognize the difference in the order of the dimensions between indexing and calling. Indexing is reverse of the cartesian order, which is the natural way of indexing a multi-dimensional array. If you try calling a model as a function with an index, an error will be thrown.
+Directly evaluating the functions is the most straightforward way to use this package
 
 ```julia
-# evaluate `m` over its indices forming an array
-collect(m)
+julia> gaussian(0, 0; x=0, y=0, fwhm=3)
+1.0
 
-# broadcasting will take the axes of the other arrays
-arr = randn(101, 101)
-m .* arr
-
-## (nearly) allocation-free loss function
-# get overlapped cutouts for the PSF and the array
-inds = map(intersect, axes(arr), axes(m))
-arr_stamp = @view arr[inds...]
-m_stamp = @view m[inds...]
-resid = sum(abs2, arr_stamp .- amp .* m_stamp) # chi-square loss
+julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
+0.1000000000000000055511151231257827021181583404541015625
 ```
+
+We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
+
+```julia
+julia> model = gaussian(x=0, y=0, fwhm=3);
+
+julia> model(0, 0)
+1.0
+```
+
+If we want to collect the model into a dense matrix, simply iterate over indices
+
+```julia
+julia> inds = CartesianIndices((-2:2, -2:2));
+
+julia> model.(inds) # broadcasting
+5×5 Matrix{Float64}:
+ 0.0850494  0.214311  0.291632  0.214311  0.0850494
+ 0.214311   0.54003   0.734867  0.54003   0.214311
+ 0.291632   0.734867  1.0       0.734867  0.291632
+ 0.214311   0.54003   0.734867  0.54003   0.214311
+ 0.0850494  0.214311  0.291632  0.214311  0.0850494
+```
+
+This makes it very easy to evaluate the PSF on the same axes as an image (array)
+
+```julia
+julia> img = randn(5, 5);
+
+julia> model.(CartesianIndices(img))
+5×5 Matrix{Float64}:
+ 0.54003      0.214311     0.0459292    0.00531559   0.000332224
+ 0.214311     0.0850494    0.018227     0.00210949   0.000131843
+ 0.0459292    0.018227     0.00390625   0.000452087  2.82555e-5
+ 0.00531559   0.00210949   0.000452087  5.2322e-5    3.27013e-6
+ 0.000332224  0.000131843  2.82555e-5   3.27013e-6   2.04383e-7
+```
+
+this is trivially expanded to fit "stamps" in images
+
+```julia
+julia> big_img = randn(1000, 1000);
+
+julia> stamp_inds = (750:830, 400:485);
+
+julia> stamp = @view big_img[stamp_inds...];
+
+julia> stamp_model = model.(CartesianIndices(stamp_inds));
+```
+
+or we can create a loss function for fitting PSFs without allocating any memory. We are simply iterating over the image array!
+
+```julia
+julia> using Statistics
+
+julia> mse = mean(I -> (big_img[I] - model(I))^2, CartesianIndices(stamp_inds));
+```
+
+## Contributing and Support
+
+If you would like to contribute, feel free to open a [pull request](https://github.com/JuliaAstro/PSFModels.jl/pulls). If you want to discuss something before contributing, head over to [discussions](https://github.com/JuliaAstro/PSFModels.jl/discussions) and join or open a new topic. If you're having problems with something, please open an [issue](https://github.com/JuliaAstro/PSFModels.jl/issues).
