@@ -14,9 +14,7 @@ f(x | x̂, FWHM) = exp[-4ln(2) * ||x - x̂|| / FWHM^2]
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or tuple, the weighting is applied along each axis (diagonal).
 """
 gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0) = convert(T, _gaussian(px, py, x, y, fwhm, amp, theta))
-gaussian(px, py; kwargs...) = gaussian(Float64, px, py; kwargs...)
-gaussian(point::BivariateLike; kwargs...) = gaussian(point...; kwargs...)
-gaussian(idx::CartesianIndex; kwargs...) = gaussian(idx.I; kwargs...)
+
 
 """
     PSFModels.normal

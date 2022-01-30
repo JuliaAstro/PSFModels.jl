@@ -14,11 +14,6 @@ f(x | x̂, FWHM, α) = A / (1 + ||x - x̂|| / (FWHM / 2)^2)^α
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a vector or tuple, the weighting is applied along each axis.
 """
 moffat(T, px, py; x, y, fwhm, alpha=1, amp=one(T), theta=0) = convert(T, _moffat(px, py, x, y, fwhm, alpha, amp, theta))
-moffat(px, py; kwargs...) = moffat(Float64, px, py; kwargs...)
-moffat(point::BivariateLike; kwargs...) = moffat(point...; kwargs...)
-moffat(idx::CartesianIndex; kwargs...) = moffat(idx.I; kwargs...)
-
-
 
 # isotropic
 function _moffat(px, py, x, y, fwhm, alpha, amp, theta)

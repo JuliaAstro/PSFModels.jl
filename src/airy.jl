@@ -20,9 +20,6 @@ q ≈ π * r / (0.973 * FWHM)
 ```
 """
 airydisk(T, px, py; x, y, fwhm, amp=one(T), theta=0) = convert(T, _airydisk(px, py, x, y, fwhm, amp, theta))
-airydisk(px, py; kwargs...) = airydisk(Float64, px, py; kwargs...)
-airydisk(point::BivariateLike; kwargs...) = airydisk(point...; kwargs...)
-airydisk(idx::CartesianIndex; kwargs...) = airydisk(idx.I; kwargs...)
 
 # factor for scaling radius in terms of the fwhm
 const rz = 1.18677 * π / 3.8317059702075125
