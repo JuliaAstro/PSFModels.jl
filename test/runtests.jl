@@ -101,6 +101,17 @@ end
     @test mratio(-radius, 0) > m(-radius, 0)
     @test mratio(0, radius) > m(0, radius)
     @test mratio(0, -radius) > m(0, -radius)
+
+
+    mratio = airydisk(x=0, y=0, fwhm=(10, 6), ratio=sqrt(0.5))
+    r1 = fwhm[1] * 1.18677
+    r2 = fwhm[2] * 1.18677
+    # test attenuation
+    @test mratio(0, 0) ≈ 4
+    @test mratio(r1, 0) > m(r1, 0)
+    @test mratio(-r1, 0) > m(-r1, 0)
+    @test mratio(0, r2) > m(0, r2)
+    @test mratio(0, -r2) > m(0, -r2)
 end
 
 @testset "moffat" begin
