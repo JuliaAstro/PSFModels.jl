@@ -11,6 +11,8 @@ using HCIDatasets: BetaPictoris
 using Plots
 using Statistics
 
+default(colorbar_scale=:linear, clims=(NaN, NaN))
+
 # convenience function for plotting
 function imshow(data; kwargs...)
     xlim = extrema(axes(data, 1))
@@ -32,7 +34,7 @@ function model(X::AbstractVector{T}) where T
     y    =       X[2]
     fwhm = @view X[3:4] # fwhm_x, fwhm_y
     amp  =       X[5]   # amplitude
-    return gaussian(T; x, y, fwhm, amp)
+    return airydisk(T; x, y, fwhm, amp)
 end
 
 # objective function

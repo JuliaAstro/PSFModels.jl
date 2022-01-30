@@ -32,6 +32,11 @@ airy = airydisk(x=0, y=0, fwhm=10)
 psfplot(airy, -50:50, -50:50; title="airydisk(fwhm=10)")
 ```
 
+```@example plots
+airy_obscured = airydisk(x=0, y=0, fwhm=10, ratio=0.3)
+psfplot(airy_obscured, -50:50, -50:50; title="airydisk(fwhm=10, ratio=0.3)")
+```
+
 ## Moffat
 
 ```@docs
@@ -41,6 +46,11 @@ moffat
 ```@example plots
 moff = moffat(x=0, y=0, fwhm=10)
 psfplot(moff, -50:50, -50:50; title="moffat(fwhm=10)")
+```
+
+```@example plots
+moff2 = moffat(x=0, y=0, fwhm=10, alpha=2)
+psfplot(moff2, -50:50, -50:50; title="moffat(fwhm=10, alpha=2)")
 ```
 
 ## Comparison
