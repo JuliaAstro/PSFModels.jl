@@ -1,7 +1,5 @@
-using Optim
-using Statistics
 
-Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
+const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
 
 """
     PSFModels.fit(model, params, X0, image, inds=axes(image); alg=LBFGS(), kwargs...)
@@ -65,10 +63,10 @@ model = gaussian(; params...)
 
 `synthpsf` is the best-fitting model evaluated on the input grid, for direct comparison with the input data.
 """
-function fit(model::Model, params, X0, image::AbstractMatrix{T}, inds=axes(image); alg=LBFGS(), kwargs...) where T
+function fit(model::Model, params, X0::AbstractVector, image::AbstractMatrix{T}, inds=axes(image); alg=LBFGS(), kwargs...) where T
     if length(params) == length(X0) && :theta in params
         throw(ArgumentError("cannot fit theta for isotropic PSF"))
-   end
+    end
     cartinds = CartesianIndices(inds)
     function loss(X::AbstractVector{T}) where T
         P = generate_params(params, X)

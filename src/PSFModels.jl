@@ -96,9 +96,11 @@ module PSFModels
 
 using CoordinateTransformations
 using KeywordCalls
+using Optim
 using Rotations
 using SpecialFunctions
 using StaticArrays
+using Statistics
 
 export gaussian, normal, airydisk, moffat
 
