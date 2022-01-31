@@ -141,17 +141,22 @@ data = # load data
 stamp_inds = # optionally choose indices to "cutout"
 
 # use an isotropic Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp), 
-                       [12, 13, 3.2, 0.1], data, stamp_inds)
+P0 = (x=12, y=13, fwhm=3.2, amp=0.1)
+params, synthpsf = fit(gaussian, P0, data, stamp_inds)
+
 # elliptical, rotated Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta), 
-                       [12, 13, 3.2, 3.2, 0.1, 0], data, stamp_inds)
+P0 = (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, theta=0)
+params, synthpsf = fit(gaussian, P0, data, stamp_inds)
+
 # obscured Airy disk
-params, synthpsf = fit(airydisk, (:x, :y, :fwhm, :amp, :ratio),
-                       [12, 13, 3.2, 0.1, 0.3], data, stamp_inds)
+P0 = (x=12, y=13, fwhm=3.2, amp=0.1, ratio=0.3)
+params, synthpsf = fit(airydisk, P0, data, stamp_inds)
+
 # bivariate Moffat with arbitrary alpha
-params, synthpsf = fit(moffat, (:x, :y, :fwhm, :amp, :alpha),
-                       [12, 13, 3.2, 3.2, 0.1, 1], data, stamp_inds)
+P0 = (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, alpha=1)
+# fixed ("frozen") rotation angle
+func_kwargs = (;theta=15)
+params, synthpsf = fit(moffat, P0, data, stamp_inds; func_kwargs)
 ```
 
 ### Plotting models
