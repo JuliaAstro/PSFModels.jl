@@ -67,3 +67,9 @@ plot(
     xlabel="x", ylabel="I", ylims=(1e-5, 1)
 )
 ```
+
+## Fitters
+
+```@docs
+PSFModels.fit
+```
