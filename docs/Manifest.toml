@@ -1,5 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
+julia_version = "1.7.1"
 manifest_format = "2.0"
 
 [[deps.AbstractFFTs]]
@@ -236,9 +237,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "0c8693f37a265b6c0e552861cad8bf4b13d65686"
+git-tree-sha1 = "38bcc22b6e358e88a7715ad0db446dfd3a4fea47"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.42"
+version = "0.25.43"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -411,9 +412,9 @@ version = "1.0.2"
 
 [[deps.HCIDatasets]]
 deps = ["DataDeps", "FITSIO"]
-git-tree-sha1 = "576941b772662b0b4b3b0592c15f6300e9903610"
+git-tree-sha1 = "3f6129d84d9b91b4fc14788bcfb2307385b53178"
 uuid = "1893dc6a-5236-4cb8-aa54-62ea411c10cd"
-version = "0.2.1"
+version = "0.3.0"
 
 [[deps.HTTP]]
 deps = ["Base64", "Dates", "IniFile", "Logging", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
@@ -774,7 +775,7 @@ version = "0.11.5"
 deps = ["CoordinateTransformations", "KeywordCalls", "RecipesBase", "Rotations", "SpecialFunctions", "StaticArrays"]
 path = ".."
 uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
-version = "0.4.0"
+version = "0.5.0"
 
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]
