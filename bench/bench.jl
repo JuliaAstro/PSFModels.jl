@@ -1,8 +1,8 @@
 using BenchmarkTools
 using CSV
 using DataFrames
-using PSFModels: Gaussian, AiryDisk, Moffat
-using PyCall
+using PSFModels
+using PythonCall
 
 @info "Starting PSF evaluation benchmark"
 
@@ -12,9 +12,9 @@ apm = pyimport("astropy.modeling.models")
 
 
 julia_models = [
-    Gaussian(fwhm=(5.3, 4.7)), 
-    AiryDisk(fwhm=12.7), 
-    Moffat(fwhm=8.1)
+    gaussian(x=0, y=0, fwhm=(5.3, 4.7)), 
+    airyDisk(x=0, y=0, fwhm=12.7), 
+    moffat(x=0, y=0, fwhm=8.1)
 ]
 astropy_models = [
     apm.Gaussian2D(x_stddev=5.3, y_stddev=4.7),
