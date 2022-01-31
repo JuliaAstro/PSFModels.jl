@@ -60,6 +60,8 @@ First, load the package
 julia> using PSFModels
 ```
 
+### Evaluating models
+
 Directly evaluating the functions is the most straightforward way to use this package
 
 ```julia
@@ -125,6 +127,43 @@ or we can create a loss function for fitting PSFs without allocating any memory.
 julia> using Statistics
 
 julia> mse = mean(I -> (big_img[I] - model(I))^2, CartesianIndices(stamp_inds));
+```
+
+### Fitting data
+
+There exists a simple, yet powerful, API for fitting data with these PSF models. See the [full documentation](https://juliaastro.github.io/PSFModels.jl/dev) for more details and examples.
+
+```julia
+# `fit` is not exported to avoid namespace clashes
+using PSFModels: fit
+
+data = # load data
+stamp_inds = # optionally choose indices to "cutout"
+
+# use an isotropic Gaussian
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp), 
+                       [12, 13, 3.2, 0.1], data, stamp_inds)
+# elliptical, rotated Gaussian
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta), 
+                       [12, 13, 3.2, 3.2, 0.1, 0], data, stamp_inds)
+# obscured Airy disk
+params, synthpsf = fit(airydisk, (:x, :y, :fwhm, :amp, :ratio),
+                       [12, 13, 3.2, 0.1, 0.3], data, stamp_inds)
+# bivariate Moffat with arbitrary alpha
+params, synthpsf = fit(moffat, (:x, :y, :fwhm, :amp, :alpha),
+                       [12, 13, 3.2, 3.2, 0.1, 1], data, stamp_inds)
+```
+
+### Plotting models
+
+We provide simple user recipes from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be called with `psfplot`/`psfplot!`
+
+```julia
+using Plots
+
+inds = (1:30, 1:30)
+model = airydisk(x=12, y=13, fwhm=(4.5, 6.7), theta=12, ratio=0.3)
+psfplot(model, inds, colorbar_scale=:log10)
 ```
 
 ## Contributing and Support

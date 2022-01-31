@@ -1,6 +1,10 @@
+using Distributions
 using PSFModels
+using StableRNGs
 using StaticArrays
 using Test
+
+rng = StableRNG(112358)
 
 modname(::typeof(gaussian)) = "gaussian"
 modname(::typeof(airydisk)) = "airydisk"
@@ -131,3 +135,4 @@ end
 end
 
 include("plotting.jl")
+include("fitting.jl")
