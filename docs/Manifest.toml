@@ -772,10 +772,10 @@ uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.5"
 
 [[deps.PSFModels]]
-deps = ["CoordinateTransformations", "KeywordCalls", "RecipesBase", "Rotations", "SpecialFunctions", "StaticArrays"]
+deps = ["CoordinateTransformations", "KeywordCalls", "Optim", "RecipesBase", "Rotations", "SpecialFunctions", "StaticArrays", "Statistics"]
 path = ".."
 uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
-version = "0.5.0"
+version = "0.5.1"
 
 [[deps.Parameters]]
 deps = ["OrderedCollections", "UnPack"]

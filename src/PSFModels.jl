@@ -14,6 +14,14 @@ The following models are currently implemented
 
 In general, the PSFs have a position, a full-width at half-maximum (FWHM) measure, and an amplitude. The position follows a 1-based pixel coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and WCS. The FWHM is a consistent scale parameter for the models. That means a `gaussian` with a FWHM of 5 will be visually similar to an `airydisk` with a FWHM of 5. All models support a scalar (isotropic) FWHM and a FWHM for each axis (diagonal), as well as arbitrarily rotating the PSF.
 
+!!! warning "Pixel-convention"
+
+    The pixel convention adopted here is that the bottom-left pixel *center* is `(1, 1)`. The column-major memory layout of julia puts the `x` axis as the rows of a matrix and the `y` axis as the columns. In other words, the axes unpack like
+    ```julia
+    xs, ys = axes(image)
+    ```
+
+
 ## Usage
 
 ### Evaluating models
@@ -97,10 +105,10 @@ data = # load data
 stamp_inds = # optionally choose indices to "cutout"
 
 # use an isotropic Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp), 
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp),
                        [12, 13, 3.2, 0.1], data, stamp_inds)
 # elliptical, rotated Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta), 
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta),
                        [12, 13, 3.2, 3.2, 0.1, 0], data, stamp_inds)
 # obscured Airy disk
 params, synthpsf = fit(airydisk, (:x, :y, :fwhm, :amp, :ratio),

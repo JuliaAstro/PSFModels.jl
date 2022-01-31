@@ -62,7 +62,7 @@ psfplot(moff2, -50:50, -50:50; title="moffat(fwhm=10, alpha=2)",
 ```@example plots
 xs = range(0, 50, length=1000)
 plot(
-    xs, [gauss.(xs, 0) airy.(xs, 0) moff.(xs, 0)], 
+    xs, [gauss.(xs, 0) airy.(xs, 0) moff.(xs, 0)],
     label=["gaussian" "airydisk" "moffat"], yscale=:log10,
     xlabel="x", ylabel="I", ylims=(1e-5, 1)
 )
