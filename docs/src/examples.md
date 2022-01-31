@@ -37,6 +37,7 @@ Using [`gaussian`](@ref)
 ```@example fit
 # parameter vector must match order of values we want to fit
 params = (:x, :y, :fwhm, :amp)
+# x, y, fwhm, amp
 P0 = Float32[20, 20, 5, 0.1]
 P_gauss, mod_gauss = fit(gaussian, params, P0, psf)
 pairs(P_gauss)
@@ -60,7 +61,8 @@ and now using a rotated, elliptical Gaussian
 ```@example fit
 # parameter vector must match order of values we want to fit
 params = (:x, :y, :fwhm, :amp, :theta)
-# use two values for theta here, one for each axis
+# use two values for fwhm here, one for each axis
+# x, y, fwhmx, fwhmy, amp, theta
 P0 = Float32[20, 20, 5, 5, 0.1, 0]
 P_ellip, mod_ellip = fit(gaussian, params, P0, psf)
 pairs(P_ellip)
@@ -136,11 +138,10 @@ plot(
 Any keyword arguments get passed on to `Optim.optimize`, and you can change the algorithm used with the `alg` keyword
 
 ```@example fit
+# load Optim.jl to use the Newton method
 using Optim
 
-# parameter vector must match order of values we want to fit
 params = (:x, :y, :fwhm, :amp, :theta, :alpha)
-# again, two values for fwhm for each axis
 P0 = Float32[20, 20, 5, 5, 0.1, 0, 2]
 P_moff, mod_moff = fit(moffat, params, P0, psf; alg=Newton())
 pairs(P_moff)

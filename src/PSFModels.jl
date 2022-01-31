@@ -16,6 +16,8 @@ In general, the PSFs have a position, a full-width at half-maximum (FWHM) measur
 
 ## Usage
 
+### Evaluating models
+
 Directly evaluating the functions is the most straightforward way to use this package
 
 ```jldoctest model
@@ -83,13 +85,40 @@ julia> using Statistics
 julia> mse = mean(I -> (big_img[I] - model(I))^2, CartesianIndices(stamp_inds));
 ```
 
-finally, we provide plotting recipes from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be seen in use in the [API/Reference](@ref) section.
+### Fitting data
+
+There exists a simple, yet powerful, API for fitting data with [`PSFModels.fit`](@ref).
+
+```julia
+# `fit` is not exported to avoid namespace clashes
+using PSFModels: fit
+
+data = # load data
+stamp_inds = # optionally choose indices to "cutout"
+
+# use an isotropic Gaussian
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp), 
+                       [12, 13, 3.2, 0.1], data, stamp_inds)
+# elliptical, rotated Gaussian
+params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta), 
+                       [12, 13, 3.2, 3.2, 0.1, 0], data, stamp_inds)
+# obscured Airy disk
+params, synthpsf = fit(airydisk, (:x, :y, :fwhm, :amp, :ratio),
+                       [12, 13, 3.2, 0.1, 0.3], data, stamp_inds)
+# bivariate Moffat with arbitrary alpha
+params, synthpsf = fit(moffat, (:x, :y, :fwhm, :amp, :alpha),
+                       [12, 13, 3.2, 3.2, 0.1, 1], data, stamp_inds)
+```
+
+### Plotting
+
+Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be seen in use in the [API/Reference](@ref) section.
 
 ```julia
 using Plots
-default(colorbar_scale=:log10)
+
 model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
-psfplot(model, -30:30, -30:30)
+psfplot(model, -30:30, -30:30, colorbar_scale=:log10)
 ```
 """
 module PSFModels
