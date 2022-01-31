@@ -20,7 +20,7 @@ end
 
 # get a PSF from HCIDatasets.jl;
 # you may be prompted to download the file
-psf = transpose(BetaPictoris[:psf])
+psf = BetaPictoris[:psf]
 
 imshow(psf)
 ```
