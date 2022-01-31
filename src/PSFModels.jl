@@ -134,4 +134,6 @@ end
 _curried_point(P::BivariateLike) = P
 _curried_point(point...) = Tuple(point)
 
+include("fitting.jl")
+
 end # module PSFModels
