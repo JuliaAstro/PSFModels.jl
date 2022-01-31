@@ -35,11 +35,8 @@ We can fit this data with a variety of models, here showcasing the flexible [`PS
 Using [`gaussian`](@ref)
 
 ```@example fit
-# parameter vector must match order of values we want to fit
-params = (:x, :y, :fwhm, :amp)
-# x, y, fwhm, amp
-P0 = Float32[20, 20, 5, 0.1]
-P_gauss, mod_gauss = fit(gaussian, params, P0, psf)
+params = (x=20, y=20, fwhm=5, amp=0.1)
+P_gauss, mod_gauss = fit(gaussian, params, psf)
 pairs(P_gauss)
 ```
 
@@ -59,12 +56,8 @@ plot(
 and now using a rotated, elliptical Gaussian
 
 ```@example fit
-# parameter vector must match order of values we want to fit
-params = (:x, :y, :fwhm, :amp, :theta)
-# use two values for fwhm here, one for each axis
-# x, y, fwhmx, fwhmy, amp, theta
-P0 = Float32[20, 20, 5, 5, 0.1, 0]
-P_ellip, mod_ellip = fit(gaussian, params, P0, psf)
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0)
+P_ellip, mod_ellip = fit(gaussian, params, psf)
 pairs(P_ellip)
 ```
 
@@ -86,10 +79,8 @@ plot(
 Now with [`airydisk`](@ref)
 
 ```@example fit
-# parameter vector must match order of values we want to fit
-params = (:x, :y, :fwhm, :amp, :ratio)
-P0 = Float32[20, 20, 5, 0.1, 0.3]
-P_airy, mod_airy = fit(airydisk, params, P0, psf)
+params = (x=20, y=20, fwhm=5, amp=0.1, ratio=0.3)
+P_airy, mod_airy = fit(airydisk, params, psf)
 pairs(P_airy)
 ```
 
@@ -112,11 +103,8 @@ And finally, with [`moffat`](@ref)
 
 
 ```@example fit
-# parameter vector must match order of values we want to fit
-params = (:x, :y, :fwhm, :amp, :theta, :alpha)
-# again, two values for fwhm for each axis
-P0 = Float32[20, 20, 5, 5, 0.1, 0, 2]
-P_moff, mod_moff = fit(moffat, params, P0, psf)
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0, alpha=2)
+P_moff, mod_moff = fit(moffat, params, psf)
 pairs(P_moff)
 ```
 
@@ -141,8 +129,30 @@ Any keyword arguments get passed on to `Optim.optimize`, and you can change the 
 # load Optim.jl to use the Newton method
 using Optim
 
-params = (:x, :y, :fwhm, :amp, :theta, :alpha)
-P0 = Float32[20, 20, 5, 5, 0.1, 0, 2]
-P_moff, mod_moff = fit(moffat, params, P0, psf; alg=Newton())
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0, alpha=2)
+P_moff, mod_moff = fit(moffat, params, psf; alg=Newton())
 pairs(P_moff)
+```
+
+We can also "freeze" parameters by creating a named tuple and passing it to `func_kwargs`
+
+```@example fit
+
+params = (;x=10, y=20, fwhm=(5, 5), amp=0.1)
+func_kwargs = (;alpha=2)
+P_moff2, mod_moff2 = fit(moffat, params, psf;  func_kwargs)
+pairs(P_moff2)
+```
+
+```@example fit
+plot(
+    imshow(psf, title="Data"),
+    imshow(mod_moff2, title="Model"),
+    cbar=false,
+    ticks=false,
+    xlabel="",
+    ylabel="",
+    layout=2,
+    size=(600, 300)
+)
 ```
