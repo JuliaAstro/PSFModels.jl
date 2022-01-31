@@ -62,12 +62,12 @@ func_kwargs = (alpha=2)
 params, synthpsf = PSFModels.fit(moffat, P, psf; func_kwargs)
 ```
 """
-function fit(model::Model, 
-             params, 
-             image::AbstractMatrix{T}, 
-             inds=axes(image); 
-             func_kwargs=(;), 
-             alg=LBFGS(), 
+function fit(model::Model,
+             params,
+             image::AbstractMatrix{T},
+             inds=axes(image);
+             func_kwargs=(;),
+             alg=LBFGS(),
              kwargs...) where T
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
@@ -121,7 +121,7 @@ function generate_params(names, values)
         fwhm = values[_ind], values[_ind + 1]
         first_half = @views zip(names[begin:_ind - 1], values[begin:_ind - 1])
         second_half = @views zip(names[_ind + 1:end], values[_ind + 2:end])
-        return (;first_half..., fwhm, second_half...)        
+        return (;first_half..., fwhm, second_half...)
     end
     return (;zip(names, values)...)
 end

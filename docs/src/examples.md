@@ -140,7 +140,7 @@ We can also "freeze" parameters by creating a named tuple and passing it to `fun
 
 params = (;x=10, y=20, fwhm=(5, 5), amp=0.1)
 func_kwargs = (;alpha=2)
-P_moff2, mod_moff2 = fit(moffat, params, psf;  func_kwargs)
+P_moff2, mod_moff2 = fit(moffat, params, psf; func_kwargs)
 pairs(P_moff2)
 ```
 
