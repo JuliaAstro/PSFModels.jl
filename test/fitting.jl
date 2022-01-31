@@ -40,12 +40,16 @@ end
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
+
+        @test_throws ArgumentError fit(gaussian, (:x, :y, :fwhm, :theta), ones(4), randn(10, 10))
     end
     @testset "airydisk" begin
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5, ratio=0.12), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
+
+        @test_throws ArgumentError fit(airydisk, (:x, :y, :fwhm, :theta), ones(4), randn(10, 10))
     end
 
     @testset "moffat" begin
@@ -55,5 +59,7 @@ end
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5, alpha=1.2), inds)
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5, alpha=1.2), inds)
+
+        @test_throws ArgumentError fit(moffat, (:x, :y, :fwhm, :theta), ones(4), randn(10, 10))
     end
 end
