@@ -1,0 +1,4 @@
+name,psfmodels,astropy
+Gaussian,0.001952125,0.003295292
+AiryDisk,0.036811,0.004657042
+Moffat,0.001467375,0.002897208
