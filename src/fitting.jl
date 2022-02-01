@@ -2,9 +2,11 @@
 const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
 
 """
-    PSFModels.fit(model, params, image, inds=axes(image); func_kwargs=(;), alg=LBFGS(), kwargs...)
+    PSFModels.fit(model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, alg=LBFGS(), kwargs...)
 
-Fit a PSF model (`model`) defined by the given `params` as a named tuple of the parameters to fit and their default values. This model is fit to the data in `image` at the specified `inds` (by default, the entire array). To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a named tuple to `func_kwargs`. Additional keyword arguments, as well as the fitting algorithm `alg`, are passed to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to derive Jacobians for the LBFGS optimization algorithm. Refer to the [Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/) for more information.
+Fit a PSF model (`model`) defined by the given `params` as a named tuple of the parameters to fit and their default values. This model is fit to the data in `image` at the specified `inds` (by default, the entire array). To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a named tuple to `func_kwargs`. The default loss function is the chi-squared loss, which uses the the square of the difference (i.e., the L2 norm). You can change this to the L1 norm, for example, by passing `loss=abs`.
+
+Additional keyword arguments, as well as the fitting algorithm `alg`, are passed to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to derive Jacobians for the LBFGS optimization algorithm. Refer to the [Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/) for more information.
 
 # Choosing parameters
 
@@ -67,11 +69,12 @@ function fit(model::Model,
              image::AbstractMatrix{T},
              inds=axes(image);
              func_kwargs=(;),
+             loss=abs2,
              alg=LBFGS(),
              kwargs...) where T
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
-    function loss(X::AbstractVector{T}) where T
+    function _loss(X::AbstractVector{T}) where T
         P = generate_params(_keys, X)
         minind = map(minimum, inds)
         maxind = map(maximum, inds)
@@ -84,15 +87,15 @@ function fit(model::Model,
         if :theta in _keys
             -45 < P.theta < 45 || return T(Inf)
         end
-        # mean square error
-        mse = mean(cartinds) do idx
+        # sum of errors (by default, with L2 norm == chi-squared)
+        mse = sum(cartinds) do idx
             resid = model(T, idx; P..., func_kwargs...) - image[idx]
-            return resid^2
+            return loss(resid)
         end
         return mse
     end
     X0 = vector_from_params(T, params)
-    result = optimize(loss, X0, alg; autodiff=:forward, kwargs...)
+    result = optimize(_loss, X0, alg; autodiff=:forward, kwargs...)
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)

@@ -137,7 +137,6 @@ using Optim
 using Rotations
 using SpecialFunctions
 using StaticArrays
-using Statistics
 
 export gaussian, normal, airydisk, moffat
 

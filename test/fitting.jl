@@ -32,7 +32,10 @@ end
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
-
+        
+        # test using L1 loss
+        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds; loss=abs)
+        # test using frozen variables
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds; func_kwargs=(;theta=0))
 
         @test_throws ArgumentError fit(gaussian, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
@@ -43,6 +46,9 @@ end
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
         
+        # test using L1 loss
+        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; loss=abs)
+        # test using frozen variables
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; func_kwargs=(;ratio=0))
 
         @test_throws ArgumentError fit(airydisk, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
@@ -56,6 +62,9 @@ end
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5, alpha=1.2), inds)
 
+        # test using L1 loss
+        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; loss=abs)
+        # test using frozen variables
         test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; func_kwargs=(;alpha=1))
 
         @test_throws ArgumentError fit(moffat, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
