@@ -1,2 +1,3 @@
 [deps]
-astropy = "4"
+scipy = ""
+astropy = ""

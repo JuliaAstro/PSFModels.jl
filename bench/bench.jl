@@ -13,7 +13,7 @@ apm = pyimport("astropy.modeling.models")
 
 julia_models = [
     gaussian(x=0, y=0, fwhm=(5.3, 4.7)), 
-    airyDisk(x=0, y=0, fwhm=12.7), 
+    airydisk(x=0, y=0, fwhm=12.7), 
     moffat(x=0, y=0, fwhm=8.1)
 ]
 astropy_models = [
@@ -36,7 +36,7 @@ for (jl_mod, py_mod, name) in zip(julia_models, astropy_models, names)
     @info "$name" PSFModels=jl_time astropy=py_time
 end
 
-filename = joinpath(@__DIR__, "results.csv")
+filename = joinpath(@__DIR__, "evaluation_results.csv")
 DataFrame(name=names, psfmodels=jl_times, astropy=py_times) |> CSV.write(filename)
 
 @info "Results saved to $filename"
