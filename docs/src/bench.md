@@ -1,34 +1,28 @@
 # Benchmarks
 
-The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/main/bench) folder. To run them, first install the python dependencies
+The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/main/bench) folder. To run them, first instantiate the environment
 
 ```
-$ cd bench
-$ poetry install
-$ poetry shell
-```
-then get the Julia project set up
-```
-$ PYTHON=$(which python) julia --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.build("PyCall")'
+$ julia --project=bench -e "using Pkg; Pkg.instantiate()"
 ```
 
-Then run the benchmark
+then execute the `bench/bench.jl` file
 
 ```
-$ julia --project=. bench.jl
+$ julia --project=bench bench/bench.jl
 ```
 
 **System Information**
 
 ```
-Julia Version 1.6.0
-Commit f9720dc2eb* (2021-03-24 12:55 UTC)
+Julia Version 1.8.0-DEV.1437
+Commit a0093d2ffb (2022-02-01 00:11 UTC)
 Platform Info:
-  OS: macOS (x86_64-apple-darwin20.3.0)
-  CPU: Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
+  OS: macOS (arm64-apple-darwin21.2.0)
+  CPU: Apple M1 Max
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-11.0.1 (ORCJIT, skylake)
+  LLVM: libLLVM-13.0.0 (ORCJIT, cyclone)
 Environment:
   JULIA_NUM_THREADS = 1
 ```
@@ -40,14 +34,15 @@ Environment:
 This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000x1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
 
 ```@setup bench
-using CSV, DataFrames
+using CSV
+using DataFrames
 using StatsPlots
 benchdir(args...) = joinpath("..", ".." ,"bench", args...);
 ```
 
 
 ```@example bench
-table = CSV.File(benchdir("results.csv")) |> DataFrame
+table = CSV.read(benchdir("evaluation_results.csv"), DataFrame)
 ```
 
 ```@example bench
