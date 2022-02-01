@@ -50,3 +50,18 @@ table = CSV.read(benchdir("evaluation_results.csv"), DataFrame)
     ylabel="time (s)", yscale=:log10, leg=:outertopright,
     label=["PSFModels.jl" "Astropy"], size=(500, 300))
 ```
+
+
+### Fitting benchmark
+
+This benchmark tests how long it takes to fit a PSF Model to a stamp with size (39, 39). In all cases, we use equivalently complex models, the default fitters for PSFModels.jl, and the default `LevMarLSQFit` fitter for astropy.
+
+```@example bench
+table = CSV.read(benchdir("fitting_results.csv"), DataFrame)
+```
+
+```@example bench
+@df table groupedbar(:name, [:psfmodels :astropy];
+    ylabel="time (s)", yscale=:log10, leg=:outertopright,
+    label=["PSFModels.jl" "Astropy"], size=(500, 300))
+```
