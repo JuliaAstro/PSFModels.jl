@@ -23,6 +23,7 @@ end
 # get a PSF from HCIDatasets.jl;
 # you may be prompted to download the file
 psf = BetaPictoris[:psf]
+inds = CartesianIndices(psf)
 
 imshow(psf)
 ```
@@ -43,7 +44,7 @@ pairs(P_gauss)
 ```@example fit
 plot(
     imshow(psf, title="Data"),
-    imshow(mod_gauss, title="Model"),
+    imshow(mod_gauss.(inds), title="Model"),
     cbar=false,
     ticks=false,
     xlabel="",
@@ -64,7 +65,7 @@ pairs(P_ellip)
 ```@example fit
 plot(
     imshow(psf, title="Data"),
-    imshow(mod_ellip, title="Model"),
+    imshow(mod_ellip.(inds), title="Model"),
     cbar=false,
     ticks=false,
     xlabel="",
@@ -87,7 +88,7 @@ pairs(P_airy)
 ```@example fit
 plot(
     imshow(psf, title="Data"),
-    imshow(mod_airy, title="Model"),
+    imshow(mod_airy.(inds), title="Model"),
     cbar=false,
     ticks=false,
     xlabel="",
@@ -111,7 +112,7 @@ pairs(P_moff)
 ```@example fit
 plot(
     imshow(psf, title="Data"),
-    imshow(mod_moff, title="Model"),
+    imshow(mod_moff.(inds), title="Model"),
     cbar=false,
     ticks=false,
     xlabel="",
@@ -147,7 +148,7 @@ pairs(P_moff2)
 ```@example fit
 plot(
     imshow(psf, title="Data"),
-    imshow(mod_moff2, title="Model"),
+    imshow(mod_moff2.(inds), title="Model"),
     cbar=false,
     ticks=false,
     xlabel="",
