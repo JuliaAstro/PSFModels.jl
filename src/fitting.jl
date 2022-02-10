@@ -2,9 +2,9 @@
 const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
 
 """
-    PSFModels.fit(model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, alg=LBFGS(), kwargs...)
+    PSFModels.fit(model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf, alg=LBFGS(), kwargs...)
 
-Fit a PSF model (`model`) defined by the given `params` as a named tuple of the parameters to fit and their default values. This model is fit to the data in `image` at the specified `inds` (by default, the entire array). To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a named tuple to `func_kwargs`. The default loss function is the chi-squared loss, which uses the the square of the difference (i.e., the L2 norm). You can change this to the L1 norm, for example, by passing `loss=abs`.
+Fit a PSF model (`model`) defined by the given `params` as a named tuple of the parameters to fit and their default values. This model is fit to the data in `image` at the specified `inds` (by default, the entire array). To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a named tuple to `func_kwargs`. The default loss function is the chi-squared loss, which uses the the square of the difference (i.e., the L2 norm). You can change this to the L1 norm, for example, by passing `loss=abs`. The maximum FWHM can be set with `maxfwhm` as a number or tuple.
 
 Additional keyword arguments, as well as the fitting algorithm `alg`, are passed to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to derive Jacobians for the LBFGS optimization algorithm. Refer to the [Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/) for more information.
 
@@ -48,13 +48,13 @@ psf = gaussian.(CartesianIndicies(1:25, 1:15); P...)
 params, synthpsf = PSFModels.fit(gaussian, P, psf)
 ```
 
-here `params` is a named tuple of the best fitting parameters. This allows you to instantly create your best-fitting model like
+here `params` is a named tuple of the best fitting parameters. It will not include any fixed parameters.
+
+`synthpsf` is the best-fitting model, for direct comparison with the input data.
 
 ```julia
-model = gaussian(; params...)
+psf_fit = synthpsf.(CartesianIndicies(psf))
 ```
-
-`synthpsf` is the best-fitting model evaluated on the input grid, for direct comparison with the input data.
 
 To alter parameters without fitting them (i.e., "freeze" them) use `func_kwargs`
 
@@ -71,6 +71,7 @@ function fit(model::Model,
              func_kwargs=(;),
              loss=abs2,
              alg=LBFGS(),
+             maxfwhm=Inf,
              kwargs...) where T
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
@@ -80,7 +81,7 @@ function fit(model::Model,
         maxind = map(maximum, inds)
         minind[1] - 0.5 ≤ P.x ≤ maxind[1] + 0.5 || return T(Inf)
         minind[2] - 0.5 ≤ P.y ≤ maxind[2] + 0.5 || return T(Inf)
-        all(>(0), P.fwhm) || return T(Inf)
+        all(0 .< P.fwhm .< maxfwhm) || return T(Inf)
         if :ratio in _keys
             0 < P.ratio < 1 || return T(Inf)
         end
@@ -99,7 +100,7 @@ function fit(model::Model,
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
-    return P_best, model.(T, cartinds; P_best..., func_kwargs...)
+    return P_best, model(T; P_best..., func_kwargs...)
 end
 
 function vector_from_params(T, params)
