@@ -23,7 +23,7 @@ function test_fitting(rng, model, params, inds; kwargs...)
             @test P[k] ≈ params[k] rtol=1e-2
         end
     end
-    @test bestfit ≈ psf rtol=1e-2
+    @test bestfit.(CartesianIndices(psf)) ≈ psf rtol=1e-2
 end
 
 @testset "test fitting synthetic PSFs" begin
