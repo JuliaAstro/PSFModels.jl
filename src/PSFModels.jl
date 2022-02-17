@@ -105,17 +105,17 @@ data = # load data
 stamp_inds = # optionally choose indices to "cutout"
 
 # use an isotropic Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp),
-                       [12, 13, 3.2, 0.1], data, stamp_inds)
+params, synthpsf = fit(gaussian, (x=12, y=13, fwhm=3.2, amp=0.1),
+                       data, stamp_inds)
 # elliptical, rotated Gaussian
-params, synthpsf = fit(gaussian, (:x, :y, :fwhm, :amp, :theta),
-                       [12, 13, 3.2, 3.2, 0.1, 0], data, stamp_inds)
+params, synthpsf = fit(gaussian, (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, theta=0)
+                       data, stamp_inds)
 # obscured Airy disk
-params, synthpsf = fit(airydisk, (:x, :y, :fwhm, :amp, :ratio),
-                       [12, 13, 3.2, 0.1, 0.3], data, stamp_inds)
+params, synthpsf = fit(airydisk, (x=12, y=13, fwhm=3.2, amp=0.1, ratio=0.3),
+                       data, stamp_inds)
 # bivariate Moffat with arbitrary alpha
-params, synthpsf = fit(moffat, (:x, :y, :fwhm, :amp, :alpha),
-                       [12, 13, 3.2, 3.2, 0.1, 1], data, stamp_inds)
+params, synthpsf = fit(moffat, (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, alpha=1),
+                       data, stamp_inds)
 ```
 
 ### Plotting
