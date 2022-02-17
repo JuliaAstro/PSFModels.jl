@@ -1,7 +1,7 @@
 
 @doc raw"""
-    gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0)
-    gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0)
+    gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
+    gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
 
 An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis.
 
@@ -13,7 +13,7 @@ f(x | x̂, FWHM) = exp[-4ln(2) * ||x - x̂|| / FWHM^2]
 ```
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or tuple, the weighting is applied along each axis (diagonal).
 """
-gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0) = convert(T, _gaussian(px, py, x, y, fwhm, amp, theta))
+gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0) = convert(T, _gaussian(px, py, x, y, fwhm, amp, theta, bkg))
 
 
 """
@@ -27,7 +27,7 @@ const normal = gaussian
 const GAUSS_PRE = -4 * log(2)
 
 # isotropic
-function _gaussian(px, py, x, y, fwhm, amp, theta)
+function _gaussian(px, py, x, y, fwhm, amp, theta, background)
     # find offset from center
     dx = px - x
     dy = py - y
@@ -36,11 +36,11 @@ function _gaussian(px, py, x, y, fwhm, amp, theta)
     # unnormalized gaussian likelihood
     sqmahab = dx^2 + dy^2
     sqmahab /= fwhm^2
-    return amp * exp(GAUSS_PRE * sqmahab)
+    return amp * exp(GAUSS_PRE * sqmahab) + background
 end
 
 # bivariate
-function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta)
+function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta, background)
     # find offset from center
     dx = px - x
     dy = py - y
@@ -51,5 +51,5 @@ function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta)
     # unnormalized gaussian likelihood
     fwhmx, fwhmy = fwhm
     sqmahab = (dx / fwhmx)^2 + (dy / fwhmy)^2
-    return amp * exp(GAUSS_PRE * sqmahab)
+    return amp * exp(GAUSS_PRE * sqmahab) + background
 end
