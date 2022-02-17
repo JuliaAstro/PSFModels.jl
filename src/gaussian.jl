@@ -3,7 +3,7 @@
     gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
     gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
 
-An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis.
+An unnormalized bivariate Gaussian distribution. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis. If `bkg` is given it will be added as a scalar to the PSF.
 
 The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in mind that `theta` has no effect for isotropic distributions and is degenerate with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm` tuple)
 

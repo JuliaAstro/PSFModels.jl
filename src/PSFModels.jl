@@ -32,8 +32,8 @@ Directly evaluating the functions is the most straightforward way to use this pa
 julia> gaussian(0, 0; x=0, y=0, fwhm=3)
 1.0
 
-julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1)
-0.1000000000000000055511151231257827021181583404541015625
+julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1, bkg=1)
+1.100000000000000088817841970012523233890533447265625
 ```
 
 We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
