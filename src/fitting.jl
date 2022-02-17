@@ -75,10 +75,10 @@ function fit(model::Model,
              kwargs...) where T
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
+    minind = map(minimum, inds)
+    maxind = map(maximum, inds)
     function _loss(X::AbstractVector{T}) where T
         P = generate_params(_keys, X)
-        minind = map(minimum, inds)
-        maxind = map(maximum, inds)
         minind[1] - 0.5 ≤ P.x ≤ maxind[1] + 0.5 || return T(Inf)
         minind[2] - 0.5 ≤ P.y ≤ maxind[2] + 0.5 || return T(Inf)
         all(0 .< P.fwhm .< maxfwhm) || return T(Inf)
@@ -88,8 +88,8 @@ function fit(model::Model,
         if :theta in _keys
             -45 < P.theta < 45 || return T(Inf)
         end
-        # sum of errors (by default, with L2 norm == chi-squared)
-        mse = sum(cartinds) do idx
+        # mean of errors (by default, with L2 norm == chi-squared)
+        mse = mean(cartinds) do idx
             resid = model(T, idx; P..., func_kwargs...) - image[idx]
             return loss(resid)
         end

@@ -43,6 +43,11 @@ function test_model_interface(K)
     val_dir = @inferred K(0, 0; x=0, y=0, amp=2.0, fwhm=9)
     @test m(0, 0) ≈ val_dir ≈ 2.0
 
+    # test background
+    m = K(x=0, y=0, fwhm=9, bkg=10)
+    val_dir = @inferred K(0, 0; x=0, y=0, fwhm=9, bkg=10)
+    @test m(0, 0) ≈ val_dir ≈ 11
+
     # test different type
     m = K(BigFloat; x=0, y=0, fwhm=10)
     val_dir = @inferred K(BigFloat, 0, 0; x=0, y=0, fwhm=10)
