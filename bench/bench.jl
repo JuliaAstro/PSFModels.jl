@@ -56,7 +56,7 @@ psf = HCIDatasets.BetaPictoris[:psf]
 jl_times = []
 py_times = []
 
-@info "Gaussian"
+
 P0 = (x=20, y=20, fwhm=(5, 5), amp=0.1)
 t_jl = @belapsed PSFModels.fit(gaussian, $P0, $psf)
 cartinds = CartesianIndices(psf)
@@ -69,9 +69,9 @@ t_py = @belapsed begin
 end
 push!(jl_times, t_jl)
 push!(py_times, t_py)
+@info "Gaussian" PSFModels=t_jl astropy=t_py
 
 
-@info "AiryDisk"
 P0 = (x=20, y=20, fwhm=5, amp=0.1)
 t_jl = @belapsed PSFModels.fit(airydisk, $P0, $psf)
 t_py = @belapsed begin
@@ -81,8 +81,8 @@ t_py = @belapsed begin
 end
 push!(jl_times, t_jl)
 push!(py_times, t_py)
+@info "AiryDisk" PSFModels=t_jl astropy=t_py
 
-@info "Moffat"
 P0 = (x=20, y=20, fwhm=5, amp=0.1)
 t_jl = @belapsed PSFModels.fit(moffat, $P0, $psf)
 t_py = @belapsed begin
@@ -92,7 +92,7 @@ t_py = @belapsed begin
 end
 push!(jl_times, t_jl)
 push!(py_times, t_py)
-
+@info "Moffat" PSFModels=t_jl astropy=t_py
 
 filename = joinpath(@__DIR__, "fitting_results.csv")
 DataFrame(name=names, psfmodels=jl_times, astropy=py_times) |> CSV.write(filename)
