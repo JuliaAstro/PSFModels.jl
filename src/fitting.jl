@@ -84,7 +84,7 @@ function fit(model::Model,
     return P_best, model(T; P_best..., func_kwargs...)
 end
 
-function build_loss_function(model::Model, params, image, inds; func_kwargs=(;), loss=abs2, maxfwhm=Inf)
+function build_loss_function(model::Model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf)
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
     minind = map(minimum, inds)
