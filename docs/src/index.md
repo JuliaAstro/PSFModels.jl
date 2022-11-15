@@ -8,7 +8,7 @@ CurrentModule = PSFModels
 [![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=main)](https://github.com/juliaastro/PSFModels.jl/actions)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 [![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFModels.jl)
-[![License](https://img.shields.io/github/license/JuliaHCI/HCIToolbox.jl?color=yellow)](https://github.com/juliaastro/PSFModels.jl/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/juliaastro/PSFModels.jl?color=yellow)](https://github.com/juliaastro/PSFModels.jl/blob/main/LICENSE)
 
 ## Installation
 
