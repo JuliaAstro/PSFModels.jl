@@ -43,14 +43,12 @@ function _airydisk(px, py, x, y, fwhm, ratio, amp, theta, background)
     # unnormalized airydisk
     r = sqrt(dx^2 + dy^2)
     # short-circuit
-    iszero(r) && return amp / (1 - ratio^2)^2 + background
+    iszero(r) && return amp + background
     q = AIRY_PRE * r / fwhm
     I1 = 2 * besselj1(q) / q
-    if iszero(ratio)
-        return amp * I1^2 + background
-    end
-    I2 = 2 * ratio * besselj1(q * ratio) / q
-    return amp * ((I1 - I2) / (1 - ratio^2))^2 + background
+    iszero(ratio) && return amp * I1^2 + background
+    I2 = 2 * ratio^2 * besselj1(q * ratio) / q
+    return amp * (I1 - I2)^2 + background
 end
 
 # bivariate
@@ -66,11 +64,9 @@ function _airydisk(px, py, x, y, fwhm::BivariateLike, ratio, amp, theta, backgro
     fwhmx, fwhmy = fwhm
     q = AIRY_PRE * sqrt((dx / fwhmx)^2 + (dy / fwhmy)^2)
     # short-circuit
-    iszero(q) && return amp / (1 - ratio^2)^2 + background
+    iszero(q) && return amp + background
     I1 = 2 * besselj1(q) / q
-    if iszero(ratio)
-        return amp * I1^2 + background
-    end
-    I2 = 2 * ratio * besselj1(q * ratio) / q
-    return amp * ((I1 - I2) / (1 - ratio^2))^2 + background
+    iszero(ratio) && return amp * I1^2 + background
+    I2 = 2 * ratio^2 * besselj1(q * ratio) / q
+    return amp * (I1 - I2)^2+ background
 end
