@@ -23,10 +23,14 @@ function _moffat(px, py, x, y, fwhm, alpha, amp, theta, background)
     # rotate
     !iszero(theta) && @warn "isotropic moffat is not affected by non-zero rotation angle $theta"
     # unnormalized moffat
-    dist = dx^2 + dy^2
-    dist /= (fwhm / 2)^2
+    gamma = _moffat_fwhm_to_gamma(fwhm, alpha)
+    dist = (dx / gamma)^2 + (dy / gamma)^2
     return amp / (1 + dist)^alpha + background
 end
+
+# http://openafox.com/science/peak-function-derivations.html#moffat
+_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1/alpha) - 1)
+_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1/alpha) - 1))
 
 # bivariate
 function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta, background)
@@ -38,8 +42,8 @@ function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta, backgroun
         dx, dy = rotate_point(dx, dy, theta)
     end
     # unnormalized moffat
-    fwhmx, fwhmy = fwhm
+    gammax, gammay = _moffat_fwhm_to_gamma.(fwhm, alpha)
     # unnormalized moffat
-    dist = (dx / (fwhmx/2))^2 + (dy / (fwhmy/2))^2
+    dist = (dx / gammax)^2 + (dy / gammay)^2
     return amp / (1 + dist)^alpha + background
 end
