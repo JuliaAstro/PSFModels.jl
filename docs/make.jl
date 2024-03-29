@@ -7,7 +7,7 @@ setup = quote
 end
 
 DocMeta.setdocmeta!(PSFModels, :DocTestSetup, setup; recursive = true)
-
+include("pages.jl")
 makedocs(;
     modules=[PSFModels],
     authors="Miles Lucas <mdlucas@hawaii.edu> and contributors",
@@ -18,12 +18,7 @@ makedocs(;
         canonical="https://juliaastro.github.io/PSFModels.jl",
         assets=String[],
     ),
-    pages=[
-        "Home" => "index.md",
-        "Examples" => "examples.md",
-        "Benchmarks" => "bench.md",
-        "API/Reference" => "api.md",
-    ],
+    pages=pages
 )
 
 deploydocs(;
