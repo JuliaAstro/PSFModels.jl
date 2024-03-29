@@ -47,7 +47,7 @@ function _airydisk(px, py, x, y, fwhm, ratio, amp, theta, background)
     q = AIRY_PRE * r / fwhm
     I1 = 2 * besselj1(q) / q
     iszero(ratio) && return amp * I1^2 + background
-    I2 = 2 * ratio^2 * besselj1(q * ratio) / q
+    I2 = 2 * ratio * besselj1(q * ratio) / q
     return amp * (I1 - I2)^2 + background
 end
 
@@ -67,6 +67,6 @@ function _airydisk(px, py, x, y, fwhm::BivariateLike, ratio, amp, theta, backgro
     iszero(q) && return amp + background
     I1 = 2 * besselj1(q) / q
     iszero(ratio) && return amp * I1^2 + background
-    I2 = 2 * ratio^2 * besselj1(q * ratio) / q
+    I2 = 2 * ratio * besselj1(q * ratio) / q
     return amp * (I1 - I2)^2+ background
 end
