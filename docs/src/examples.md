@@ -47,8 +47,6 @@ plot(
     imshow(mod_gauss.(inds), title="Model"),
     cbar=false,
     ticks=false,
-    xlabel="",
-    ylabel="",
     layout=2,
     size=(600, 300)
 )
@@ -68,8 +66,6 @@ plot(
     imshow(mod_ellip.(inds), title="Model"),
     cbar=false,
     ticks=false,
-    xlabel="",
-    ylabel="",
     layout=2,
     size=(600, 300)
 )
@@ -91,8 +87,6 @@ plot(
     imshow(mod_airy.(inds), title="Model"),
     cbar=false,
     ticks=false,
-    xlabel="",
-    ylabel="",
     layout=2,
     size=(600, 300)
 )
@@ -115,8 +109,6 @@ plot(
     imshow(mod_moff.(inds), title="Model"),
     cbar=false,
     ticks=false,
-    xlabel="",
-    ylabel="",
     layout=2,
     size=(600, 300)
 )
@@ -138,7 +130,6 @@ pairs(P_moff)
 We can also "freeze" parameters by creating a named tuple and passing it to `func_kwargs`
 
 ```@example fit
-
 params = (;x=10, y=20, fwhm=(5, 5), amp=0.1)
 func_kwargs = (;alpha=2)
 P_moff2, mod_moff2 = fit(moffat, params, psf; func_kwargs)
@@ -151,8 +142,6 @@ plot(
     imshow(mod_moff2.(inds), title="Model"),
     cbar=false,
     ticks=false,
-    xlabel="",
-    ylabel="",
     layout=2,
     size=(600, 300)
 )
