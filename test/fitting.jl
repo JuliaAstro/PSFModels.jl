@@ -32,7 +32,7 @@ end
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
-        
+
         # test using L1 loss
         test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds; loss=abs)
         # test using frozen variables
@@ -45,7 +45,7 @@ end
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5, ratio=0.12), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
-        
+
         # test using L1 loss
         test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; loss=abs)
         # test using frozen variables

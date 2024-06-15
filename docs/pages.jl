@@ -1,5 +1,5 @@
 
-pages=[
+pages = [
     "Home" => "index.md",
     "Examples" => "examples.md",
     "Benchmarks" => "bench.md",

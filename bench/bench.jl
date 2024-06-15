@@ -15,8 +15,8 @@ apf = pyimport("astropy.modeling.fitting")
 
 
 julia_models = [
-    gaussian(x=0, y=0, fwhm=(5.3, 4.7)), 
-    airydisk(x=0, y=0, fwhm=12.7), 
+    gaussian(x=0, y=0, fwhm=(5.3, 4.7)),
+    airydisk(x=0, y=0, fwhm=12.7),
     moffat(x=0, y=0, fwhm=8.1)
 ]
 astropy_models = [
@@ -35,7 +35,7 @@ for (jl_mod, py_mod, name) in zip(julia_models, astropy_models, names)
 
     py_time = @belapsed $py_mod(0.5, 0.7)
     push!(py_times, py_time)
-    
+
     @info "$name" PSFModels=jl_time astropy=py_time
 end
 

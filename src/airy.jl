@@ -3,32 +3,42 @@
     airydisk([T=Float64], point; x, y, fwhm, ratio=0, amp=1, theta=0, bkg=0)
     airydisk([T=Float64], px, py; x, y, fwhm, ratio=0, amp=1, theta=0, bkg=0)
 
-An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given, the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis. If `bkg` is given it will be added as a scalar to the PSF.
+An unnormalized Airy disk. The position can be specified in `(x, y)` coordinates
+as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta` is given,
+the PSF will be rotated by `theta` degrees counter-clockwise from the x-axis. If
+`bkg` is given it will be added as a scalar to the PSF.
 
-The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in mind that `theta` has no effect for isotropic distributions and is degenerate with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm` tuple)
+The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in
+mind that `theta` has no effect for isotropic distributions and is degenerate
+with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm`
+tuple)
 
-If `ratio` is supplied, this will be the Airy pattern for a centrally-obscured aperture (e.g., a Newtonian telescope). This has a slightly expanded functional form, and in general the central Airy disk will be smaller and the first Airy ring will be brighter.
+If `ratio` is supplied, this will be the Airy pattern for a centrally-obscured
+aperture (e.g., a Newtonian telescope). This has a slightly expanded functional
+form, and in general the central Airy disk will be smaller and the first Airy
+ring will be brighter.
 
 # Functional form
 
 The Airy disk is a distribution over the radius `r` (the square-Euclidean distance)
 
-```
-f(x | x̂, FWHM) = [ 2J₁(q) / q ]^2
+```math
+f(x | x̂, \mathrm{FWHM}) = [ 2J₁(q) / q ]^2
 ```
 where `J₁` is the first-order Bessel function of the first kind and
-```
-q ≈ π * r * D/ λ ≈ π * r / (0.973 * FWHM)
+```math
+q ≈ π r D / λ ≈ π r / (0.973 × \mathrm{FWHM})
 ```
 
 If user a non-zero central obscuration via `ratio`, the functional form becomes
 
+```math
+f(x | x̂, \mathrm{FWHM}, ϵ) = [ 2J₁(q) / q - 2ϵJ₁(ϵq) / q ]^2 / (1 - ϵ^2)^2
 ```
-f(x | x̂, FWHM, ϵ) = [ 2J₁(q) / q - 2ϵJ₁(ϵq) / q ]^2 / (1 - ϵ^2)^2
-```
-where `ϵ` is the ratio (0 ≤ `ϵ` < 1).
+where ``ϵ`` is the ratio (``0 ≤ ϵ < 1``).
 """
-airydisk(T, px, py; x, y, fwhm, ratio=0, amp=one(T), theta=0, bkg=0) = convert(T, _airydisk(px, py, x, y, fwhm, ratio, amp, theta, bkg))
+airydisk(T, px, py; x, y, fwhm, ratio=0, amp=one(T), theta=0, bkg=0) =
+    convert(T, _airydisk(px, py, x, y, fwhm, ratio, amp, theta, bkg))
 
 # factor for scaling radius in terms of the fwhm
 const AIRY_PRE = π / 0.973
