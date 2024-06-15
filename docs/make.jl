@@ -1,6 +1,6 @@
 using PSFModels
 using Documenter
-
+using Documenter.Remotes: GitHub
 
 setup = quote
     using PSFModels
@@ -11,7 +11,7 @@ include("pages.jl")
 makedocs(;
     modules = [PSFModels],
     authors = "Miles Lucas <mdlucas@hawaii.edu> and contributors",
-    repo = "https://github.com/JuliaAstro/PSFModels.jl/blob/{commit}{path}#L{line}",
+    repo = GitHub("JuliaAstro/PSFModels.jl"),
     sitename = "PSFModels.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
