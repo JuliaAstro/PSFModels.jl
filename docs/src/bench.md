@@ -15,16 +15,17 @@ $ julia --project=bench bench/bench.jl
 **System Information**
 
 ```plain
-Julia Version 1.8.0-DEV.1437
-Commit a0093d2ffb (2022-02-01 00:11 UTC)
+Julia Version 1.10.4
+Commit 48d4fd48430 (2024-06-04 10:41 UTC)
+Build Info:
+  Official https://julialang.org/ release
 Platform Info:
-  OS: macOS (arm64-apple-darwin21.2.0)
-  CPU: Apple M1 Max
+  OS: Linux (x86_64-linux-gnu)
+  CPU: 16 × 13th Gen Intel(R) Core(TM) i5-1340P
   WORD_SIZE: 64
   LIBM: libopenlibm
-  LLVM: libLLVM-13.0.0 (ORCJIT, cyclone)
-Environment:
-  JULIA_NUM_THREADS = 1
+  LLVM: libLLVM-15.0.7 (ORCJIT, goldmont)
+Threads: 1 default, 0 interactive, 1 GC (on 16 virtual cores)
 ```
 
 ---
