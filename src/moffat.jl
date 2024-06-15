@@ -15,11 +15,15 @@ tuple)
 
 # Functional form
 ```math
-f(x | x̂, \mathrm{FWHM}, α) = A / (1 + ||x - x̂|| / (\mathrm{FWHM} / 2)^2)^α
+f(x | x̂, \mathrm{FWHM}, α) = A (1 + (||x - x̂|| / \mathrm{FWHM} / 2)^2)^{-α}
 ```
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the
-square-distance, and `FWHM` is the full width at half-maximum.
-If `FWHM` is a vector or tuple, the weighting is applied along each axis.
+distance, and `FWHM` is the full width at half-maximum.
+If `fwhm` is a vector or tuple, the weighting is applied along each axis.
+
+Note that this function technically uses the half width at half-maximum, defined
+as ``\mathrm{HWHM} = \mathrm{FWHM}/2``, but for compatibility with the other
+models, `fwhm` is used as an input parameter instead.
 """
 moffat(T, px, py; x, y, fwhm, alpha=1, amp=one(T), theta=0, bkg=0) =
     convert(T, _moffat(px, py, x, y, fwhm, alpha, amp, theta, bkg))
