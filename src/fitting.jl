@@ -66,7 +66,8 @@ psf = gaussian.(CartesianIndicies(1:25, 1:15); P...)
 params, synthpsf = PSFModels.fit(gaussian, P, psf)
 ```
 
-here `params` is a named tuple of the best fitting parameters. It will not include any fixed parameters.
+here `params` is a named tuple of the best fitting parameters.
+It will not include any fixed parameters.
 
 `synthpsf` is the best-fitting model, for direct comparison with the input data.
 

@@ -16,7 +16,7 @@ tuple)
 
 # Functional form
 ```math
-f(x | x̂, \mathrm{FWHM}) = \exp[-4\ln(2) ||x - x̂|| / \mathrm{FWHM}^2]
+f(x | x̂, \mathrm{FWHM}) = \exp[-4 \ln(2) ⋅ ||x - x̂|| / \mathrm{FWHM}^2]
 ```
 where `x̂` and `x` are position vectors (indices) `||⋅||` represents the
 square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a

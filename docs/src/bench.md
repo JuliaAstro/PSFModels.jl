@@ -31,7 +31,7 @@ Environment:
 
 ### Evaluation benchmark
 
-This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000x1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
+This benchmark tests how long it takes to evaluate a single point in the PSF model. This may seem contrived, but we expect performance to scale directly from this measure: if it takes 1 microsecond to evaluate a single point, it should take ~1 second to evaluate a 1000×1000 image, with speedups potentially from multithreading or SIMD loop evaluation.
 
 ```@setup bench
 using CSV
@@ -46,9 +46,11 @@ table = CSV.read(benchdir("evaluation_results.csv"), DataFrame)
 ```
 
 ```@example bench
-@df table groupedbar(:name, [:psfmodels :astropy];
-    ylabel="time (s)", yscale=:log10, leg=:outertopright,
-    label=["PSFModels.jl" "Astropy"], size=(500, 300))
+@df table groupedbar(
+    :name, [:psfmodels :astropy];
+    ylabel="time (s)", yscale=:log10, legend=:outertopright,
+    label=["PSFModels.jl" "Astropy"], size=(500, 300),
+)
 ```
 
 
@@ -61,7 +63,9 @@ table = CSV.read(benchdir("fitting_results.csv"), DataFrame)
 ```
 
 ```@example bench
-@df table groupedbar(:name, [:psfmodels :astropy];
-    ylabel="time (s)", yscale=:log10, leg=:outertopright,
-    label=["PSFModels.jl" "Astropy"], size=(500, 300))
+@df table groupedbar(
+    :name, [:psfmodels :astropy];
+    ylabel="time (s)", yscale=:log10, legend=:outertopright,
+    label=["PSFModels.jl" "Astropy"], size=(500, 300),
+)
 ```
