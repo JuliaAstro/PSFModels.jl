@@ -146,7 +146,6 @@ Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from
 seen in use in the [API/Reference](@ref) section.
 
 ```julia
-using PSFModels # hide
 using Plots
 
 model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
