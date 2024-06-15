@@ -145,7 +145,7 @@ Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from
 [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be
 seen in use in the [API/Reference](@ref) section.
 
-```@example
+```julia
 using PSFModels # hide
 using Plots
 
