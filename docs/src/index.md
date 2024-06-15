@@ -15,9 +15,8 @@ CurrentModule = PSFModels
 PSFModels can be added from the Julia package manager
 
 ```julia-repl
-julia>]
-
-(@v1.6) pkg> add PSFModels
+julia> ] # pressing ']' should drop you into pkg-mode
+pkg> add PSFModels
 ```
 
 ## Getting Started
