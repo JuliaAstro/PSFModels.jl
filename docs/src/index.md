@@ -14,7 +14,7 @@ CurrentModule = PSFModels
 
 PSFModels can be added from the Julia package manager
 
-```julia
+```julia-repl
 julia>]
 
 (@v1.6) pkg> add PSFModels
@@ -24,13 +24,13 @@ julia>]
 
 To import the library
 
-```julia
+```julia-repl
 julia> using PSFModels
 ```
 
 None of the models are exported to avoid namespace clashes, but it can be verbose to continuously rewrite `PSFModels`. You can either import names directly
 
-```julia
+```julia-repl
 julia> using PSFModels: gaussian
 
 julia> model = gaussian(x=0, y=0, fwhm=8)

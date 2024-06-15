@@ -2,19 +2,19 @@
 
 The benchmarks can be found in the [`bench/`](https://github.com/JuliaAstro/PSFModels.jl/tree/main/bench) folder. To run them, first instantiate the environment
 
-```
+```sh
 $ julia --project=bench -e "using Pkg; Pkg.instantiate()"
 ```
 
 then execute the `bench/bench.jl` file
 
-```
+```sh
 $ julia --project=bench bench/bench.jl
 ```
 
 **System Information**
 
-```
+```plain
 Julia Version 1.8.0-DEV.1437
 Commit a0093d2ffb (2022-02-01 00:11 UTC)
 Platform Info:

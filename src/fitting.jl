@@ -2,15 +2,32 @@
 const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
 
 """
-    PSFModels.fit(model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf, alg=LBFGS(), kwargs...)
+    PSFModels.fit(model, params, image, inds=axes(image);
+                  func_kwargs=(;), loss=abs2, maxfwhm=Inf, alg=LBFGS(),
+                  kwargs...)
 
-Fit a PSF model (`model`) defined by the given `params` as a named tuple of the parameters to fit and their default values. This model is fit to the data in `image` at the specified `inds` (by default, the entire array). To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a named tuple to `func_kwargs`. The default loss function is the chi-squared loss, which uses the the square of the difference (i.e., the L2 norm). You can change this to the L1 norm, for example, by passing `loss=abs`. The maximum FWHM can be set with `maxfwhm` as a number or tuple.
+Fit a PSF model (`model`) defined by the given `params` as a named tuple of the
+parameters to fit and their default values. This model is fit to the data in
+`image` at the specified `inds` (by default, the entire array). To pass extra
+keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a
+named tuple to `func_kwargs`. The default loss function is the chi-squared loss,
+which uses the the square of the difference (i.e., the L2 norm). You can change
+this to the L1 norm, for example, by passing `loss=abs`. The maximum FWHM can be
+set with `maxfwhm` as a number or tuple.
 
-Additional keyword arguments, as well as the fitting algorithm `alg`, are passed to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to derive Jacobians for the [Newton with Trust Region](https://julianlsolvers.github.io/Optim.jl/stable/#algo/newton_trust_region/) optimization algorithm. Refer to the [Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/) for more information.
+Additional keyword arguments, as well as the fitting algorithm `alg`, are passed
+to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to
+derive Jacobians for the
+[Newton with Trust Region](https://julianlsolvers.github.io/Optim.jl/stable/#algo/newton_trust_region/)
+optimization algorithm. Refer to the
+[Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/)
+for more information.
 
 # Choosing parameters
 
-The `fit` function is very powerful because it gives you a great amount of flexibility in the way you fit your models. To demonstrate this, let's start with a simple isotropic [`gaussian`](@ref).
+The `fit` function is very powerful because it gives you a great amount of
+flexibility in the way you fit your models. To demonstrate this, let's start
+with a simple isotropic [`gaussian`](@ref).
 
 ```julia
 model = gaussian
@@ -24,7 +41,8 @@ Note that `params` can follow any order
 params = (amp=1, x=20, y=20, fwhm=3)
 ```
 
-Now, to extend this interface to the bivariate PSF case, where `fwhm` is two values, all you need to do is use a tuple or vector
+Now, to extend this interface to the bivariate PSF case, where `fwhm` is two
+values, all you need to do is use a tuple or vector
 
 ```julia
 params = (x=20, y=20, fwhm=(3, 3))

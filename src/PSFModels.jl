@@ -12,11 +12,21 @@ The following models are currently implemented
 
 ## Parameters
 
-In general, the PSFs have a position, a full-width at half-maximum (FWHM) measure, and an amplitude. The position follows a 1-based pixel coordinate system, where `(1, 1)` represents the *center* of the bottom left pixel. This matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and WCS. The FWHM is a consistent scale parameter for the models. That means a `gaussian` with a FWHM of 5 will be visually similar to an `airydisk` with a FWHM of 5. All models support a scalar (isotropic) FWHM and a FWHM for each axis (diagonal), as well as arbitrarily rotating the PSF.
+In general, the PSFs have a position, a full-width at half-maximum (FWHM)
+measure, and an amplitude. The position follows a 1-based pixel coordinate
+system, where `(1, 1)` represents the *center* of the bottom left pixel. This
+matches the indexing style of Julia as well as DS9, IRAF, SourceExtractor, and
+WCS. The FWHM is a consistent scale parameter for the models. That means a
+`gaussian` with a FWHM of 5 will be visually similar to an `airydisk` with a
+FWHM of 5. All models support a scalar (isotropic) FWHM and a FWHM for each axis
+(diagonal), as well as arbitrarily rotating the PSF.
 
 !!! warning "Pixel-convention"
 
-    The pixel convention adopted here is that the bottom-left pixel *center* is `(1, 1)`. The column-major memory layout of julia puts the `x` axis as the rows of a matrix and the `y` axis as the columns. In other words, the axes unpack like
+    The pixel convention adopted here is that the bottom-left pixel *center* is
+    `(1, 1)`. The column-major memory layout of julia puts the `x` axis as the
+    rows of a matrix and the `y` axis as the columns. In other words, the axes
+    unpack like
     ```julia
     xs, ys = axes(image)
     ```
@@ -36,7 +46,8 @@ julia> gaussian(BigFloat, 0, 0; x=0, y=0, fwhm=3, amp=0.1, bkg=1)
 1.100000000000000088817841970012523233890533447265625
 ```
 
-We also provide "curried" versions of the functions, which allow you to specify the parameters and evaluate the PSF later
+We also provide "curried" versions of the functions, which allow you to specify
+the parameters and evaluate the PSF later
 
 ```jldoctest model
 julia> model = gaussian(x=0, y=0, fwhm=3);
@@ -85,7 +96,8 @@ julia> stamp = @view big_img[stamp_inds...];
 julia> stamp_model = model.(CartesianIndices(stamp_inds));
 ```
 
-or we can create a loss function for fitting PSFs without allocating any memory. We are simply iterating over the image array!
+or we can create a loss function for fitting PSFs without allocating any memory.
+We are simply iterating over the image array!
 
 ```jldoctest model
 julia> using Statistics
@@ -95,7 +107,8 @@ julia> mse = mean(I -> (big_img[I] - model(I))^2, CartesianIndices(stamp_inds));
 
 ### Fitting data
 
-There exists a simple, yet powerful, API for fitting data with [`PSFModels.fit`](@ref).
+There exists a simple, yet powerful, API for fitting data with
+[`PSFModels.fit`](@ref).
 
 ```julia
 # `fit` is not exported to avoid namespace clashes
@@ -120,7 +133,9 @@ params, synthpsf = fit(moffat, (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, alpha=1),
 
 ### Plotting
 
-Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be seen in use in the [API/Reference](@ref) section.
+Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from
+[RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be
+seen in use in the [API/Reference](@ref) section.
 
 ```julia
 using Plots
