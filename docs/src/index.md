@@ -47,10 +47,6 @@ import PSFModels as M
 model = M.gaussian(x=0, y=0, fwhm=10)
 ```
 
-```@docs
-PSFModels
-```
-
 ## Contributing and Support
 
 If you would like to contribute, feel free to open a [pull request](https://github.com/JuliaAstro/PSFModels.jl/pulls). If you want to discuss something before contributing, head over to [discussions](https://github.com/JuliaAstro/PSFModels.jl/discussions) and join or open a new topic. If you're having problems with something, please open an [issue](https://github.com/JuliaAstro/PSFModels.jl/issues).
