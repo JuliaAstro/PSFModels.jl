@@ -43,6 +43,7 @@ benchdir(args...) = joinpath("..", ".." ,"bench", args...);
 
 ```@example bench
 table = CSV.read(benchdir("evaluation_results.csv"), DataFrame)
+show(table) # hide
 ```
 
 ```@example bench
@@ -60,6 +61,7 @@ This benchmark tests how long it takes to fit a PSF Model to a stamp with size (
 
 ```@example bench
 table = CSV.read(benchdir("fitting_results.csv"), DataFrame)
+show(table) # hide
 ```
 
 ```@example bench
