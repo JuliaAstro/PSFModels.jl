@@ -68,7 +68,7 @@ plot(
 )
 ```
 
-## Fitters
+## Fitting
 
 ```@docs
 PSFModels.fit
