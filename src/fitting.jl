@@ -114,7 +114,9 @@ function build_loss_function(model::Model, params, image, inds=axes(image); func
         minind[1] - 0.5 ≤ P.x ≤ maxind[1] + 0.5 || return T(Inf)
         minind[2] - 0.5 ≤ P.y ≤ maxind[2] + 0.5 || return T(Inf)
         # fwhm is non-negative and below max value
-        all(0 .< P.fwhm .< maxfwhm) || return T(Inf)
+        if :fwhm in _keys
+            all(0 .< P.fwhm .< maxfwhm) || return T(Inf)
+        end
         # ratio is strictly (0, 1)
         if :ratio in _keys
             0 < P.ratio < 1 || return T(Inf)
