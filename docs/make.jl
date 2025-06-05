@@ -17,6 +17,7 @@ makedocs(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://juliaastro.github.io/PSFModels.jl",
         assets = String[],
+        canonical="https://juliaastro.org/PSFModels/stable/",
     ),
     pages = pages,
 )
@@ -25,4 +26,5 @@ deploydocs(;
     repo = "github.com/JuliaAstro/PSFModels.jl",
     push_preview = true,
     devbranch = "main",
+    versions = ["stable" => "v^", "v#.#"], # Restrict to minor releases
 )
