@@ -15,9 +15,8 @@ makedocs(;
     sitename = "PSFModels.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://juliaastro.github.io/PSFModels.jl",
         assets = String[],
-        canonical="https://juliaastro.org/PSFModels/stable/",
+        canonical = "https://juliaastro.org/PSFModels/stable/",
     ),
     pages = pages,
 )
