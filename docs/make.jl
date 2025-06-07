@@ -7,7 +7,9 @@ setup = quote
 end
 
 DocMeta.setdocmeta!(PSFModels, :DocTestSetup, setup; recursive = true)
+
 include("pages.jl")
+
 makedocs(;
     modules = [PSFModels],
     authors = "Miles Lucas <mdlucas@hawaii.edu> and contributors",
