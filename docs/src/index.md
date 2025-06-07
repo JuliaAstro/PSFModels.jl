@@ -5,10 +5,10 @@ CurrentModule = PSFModels
 # PSFModels.jl
 
 [![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/juliaastro/PSFModels.jl)
-[![Build Status](https://github.com/juliaastro/PSFModels.jl/workflows/CI/badge.svg?branch=main)](https://github.com/juliaastro/PSFModels.jl/actions)
+[![CI](https://github.com/JuliaAstro/PSFModels.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JuliaAstro/PSFModels.jl/actions/workflows/ci.yml)
 [![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/P/PSFModels.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
-[![Coverage](https://codecov.io/gh/juliaastro/PSFModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/juliaastro/PSFModels.jl)
-[![License](https://img.shields.io/github/license/juliaastro/PSFModels.jl?color=yellow)](https://github.com/juliaastro/PSFModels.jl/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/juliaastro/PSFModels.jl/graph/badge.svg?token=Jy06ZuwvVi)](https://codecov.io/gh/juliaastro/PSFModels.jl)
+![License](https://img.shields.io/github/license/JuliaAstro/PSFModels.jl?color=yellow)
 
 ## Installation
 
