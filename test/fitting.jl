@@ -14,7 +14,7 @@ function test_fitting(rng, model, params, inds; kwargs...)
     # perturb starting guess by a little
     _vals .*= 1 .+ 1e-2 .* randn(rng, length(_vals))
     P0 = PSFModels.generate_params(_keys, _vals)
-    P, bestfit = fit(model, P0, psf; kwargs...)
+    P, bestfit = fit(model, P0, psf; x_abstol = 5e-5, kwargs...)
     for k in _keys
         if P[k] isa Tuple
             @test P[k][1] ≈ params[k][1] rtol=1e-2

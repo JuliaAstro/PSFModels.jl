@@ -16,7 +16,7 @@ this to the L1 norm, for example, by passing `loss=abs`. The maximum FWHM can be
 set with `maxfwhm` as a number or tuple.
 
 Additional keyword arguments, as well as the fitting algorithm `alg`, are passed
-to `Optim.optimize`. By default we use forward-mode auto-differentiation (AD) to
+to `Optim.optimize` as an `Optim.Option`. By default we use forward-mode auto-differentiation (AD) to
 derive Jacobians for the
 [Newton with Trust Region](https://julianlsolvers.github.io/Optim.jl/stable/#algo/newton_trust_region/)
 optimization algorithm. Refer to the
@@ -96,7 +96,7 @@ function fit(model::Model,
 
     _loss = build_loss_function(model, params, image, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
-    result = optimize(_loss, X0, alg; autodiff=:forward, kwargs...)
+    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=:forward)
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
