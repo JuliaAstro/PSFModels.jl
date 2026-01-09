@@ -5,3 +5,12 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "julia"
+    directories: ["/",  "/bench", "/docs", "/test"]
+    schedule:
+      interval: "daily"
+    groups:
+      all-julia-packages:
+        patterns:
+          - "*"
