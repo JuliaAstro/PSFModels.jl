@@ -1,7 +1,10 @@
 module PSFModels
 
+using ChainRulesCore
+import ChainRulesCore: frule, rrule
 using CoordinateTransformations
 using KeywordCalls
+using LinearAlgebra
 using Optim
 using Rotations
 using SpecialFunctions

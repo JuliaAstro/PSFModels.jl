@@ -1,8 +1,13 @@
+using ChainRulesCore
+using ChainRulesTestUtils
 using Distributions
+using FiniteDifferences
 using PSFModels
 using StableRNGs
 using StaticArrays
 using Test
+
+ChainRulesCore.debug_mode() = true
 
 rng = StableRNG(112358)
 
@@ -61,10 +66,6 @@ function test_model_interface(K)
     @test m(0, 0) ≈ val_dir ≈ BigFloat(1)
 end
 
-@testset "Model Interface - $K" for K in (gaussian, airydisk, moffat)
-    test_model_interface(K)
-end
-
 @testset "gaussian" begin
     m = gaussian(x=0, y=0, fwhm=10)
     expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
@@ -77,6 +78,23 @@ end
 
     # test Normal alias
     @test normal(0, 0; x=0, y=0, fwhm=10) === gaussian(0, 0; x=0, y=0, fwhm=10)
+
+    test_model_interface(gaussian)
+
+    @testset "gradients" begin
+        FiniteDifferences.to_vec(x::Integer) = Bool[], _ -> x
+        # have to make sure PSFs are all floating point so tangents don't have type issues
+        psf_iso = gaussian(fwhm=10.0, pos=zeros(2))
+        psf_tang = Tangent{typeof(gaussian)}(fwhm=rand(rng), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
+        point = Float64[1, 2]
+        test_frule(psf_iso ⊢ psf_tang, point)
+        test_rrule(psf_iso ⊢ psf_tang, point)
+
+        psf_diag = gaussian(fwhm=Float64[10, 8], pos=zeros(2))
+        psf_tang = Tangent{typeof(gaussian)}(fwhm=rand(rng, 2), pos=rand(rng, 2), amp=rand(rng), indices=NoTangent())
+        test_frule(psf_diag ⊢ psf_tang, point)
+        test_rrule(psf_diag ⊢ psf_tang, point)
+    end
 end
 
 
@@ -117,7 +135,6 @@ end
     @test mratio(0, radius) > m(0, radius)
     @test mratio(0, -radius) > m(0, -radius)
 
-
     mratio = airydisk(x=0, y=0, fwhm=(10, 6), ratio=sqrt(0.5), amp=4)
     r1 = fwhm[1] * 1.18677
     r2 = fwhm[2] * 1.18677
@@ -131,11 +148,15 @@ end
     # https://github.com/JuliaAstro/PSFModels.jl/issues/14
     mratio = airydisk(x = 40.5, y=40.5, fwhm=10, ratio=0.2,amp=1)
     @test mratio(40.5, 40.5) ≈ 1
+
+    test_model_interface(airydisk)
 end
 
 @testset "moffat" begin
+    test_model_interface(moffat)
+
     m = moffat(x=0, y=0, fwhm=10)
-     expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
+    expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
     @test m(1, 2) ≈ expected
 
     m = moffat(x=0, y=0, fwhm=(10, 9))
@@ -145,7 +166,7 @@ end
 
     # different alpha
     m = moffat(x=0, y=0, fwhm=10, alpha=2)
-    expected = inv(1 + sum(abs2, SA[1, 2] ./  PSFModels._moffat_fwhm_to_gamma(10, 2)))^2
+    expected = inv(1 + sum(abs2, SA[1, 2] ./ PSFModels._moffat_fwhm_to_gamma(10, 2)))^2
     @test m(1, 2) ≈ expected
 
     fwhms = randn(rng, 100) .+ 10
