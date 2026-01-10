@@ -6,3 +6,12 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 HCIDatasets = "1893dc6a-5236-4cb8-aa54-62ea411c10cd"
 PSFModels = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+
+[compat]
+BenchmarkTools = "1.6.3"
+CSV = "0.10.15"
+CondaPkg = "0.2.33"
+DataFrames = "1.8.1"
+HCIDatasets = "0.3.0"
+PSFModels = "0.8.2"
+PythonCall = "0.9.31"
