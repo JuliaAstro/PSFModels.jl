@@ -13,7 +13,7 @@ CSV = "0.10.15"
 CondaPkg = "0.2.33"
 DataFrames = "1.8.1"
 HCIDatasets = "0.3.0"
+PSFModels = "0.8.2"
 PythonCall = "0.9.31"
-
 [sources]
 PSFModels = {path = ".."}
