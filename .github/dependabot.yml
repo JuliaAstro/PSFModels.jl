@@ -12,5 +12,4 @@ updates:
       interval: "daily"
     ignore:
       # Ignore package itself
-      patterns:
-        - dependency-name: "PSFModels"
+      - dependency-name: "PSFModels"
