@@ -10,7 +10,7 @@ updates:
     directories: ["/",  "/bench", "/docs", "/test"]
     schedule:
       interval: "daily"
-    groups:
-      all-julia-packages:
-        patterns:
-          - "*"
+    ignore:
+      # Ignore package itself
+      patterns:
+        - dependency-name: "PSFModels"
