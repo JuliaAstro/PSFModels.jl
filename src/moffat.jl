@@ -1,60 +1,62 @@
 
 @doc raw"""
-    PSFModels.Moffat([T=Float64]; fwhm, x=0, y=0, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.Moffat([T=Float64]; fwhm, pos, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
-    PSFModels.Moffat([T=Float64]; fwhm, r, theta, amp=1, alpha=1, maxsize=3, extent=maxsize .* fwhm)
+    moffat([T=Float64], point; x, y, fwhm, alpha=1, amp=1, theta=0, bkg=0)
+    moffat([T=Float64], px, py; x, y, fwhm, alpha=1, amp=1, theta=0, bkg=0)
 
-Two dimensional Moffat model. The position can be specified in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. By default the model is placed at the origin. The position can also be given as a polar coordinate using `r`/`ρ` and `theta`/`θ`, optionally centered around `origin`.
+Two dimensional Moffat model. The position can be specified in `(x, y)`
+coordinates as a `Tuple`, `AbstractVector`, or as separate arguments. If `theta`
+is given, the PSF will be rotated by `theta` degrees counter-clockwise from the
+x-axis. If `bkg` is given it will be added as a scalar to the PSF.
 
-The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). For efficient calculations, we recommend using [StaticArrays](https://github.com/JuliaArrays/StaticArrays.jl). Here, `maxsize` is a multiple of the fwhm, and can be given as a scalar or as a tuple for each axis. The `extent` defines the bounding box for the model and is used for the default rendering size.
+The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in
+mind that `theta` has no effect for isotropic distributions and is degenerate
+with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm`
+tuple)
 
 # Functional form
+```math
+f(x | x̂, \mathrm{FWHM}, α) = A (1 + (||x - x̂|| / \mathrm{FWHM} / 2)^2)^{-α}
 ```
-f(x | x̂, FWHM, α) = A / (1 + ||x - x̂|| / (FWHM / 2)^2)^α
-```
-where `x̂` and `x` are position vectors (indices) `||⋅||` represents the square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a vector or tuple, the weighting is applied along each axis.
+where `x̂` and `x` are position vectors (indices) `||⋅||` represents the
+distance, and `FWHM` is the full width at half-maximum.
+If `fwhm` is a vector or tuple, the weighting is applied along each axis.
+
+Note that this function technically uses the half width at half-maximum, defined
+as ``\mathrm{HWHM} = \mathrm{FWHM}/2``, but for compatibility with the other
+models, `fwhm` is used as an input parameter instead.
 """
-struct Moffat{T,FT,VT<:AbstractVector,IT<:Tuple} <: PSFModel{T}
-    fwhm::FT
-    pos::VT
-    amp::T
-    alpha::Int
-    indices::IT
+moffat(T, px, py; x, y, fwhm, alpha=1, amp=one(T), theta=0, bkg=0) =
+    convert(T, _moffat(px, py, x, y, fwhm, alpha, amp, theta, bkg))
 
-    function Moffat(::Type{T}, fwhm::FT, pos::VT, amp::T, alpha, indices::IT) where {T,FT,VT<:AbstractVector,IT<:Tuple}
-        new{T,FT,VT,IT}(fwhm, pos, amp, alpha, indices)
+# isotropic
+function _moffat(px, py, x, y, fwhm, alpha, amp, theta, background)
+    # find offset from center
+    dx = px - x
+    dy = py - y
+    # rotate
+    !iszero(theta) && @warn "isotropic moffat is not affected by non-zero rotation angle $theta"
+    # unnormalized moffat
+    gamma = _moffat_fwhm_to_gamma(fwhm, alpha)
+    dist = (dx / gamma)^2 + (dy / gamma)^2
+    return amp / (1 + dist)^alpha + background
+end
+
+# http://openafox.com/science/peak-function-derivations.html#moffat
+_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1/alpha) - 1)
+_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1/alpha) - 1))
+
+# bivariate
+function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta, background)
+    # find offset from center
+    dx = px - x
+    dy = py - y
+    # rotate
+    if !iszero(theta)
+        dx, dy = rotate_point(dx, dy, theta)
     end
-end
-
-## constructors
-# default type is Float64
-Moffat(; kwargs...) = Moffat(Float64; kwargs...)
-function Moffat(T; fwhm, amp=one(T), alpha=1, maxsize=3, extent = maxsize .* fwhm, position...)
-    # get the position from keyword distpatch
-    pos = _position(; position...)
-    return Moffat(T, fwhm, pos, convert(T, amp), alpha, indices_from_extent(pos, extent))
-end
-
-
-Base.size(m::Moffat) = map(length, m.indices)
-Base.axes(m::Moffat) = m.indices
-
-# short printing
-Base.show(io::IO, m::Moffat{T}) where {T} = print(io, "Moffat{$T}(pos=$(m.pos), fwhm=$(m.fwhm), amp=$(m.amp), alpha=$(m.alpha))")
-
-
-# scalar case
-function (m::Moffat{T})(point::AbstractVector) where T
-    hwhm = m.fwhm / 2
-    Δ = sqeuclidean(point, m.pos)
-    val = m.amp / (1 + Δ / hwhm^2)^m.alpha
-    return convert(T, val)
-end
-
-# vector case
-function (m::Moffat{T,<:Union{AbstractVector,Tuple}})(point::AbstractVector) where T
-    weights = SA[(2 / first(m.fwhm))^2, (2 / last(m.fwhm))^2]
-    Δ = wsqeuclidean(point, m.pos, weights)
-    val = m.amp  / (1 + Δ)^m.alpha
-    return convert(T, val)
+    # unnormalized moffat
+    gammax, gammay = _moffat_fwhm_to_gamma.(fwhm, alpha)
+    # unnormalized moffat
+    dist = (dx / gammax)^2 + (dy / gammay)^2
+    return amp / (1 + dist)^alpha + background
 end

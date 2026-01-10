@@ -6,81 +6,140 @@
 Here is a brief example which shows how to construct a loss function for fitting a `PSFModel` to some data.
 
 ```@example fit
-using PSFModels: Gaussian
+using PSFModels
+using PSFModels: fit
 using HCIDatasets: BetaPictoris
 using Plots
+using Statistics
 
 # convenience function for plotting
 function imshow(data; kwargs...)
-    xlim = extrema(axes(data, 2))
-    ylim = extrema(axes(data, 1))
-    heatmap(data; xlim=xlim, ylim=ylim, aspect_ratio=1, kwargs...)
+    xlim = extrema(axes(data, 1))
+    ylim = extrema(axes(data, 2))
+    heatmap(transpose(data); xlim=xlim, ylim=ylim,
+            aspect_ratio=1, clims=(1e-5, Inf), kwargs...)
 end
 
 # get a PSF from HCIDatasets.jl;
 # you may be prompted to download the file
 psf = BetaPictoris[:psf]
+inds = CartesianIndices(psf)
 
 imshow(psf)
 ```
 
-```@example fit
-using LossFunctions
+We can fit this data with a variety of models, here showcasing the flexible [`PSFModels.fit`](@ref) function.
 
-# generative model
-function model(X::AbstractVector{T}) where T
-    x    =       X[1]   # position
-    y    =       X[2]
-    fwhm = @view X[3:4] # fwhm_x, fwhm_y
-    amp  =       X[5]   # amplitude
-    return Gaussian(T; x, y, fwhm, amp)
-end
 
-# objective function
-function loss(X::AbstractVector{T}, target) where T
-    # cheap way to enforce positivity
-    all(>(0), X) || return T(Inf)
-    # get generative model
-    m = model(X)
-    # l2-distance loss (χ² loss) (LossFunctions.jl) without cutting out
-    stamp = @view m[axes(target)...]
-    return value(L2DistLoss(), target, stamp, AggMode.Sum())
-end
+### Gaussian
 
-# params are [x, y, fwhm_x, fwhm_y, amp]
-test_params = eltype(psf)[20, 20, 5, 5, 1]
-loss(test_params, psf)
-```
-
-The objective function can then be used with an optimization library like [Optim.jl](https://github.com/JuliaOpt/Optim.jl) to find best-fitting parameters
+Using [`gaussian`](@ref)
 
 ```@example fit
-using Optim
-
-# Fit our data using test_params as a starting point
-# uses Nelder-Mead optimization
-res = optimize(P -> loss(P, psf), test_params)
+params = (x=20, y=20, fwhm=5, amp=0.1)
+P_gauss, mod_gauss = fit(gaussian, params, psf)
+pairs(P_gauss)
 ```
 
 ```@example fit
-# utilize automatic differentiation (AD) to enable
-# advanced algorithms, like LBFGS
-res_ad = optimize(P -> loss(P, psf), test_params, LBFGS(); autodiff=:forward)
-```
-
-we can see which result has the better loss, and then use the generative model to create a model that we can use elsewhere
-
-```@example fit
-best_res = minimum(res) < minimum(res_ad) ? res : res_ad
-best_fit_params = Optim.minimizer(best_res)
-```
-
-```@example fit
-synth_psf = model(best_fit_params)
-
 plot(
     imshow(psf, title="Data"),
-    plot(synth_psf, axes(psf); title="Model"),
+    imshow(mod_gauss.(inds), title="Model"),
+    cbar=false,
+    ticks=false,
+    layout=2,
+    size=(600, 300)
+)
+```
+
+and now using a rotated, elliptical Gaussian
+
+```@example fit
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0)
+P_ellip, mod_ellip = fit(gaussian, params, psf)
+pairs(P_ellip)
+```
+
+```@example fit
+plot(
+    imshow(psf, title="Data"),
+    imshow(mod_ellip.(inds), title="Model"),
+    cbar=false,
+    ticks=false,
+    layout=2,
+    size=(600, 300)
+)
+```
+
+### Airy disk
+
+Now with [`airydisk`](@ref)
+
+```@example fit
+params = (x=20, y=20, fwhm=5, amp=0.1, ratio=0.3)
+P_airy, mod_airy = fit(airydisk, params, psf)
+pairs(P_airy)
+```
+
+```@example fit
+plot(
+    imshow(psf, title="Data"),
+    imshow(mod_airy.(inds), title="Model"),
+    cbar=false,
+    ticks=false,
+    layout=2,
+    size=(600, 300)
+)
+```
+
+### Moffat
+
+And finally, with [`moffat`](@ref)
+
+
+```@example fit
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0, alpha=2)
+P_moff, mod_moff = fit(moffat, params, psf)
+pairs(P_moff)
+```
+
+```@example fit
+plot(
+    imshow(psf, title="Data"),
+    imshow(mod_moff.(inds), title="Model"),
+    cbar=false,
+    ticks=false,
+    layout=2,
+    size=(600, 300)
+)
+```
+
+### Changing optimization parameters
+
+Any keyword arguments get passed on to `Optim.optimize`, and you can change the algorithm used with the `alg` keyword
+
+```@example fit
+# load Optim.jl to use the Newton method
+using Optim
+
+params = (x=20, y=20, fwhm=(5, 5), amp=0.1, theta=0, alpha=2)
+P_moff, mod_moff = fit(moffat, params, psf; alg=Newton())
+pairs(P_moff)
+```
+
+We can also "freeze" parameters by creating a named tuple and passing it to `func_kwargs`
+
+```@example fit
+params = (;x=10, y=20, fwhm=(5, 5), amp=0.1)
+func_kwargs = (;alpha=2)
+P_moff2, mod_moff2 = fit(moffat, params, psf; func_kwargs)
+pairs(P_moff2)
+```
+
+```@example fit
+plot(
+    imshow(psf, title="Data"),
+    imshow(mod_moff2.(inds), title="Model"),
     cbar=false,
     ticks=false,
     layout=2,
