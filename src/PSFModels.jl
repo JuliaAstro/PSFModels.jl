@@ -1,6 +1,8 @@
 module PSFModels
 
+import ADTypes
 using CoordinateTransformations
+import ForwardDiff
 using KeywordCalls
 using Optim
 using Rotations

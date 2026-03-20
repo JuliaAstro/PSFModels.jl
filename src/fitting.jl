@@ -61,7 +61,7 @@ After selecting your model and parameters, fitting data is easy
 
 ```julia
 P = (x=12, y=13, fwhm=13.2, amp=0.1)
-psf = gaussian.(CartesianIndicies(1:25, 1:15); P...)
+psf = gaussian.(CartesianIndices((1:25, 1:15)); P...)
 
 params, synthpsf = PSFModels.fit(gaussian, P, psf)
 ```
@@ -72,7 +72,7 @@ It will not include any fixed parameters.
 `synthpsf` is the best-fitting model, for direct comparison with the input data.
 
 ```julia
-psf_fit = synthpsf.(CartesianIndicies(psf))
+psf_fit = synthpsf.(CartesianIndices(psf))
 ```
 
 To alter parameters without fitting them (i.e., "freeze" them) use `func_kwargs`
@@ -96,7 +96,7 @@ function fit(model::Model,
 
     _loss = build_loss_function(model, params, image, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
-    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=:forward)
+    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
