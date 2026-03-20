@@ -96,7 +96,7 @@ function fit(model::Model,
 
     _loss = build_loss_function(model, params, image, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
-    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=:forward)
+    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
