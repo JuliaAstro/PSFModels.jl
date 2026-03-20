@@ -40,6 +40,9 @@ function test_fitting(rng, model, params, inds; kwargs...)
     psf_noisy = psf .+ σ .* randn(rng, size(psf))
     inv_var = fill(inv(σ^2), size(psf))
     P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=inv_var, kwargs...)
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=zeros(size(psf)), kwargs...) # inv_var can't be 0
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=fill(-1.0, size(psf)), kwargs...) # inv_var can't be negative
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=fill(1.0, size(psf) .+ (1,)), kwargs...) # inv_var must be same size as image
     # The precision tests have random failures right now, think more about how to do this in a robust way
     # sterr = generate_params(keys(P_noisy), 2 .* sqrt.(max.(0, diag(cov))))
     # test_params(params, P_noisy; rtol=0.1, atol=sterr)

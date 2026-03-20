@@ -127,6 +127,9 @@ function fit(model::Model,
     _keys = keys(params)
     if isnothing(inv_var)
         @warn "Without inverse variance weights, cannot estimate PSF parameter covariance matrix." maxlog=5
+    else
+        size(inv_var) == size(image) || throw(ArgumentError("`inv_var` must be the same size as `image`"))
+        any(<=(0), inv_var) && throw(ArgumentError("`inv_var` must be > 0 everywhere"))
     end
     _loss = build_loss_function(model, params, image, inv_var, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
