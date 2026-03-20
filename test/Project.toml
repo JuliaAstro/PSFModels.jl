@@ -8,8 +8,8 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 Distributions = "0.25"
-LinearAlgebra = "<0.0.1, 1"
+LinearAlgebra = "1"
 RecipesBase = "1"
 StableRNGs = "1.0.4"
 StaticArrays = "0.12, 1"
-Test = "<0.0.1, 1"
+Test = "1"
