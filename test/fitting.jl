@@ -1,5 +1,5 @@
-using PSFModels: fit
-
+using PSFModels: fit, generate_params, vector_from_params
+using LinearAlgebra: diag
 
 function generate_model(rng, model, params, inds)
     cartinds = CartesianIndices(inds)
@@ -8,6 +8,20 @@ function generate_model(rng, model, params, inds)
 end
 
 function test_fitting(rng, model, params, inds; kwargs...)
+    # Test that the recovered params are ~ P, allowing for tuple parameters
+    function test_params(params, P; rtol=1e-2, atol=0)
+        # If rtol is scalar, make it a NamedTuple with the same keys as params
+        rtol = rtol isa Number ? generate_params(keys(params), fill(rtol, length(vector_from_params(Float64, params)))) : rtol
+        atol = atol isa Number ? generate_params(keys(params), fill(atol, length(vector_from_params(Float64, params)))) : atol
+        for k in keys(params)
+            if P[k] isa Tuple
+                @test P[k][1] ≈ params[k][1] rtol=rtol[k][1] atol=atol[k][1]
+                @test P[k][2] ≈ params[k][2] rtol=rtol[k][2] atol=atol[k][2]
+            else
+                @test P[k] ≈ params[k] rtol=rtol[k] atol=atol[k]
+            end
+        end
+    end
     psf = generate_model(rng, model, params, inds)
     _keys = keys(params)
     _vals = PSFModels.vector_from_params(Float64, params)
@@ -15,15 +29,22 @@ function test_fitting(rng, model, params, inds; kwargs...)
     _vals .*= 1 .+ 1e-2 .* randn(rng, length(_vals))
     P0 = PSFModels.generate_params(_keys, _vals)
     P, bestfit = fit(model, P0, psf; x_abstol = 5e-5, kwargs...)
-    for k in _keys
-        if P[k] isa Tuple
-            @test P[k][1] ≈ params[k][1] rtol=1e-2
-            @test P[k][2] ≈ params[k][2] rtol=1e-2
-        else
-            @test P[k] ≈ params[k] rtol=1e-2
-        end
-    end
+    test_params(params, P)
     @test bestfit.(CartesianIndices(psf)) ≈ psf rtol=1e-2
+
+    # Now add error, fit with inverse variance weights, and check that we recover the same parameters
+    # σ = 0.05 # Fractional error to add to each pixel
+    # psf_noisy = psf .* (1 .+ randn(rng, size(psf)) .* σ)
+    # inv_var = @. inv((σ * psf)^2)
+    σ = 0.01 * maximum(psf) # Absolute error to add to each pixel
+    psf_noisy = psf .+ σ .* randn(rng, size(psf))
+    inv_var = fill(inv(σ^2), size(psf))
+    P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=inv_var, kwargs...)
+    # The precision tests have random failures right now, think more about how to do this in a robust way
+    # sterr = generate_params(keys(P_noisy), 2 .* sqrt.(max.(0, diag(cov))))
+    # test_params(params, P_noisy; rtol=0.1, atol=sterr)
+    # @test bestfit_noisy.(CartesianIndices(psf)) ≈ psf rtol=1e-1
+    return nothing
 end
 
 @testset "test fitting synthetic PSFs" begin

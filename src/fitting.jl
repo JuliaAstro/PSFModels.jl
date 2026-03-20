@@ -3,17 +3,24 @@ const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(m
 
 """
     PSFModels.fit(model, params, image, inds=axes(image);
-                  func_kwargs=(;), loss=abs2, maxfwhm=Inf, alg=LBFGS(),
+                  func_kwargs=(;), loss=abs2, maxfwhm=Inf, 
+                  alg=Optim.NewtonTrustRegion(), inv_var=nothing,
                   kwargs...)
 
-Fit a PSF model (`model`) defined by the given `params` as a named tuple of the
-parameters to fit and their default values. This model is fit to the data in
-`image` at the specified `inds` (by default, the entire array). To pass extra
-keyword arguments to the `model` (i.e., to "freeze" a parameter), pass them in a
-named tuple to `func_kwargs`. The default loss function is the chi-squared loss,
-which uses the the square of the difference (i.e., the L2 norm). You can change
-this to the L1 norm, for example, by passing `loss=abs`. The maximum FWHM can be
-set with `maxfwhm` as a number or tuple.
+Fit the parameters of a PSF model (`model`) with initial guess `params`.
+This model is fit to the data in `image` at the specified `inds` 
+(by default, the entire array). Inverse variance
+data weights can be passed via the `inv_var` keyword argument, 
+which should be the same size as `image` if provided.
+The best-fitting parameters are returned as a named tuple, along with the 
+best-fitting model. If `inv_var` is provided, the covariance matrix of the 
+best-fitting parameters is also returned.
+
+To pass extra keyword arguments to the `model` (i.e., to "freeze" a parameter), 
+pass them in a named tuple to `func_kwargs`. The default loss function is the 
+chi-squared loss, which uses the the square of the difference (i.e., the L2 norm). 
+You can change this to the L1 norm, for example, by passing `loss=abs`. 
+The maximum FWHM can be set with `maxfwhm` as a number or tuple.
 
 Additional keyword arguments, as well as the fitting algorithm `alg`, are passed
 to `Optim.optimize` as an `Optim.Option`. By default we use forward-mode auto-differentiation (AD) to
@@ -22,6 +29,30 @@ derive Jacobians for the
 optimization algorithm. Refer to the
 [Optim.jl documentation](https://julianlsolvers.github.io/Optim.jl/stable/)
 for more information.
+
+# Arguments
+- `model::Model`: the PSF model to fit, e.g., `gaussian` or `moffat`
+- `params`: a named tuple of the parameters to fit and their default values, \
+e.g., `(x=20, y=20, fwhm=3)`
+- `image::AbstractMatrix{T}`: the data to fit the model to
+- `inds`: the indices of the data to fit to, by default the entire array
+
+# Keyword arguments
+- `func_kwargs`: a named tuple of extra keyword arguments to pass to the model; \
+this enables freezing a parameter, e.g., `(fwhm=3)`
+- `loss`: the loss function to minimize, by default `abs2`, the chi-squared loss (L2 norm)
+- `maxfwhm`: the maximum FWHM, can be a number or tuple
+- `alg`: the optimization algorithm to use, by default `Optim.NewtonTrustRegion()`
+- `inv_var`: inverse variance weights on the input `image`; if provided, \
+must be the same size as `image`, and the covariance matrix of the best-fitting \
+parameters will be returned
+- `kwargs`: additional keyword arguments passed to `Optim.Options`
+
+# Returns
+- `P_best`: a named tuple of the best-fitting parameters
+- `best_model`: the best-fitting model, for direct comparison with the input data
+If `inv_var` is given, also returns:
+- `cov`: the covariance matrix of the best-fitting parameters. Standard errors on the parameters can be estimated as `sqrt.(LinearAlgebra.diag(cov))`.
 
 # Choosing parameters
 
@@ -91,19 +122,28 @@ function fit(model::Model,
              loss=abs2,
              alg=NewtonTrustRegion(),
              maxfwhm=Inf,
+             inv_var=nothing,
              kwargs...) where T
     _keys = keys(params)
-
-    _loss = build_loss_function(model, params, image, inds; func_kwargs, loss, maxfwhm)
+    if isnothing(inv_var)
+        @warn "Without inverse variance weights, cannot estimate PSF parameter covariance matrix." maxlog=5
+    end
+    _loss = build_loss_function(model, params, image, inv_var, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
     result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
-    return P_best, model(T; P_best..., func_kwargs...)
+    best_model = model(T; P_best..., func_kwargs...)
+    if isnothing(inv_var)
+        return P_best, best_model
+    end
+    hessian = ForwardDiff.hessian(_loss, X)
+    cov = inv(hessian)
+    return P_best, best_model, cov
 end
 
-function build_loss_function(model::Model, params, image, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf)
+function build_loss_function(model::Model, params, image, inv_var, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf)
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
     minind = map(minimum, inds)
@@ -128,7 +168,7 @@ function build_loss_function(model::Model, params, image, inds=axes(image); func
         # sum of errors (by default, with L2 norm == chi-squared)
         chi2 = sum(cartinds) do idx
             resid = model(T, idx; P..., func_kwargs...) - image[idx]
-            return loss(resid)
+            return isnothing(inv_var) ? loss(resid) : inv_var[idx] * loss(resid)
         end
         return chi2
     end
