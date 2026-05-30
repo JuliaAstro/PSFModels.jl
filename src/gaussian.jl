@@ -1,4 +1,62 @@
 
+# @doc raw"""
+#     gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
+#     gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
+
+# An unnormalized bivariate Gaussian distribution. The position can be specified
+# in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate
+# arguments. If `theta` is given, the PSF will be rotated by `theta` degrees
+# counter-clockwise from the x-axis. If `bkg` is given it will be added as a
+# scalar to the PSF.
+
+# The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in
+# mind that `theta` has no effect for isotropic distributions and is degenerate
+# with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm`
+# tuple)
+
+# # Functional form
+# ```math
+# f(x | x̂, \mathrm{FWHM}) = \exp[-4 \ln(2) ⋅ ||x - x̂|| / \mathrm{FWHM}^2]
+# ```
+# where `x̂` and `x` are position vectors (indices) `||⋅||` represents the
+# square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a
+# scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or
+# tuple, the weighting is applied along each axis (diagonal).
+# """
+# gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0) =
+#     convert(T, _gaussian(px, py, x, y, fwhm, amp, theta, bkg))
+
+# # isotropic
+# function _gaussian(px, py, x, y, fwhm, amp, theta, background)
+#     # find offset from center
+#     dx = px - x
+#     dy = py - y
+#     # rotate
+#     !iszero(theta) && @warn "isotropic gaussian is not affected by non-zero rotation angle $theta"
+#     # unnormalized gaussian likelihood
+#     sqmahab = dx^2 + dy^2
+#     sqmahab /= fwhm^2
+#     return amp * exp(GAUSS_PRE * sqmahab) + background
+# end
+
+# # bivariate
+# function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta, background)
+#     # find offset from center
+#     dx = px - x
+#     dy = py - y
+#     # rotate
+#     if !iszero(theta)
+#         dx, dy = rotate_point(dx, dy, theta)
+#     end
+#     # unnormalized gaussian likelihood
+#     fwhmx, fwhmy = fwhm
+#     sqmahab = (dx / fwhmx)^2 + (dy / fwhmy)^2
+#     return amp * exp(GAUSS_PRE * sqmahab) + background
+# end
+
+# this is the factor to convert 1/(2σ²) to 1/(2fwhm²)
+const GAUSS_PRE = -4 * log(2)
+
 @doc raw"""
     gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
     gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
@@ -23,9 +81,16 @@ square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a
 scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or
 tuple, the weighting is applied along each axis (diagonal).
 """
-gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0) =
-    convert(T, _gaussian(px, py, x, y, fwhm, amp, theta, bkg))
-
+function gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0)
+    flux = amp * (π * (fwhm isa BivariateLike ? prod(fwhm) : fwhm^2) / -GAUSS_PRE)
+    model = if fwhm isa BivariateLike
+        GaussianPSF(x, y, fwhm..., theta, flux, bkg)
+    else
+        !iszero(theta) && @warn "isotropic gaussian is not affected by non-zero rotation angle $theta"
+        CircularGaussianPSF(x, y, fwhm, flux, bkg)
+    end
+    return evaluate(model, px, py)
+end
 
 """
     normal
@@ -33,37 +98,6 @@ gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0) =
 An alias for [`gaussian`](@ref)
 """
 const normal = gaussian
-
-# this is the factor to convert 1/(2σ²) to 1/(2fwhm²)
-const GAUSS_PRE = -4 * log(2)
-
-# isotropic
-function _gaussian(px, py, x, y, fwhm, amp, theta, background)
-    # find offset from center
-    dx = px - x
-    dy = py - y
-    # rotate
-    !iszero(theta) && @warn "isotropic gaussian is not affected by non-zero rotation angle $theta"
-    # unnormalized gaussian likelihood
-    sqmahab = dx^2 + dy^2
-    sqmahab /= fwhm^2
-    return amp * exp(GAUSS_PRE * sqmahab) + background
-end
-
-# bivariate
-function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta, background)
-    # find offset from center
-    dx = px - x
-    dy = py - y
-    # rotate
-    if !iszero(theta)
-        dx, dy = rotate_point(dx, dy, theta)
-    end
-    # unnormalized gaussian likelihood
-    fwhmx, fwhmy = fwhm
-    sqmahab = (dx / fwhmx)^2 + (dy / fwhmy)^2
-    return amp * exp(GAUSS_PRE * sqmahab) + background
-end
 
 """
     CircularGaussianPSF(x, y, fwhm, flux, bkg) -> CircularGaussianPSF{T}
@@ -203,14 +237,13 @@ Base.@kwdef struct GaussianPSF{T} <: AbstractPSFModel{T}
 end
 
 function evaluate(model::GaussianPSF{T}, px, py) where T
-    d = T(π) / 180
+    θ = deg2rad(model.theta)
     dx = px - model.x
     dy = py - model.y
-    cs = cos(d * model.theta)
-    sn = sin(d * model.theta)
+    cs = cos(θ)
+    sn = sin(θ)
     u = cs * dx + sn * dy
     v = -sn * dx + cs * dy
-    # u, v = rotate_point(px - model.x, py - model.y, model.theta)
     ax = model.x_fwhm
     ay = model.y_fwhm
     sqmahab = (u / ax)^2 + (v / ay)^2
@@ -226,15 +259,16 @@ end
 # gradient(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_deriv(t, -1, 1))
 function fit_deriv(model::GaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
-    d = T(π) / 180
+    d = deg2rad(one(T)) # factor to convert degrees to radians for theta derivatives
     dx = px - model.x
     dy = py - model.y
     ax = model.x_fwhm
     ay = model.y_fwhm
     ax² = ax^2
     ay² = ay^2
-    cs = cos(d * model.theta)
-    sn = sin(d * model.theta)
+    θ = deg2rad(model.theta)
+    cs = cos(θ)
+    sn = sin(θ)
     u = cs * dx + sn * dy
     v = -sn * dx + cs * dy
     sqmahab = u^2 / ax² + v^2 / ay²
@@ -248,7 +282,7 @@ function fit_deriv(model::GaussianPSF{T}, px, py) where T
     # ∂f/∂x_fwhm, ∂f/∂y_fwhm
     df_dax    = -Ag / ax * (1 + 2 * _gauss_pre * u^2 / ax²)
     df_day    = -Ag / ay * (1 + 2 * _gauss_pre * v^2 / ay²)
-    # ∂f/∂theta (theta in degrees; d = π/180 factor)
+    # ∂f/∂theta (theta in degrees, include d=π/180 factor)
     df_dtheta = 2 * d * Ag * _gauss_pre * u * v * (1 / ax² - 1 / ay²)
     # ∂f/∂flux
     df_dflux  = g / norm
@@ -264,15 +298,16 @@ end
 # hessian(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_hessian(t, -1, 1))
 function fit_hessian(model::GaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
-    d = T(π) / 180
+    d = deg2rad(one(T)) # factor to convert degrees to radians for theta derivatives
     dx = px - model.x
     dy = py - model.y
     ax = model.x_fwhm
     ay = model.y_fwhm
     ax² = ax^2
     ay² = ay^2
-    cs = cos(d * model.theta)
-    sn = sin(d * model.theta)
+    θ = deg2rad(model.theta)
+    cs = cos(θ)
+    sn = sin(θ)
     u = cs * dx + sn * dy
     v = -sn * dx + cs * dy
     sqmahab = u^2 / ax² + v^2 / ay²
