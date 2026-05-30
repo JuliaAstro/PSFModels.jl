@@ -9,7 +9,7 @@ using SpecialFunctions: besselj1
 using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, evaluate, centroid, integral, fit_deriv, fit_hessian
+export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, fit_deriv, fit_hessian
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 

@@ -99,6 +99,11 @@ function evaluate(model::CircularGaussianPSF{T}, px, py) where T
     return muladd(amp, exp(T(GAUSS_PRE) * sqmahab), model.bkg)
 end
 
+# import ForwardDiff: gradient
+# using PSFModels: CircularGaussianPSF, fit_deriv, evaluate
+# using ConstructionBase: getproperties
+# t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
+# gradient(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_deriv(t, -1, 1))
 function fit_deriv(model::CircularGaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
@@ -116,6 +121,11 @@ function fit_deriv(model::CircularGaussianPSF{T}, px, py) where T
     return SA[dg_dx, dg_dy, dg_dfwhm, dg_dflux, dg_dbkg]
 end
 
+# import ForwardDiff: hessian
+# using PSFModels: CircularGaussianPSF, fit_hessian, evaluate
+# using ConstructionBase: getproperties
+# t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
+# hessian(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_hessian(t, -1, 1))
 function fit_hessian(model::CircularGaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
@@ -190,4 +200,151 @@ Base.@kwdef struct GaussianPSF{T} <: AbstractPSFModel{T}
         T = T <: Integer ? Float64 : T # promote to Float if all inputs are integers
         return new{T}(T(x), T(y), T(x_fwhm), T(y_fwhm), T(theta), T(flux), T(bkg))
     end
+end
+
+function evaluate(model::GaussianPSF{T}, px, py) where T
+    d = T(π) / 180
+    dx = px - model.x
+    dy = py - model.y
+    cs = cos(d * model.theta)
+    sn = sin(d * model.theta)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    # u, v = rotate_point(px - model.x, py - model.y, model.theta)
+    ax = model.x_fwhm
+    ay = model.y_fwhm
+    sqmahab = (u / ax)^2 + (v / ay)^2
+    norm = -(T(π) * ax * ay / T(GAUSS_PRE))
+    amp = model.flux / norm
+    return muladd(amp, exp(T(GAUSS_PRE) * sqmahab), model.bkg)
+end
+
+# import ForwardDiff: gradient
+# using PSFModels: GaussianPSF, fit_deriv, evaluate
+# using ConstructionBase: getproperties
+# t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
+# gradient(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_deriv(t, -1, 1))
+function fit_deriv(model::GaussianPSF{T}, px, py) where T
+    _gauss_pre = T(GAUSS_PRE)
+    d = T(π) / 180
+    dx = px - model.x
+    dy = py - model.y
+    ax = model.x_fwhm
+    ay = model.y_fwhm
+    ax² = ax^2
+    ay² = ay^2
+    cs = cos(d * model.theta)
+    sn = sin(d * model.theta)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    sqmahab = u^2 / ax² + v^2 / ay²
+    norm = -(T(π) * ax * ay / _gauss_pre)
+    amp = model.flux / norm
+    g = exp(_gauss_pre * sqmahab)
+    Ag = amp * g
+    # ∂f/∂x, ∂f/∂y
+    df_dx     = -2 * Ag * _gauss_pre * (cs * u / ax² - sn * v / ay²)
+    df_dy     = -2 * Ag * _gauss_pre * (sn * u / ax² + cs * v / ay²)
+    # ∂f/∂x_fwhm, ∂f/∂y_fwhm
+    df_dax    = -Ag / ax * (1 + 2 * _gauss_pre * u^2 / ax²)
+    df_day    = -Ag / ay * (1 + 2 * _gauss_pre * v^2 / ay²)
+    # ∂f/∂theta (theta in degrees; d = π/180 factor)
+    df_dtheta = 2 * d * Ag * _gauss_pre * u * v * (1 / ax² - 1 / ay²)
+    # ∂f/∂flux
+    df_dflux  = g / norm
+    # ∂f/∂bkg
+    df_dbkg   = one(T)
+    return SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
+end
+
+# import ForwardDiff: hessian
+# using PSFModels: GaussianPSF, fit_hessian, evaluate
+# using ConstructionBase: getproperties
+# t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
+# hessian(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_hessian(t, -1, 1))
+function fit_hessian(model::GaussianPSF{T}, px, py) where T
+    _gauss_pre = T(GAUSS_PRE)
+    d = T(π) / 180
+    dx = px - model.x
+    dy = py - model.y
+    ax = model.x_fwhm
+    ay = model.y_fwhm
+    ax² = ax^2
+    ay² = ay^2
+    cs = cos(d * model.theta)
+    sn = sin(d * model.theta)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    sqmahab = u^2 / ax² + v^2 / ay²
+    norm = -(T(π) * ax * ay / _gauss_pre)
+    amp = model.flux / norm
+    g = exp(_gauss_pre * sqmahab)
+    Ag = amp * g
+    γ = _gauss_pre
+    D = 1 / ax² - 1 / ay²  # (1/ax² - 1/ay²), used in theta terms
+
+    # First derivatives of sqmahab w.r.t. each parameter
+    Qx     = -2 * (cs * u / ax² - sn * v / ay²)
+    Qy     = -2 * (sn * u / ax² + cs * v / ay²)
+    Qax    = -2 * u^2 / ax^3
+    Qay    = -2 * v^2 / ay^3
+    Qtheta = d * 2 * u * v * D
+
+    # Second derivatives of sqmahab
+    Rxx      = 2 * (cs^2 / ax² + sn^2 / ay²)
+    Ryy      = 2 * (sn^2 / ax² + cs^2 / ay²)
+    Rxy      = 2 * cs * sn * D
+    Rxax     = 4 * cs * u / ax^3
+    Rxay     = -4 * sn * v / ay^3
+    Ryax     = 4 * sn * u / ax^3
+    Ryay     = 4 * cs * v / ay^3
+    Raxax    = 6 * u^2 / ax^4
+    Rayay    = 6 * v^2 / ay^4
+    Rxtheta  = d * 2 * (sn * u - cs * v) * D
+    Rytheta  = -d * 2 * (cs * u + sn * v) * D
+    Raxtheta = -d * 4 * u * v / ax^3
+    Raytheta = d * 4 * u * v / ay^3
+    Rtheta2  = d^2 * 2 * (v^2 - u^2) * D
+
+    # Hessian entries (row/col order: x, y, x_fwhm, y_fwhm, theta, flux, bkg)
+    # Second derivatives involving only sqmahab (∂A/∂x = ∂A/∂y = ∂A/∂theta = 0)
+    dxx      = Ag * (γ^2 * Qx^2     + γ * Rxx)
+    dyy      = Ag * (γ^2 * Qy^2     + γ * Ryy)
+    dxy      = Ag * (γ^2 * Qx * Qy  + γ * Rxy)
+    dxtheta  = Ag * (γ^2 * Qx * Qtheta  + γ * Rxtheta)
+    dytheta  = Ag * (γ^2 * Qy * Qtheta  + γ * Rytheta)
+    dtheta2  = Ag * (γ^2 * Qtheta^2 + γ * Rtheta2)
+
+    # Cross terms: position × fwhm (∂A/∂ax = -A/ax, ∂A/∂ay = -A/ay)
+    dxax     = Ag * γ * (γ * Qx * Qax + Rxax  - Qx / ax)
+    dxay     = Ag * γ * (γ * Qx * Qay + Rxay  - Qx / ay)
+    dyax     = Ag * γ * (γ * Qy * Qax + Ryax  - Qy / ax)
+    dyay     = Ag * γ * (γ * Qy * Qay + Ryay  - Qy / ay)
+
+    # Cross terms: fwhm × theta (∂A/∂theta = 0)
+    daxtheta = Ag * γ * (γ * Qax * Qtheta + Raxtheta - Qtheta / ax)
+    daytheta = Ag * γ * (γ * Qay * Qtheta + Raytheta - Qtheta / ay)
+
+    # fwhm × fwhm (∂²A/∂ax² = 2A/ax², ∂²A/∂ay² = 2A/ay², ∂²A/∂ax∂ay = A/(ax*ay))
+    daxax    = Ag * (2 / ax² + γ^2 * Qax^2 + γ * Raxax - 2 * γ * Qax / ax)
+    dayay    = Ag * (2 / ay² + γ^2 * Qay^2 + γ * Rayay - 2 * γ * Qay / ay)
+    daxay    = Ag * (1 / (ax * ay) - γ * Qay / ax - γ * Qax / ay + γ^2 * Qax * Qay)
+
+    # Cross terms with flux (∂A/∂flux = 1/norm, ∂²A/∂flux∂ax = 1/(norm*ax), etc.)
+    dxflux   = γ * g * Qx / norm
+    dyflux   = γ * g * Qy / norm
+    daxflux  = g / norm * (-1 / ax + γ * Qax)
+    dayflux  = g / norm * (-1 / ay + γ * Qay)
+    dthetaflux = γ * g * Qtheta / norm
+
+    H = SA[
+        dxx     dxy     dxax     dxay     dxtheta     dxflux     0
+        dxy     dyy     dyax     dyay     dytheta     dyflux     0
+        dxax    dyax    daxax    daxay    daxtheta    daxflux    0
+        dxay    dyay    daxay    dayay    daytheta    dayflux    0
+        dxtheta dytheta daxtheta daytheta dtheta2     dthetaflux 0
+        dxflux  dyflux  daxflux  dayflux  dthetaflux  0          0
+        0       0       0        0        0           0          0
+    ]
+    return H
 end
