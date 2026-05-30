@@ -79,14 +79,14 @@ end
     @test normal(0, 0; x=0, y=0, fwhm=10) === gaussian(0, 0; x=0, y=0, fwhm=10)
 end
 
-@testset "GaussianPSFSymmetric" begin
-    m = GaussianPSFSymmetric(x=0, y=0, fwhm=10, flux=1, bkg=0)
+@testset "CircularGaussianPSF" begin
+    m = CircularGaussianPSF(x=0, y=0, fwhm=10, flux=1, bkg=0)
     @test centroid(m) == (0.0, 0.0)
     @test integral(m) == 1.0
     r1 = evaluate(m, 1, 2)
     @test r1 isa Float64
     @test r1 ≈ 0.0076829778398427705
-    m = GaussianPSFSymmetric(x=0, y=0, fwhm=10, flux=1, bkg=10)
+    m = CircularGaussianPSF(x=0, y=0, fwhm=10, flux=1, bkg=10)
     @test evaluate(m, 1, 2) ≈ 0.0076829778398427705 + 10
     @test fit_deriv(m, 1, 2) ≈ [0.0004260347542393244, 0.0008520695084786488, -0.001323578190848892, 0.0076829778398427705, 1.0]
     @test fit_hessian(m, 1, 2) ≈ [-0.0004024103711416015 4.724876619544591e-5 -0.00015860171014686828 0.0004260347542393244 0.0; 4.724876619544591e-5 -0.00033153722184843266 -0.00031720342029373656 0.0008520695084786488 0.0; -0.00015860171014686828 -0.00031720342029373656 0.00031777260218123345 -0.0013235781908488918 0.0; 0.0004260347542393244 0.0008520695084786488 -0.0013235781908488918 0.0 0.0; 0.0 0.0 0.0 0.0 0.0]

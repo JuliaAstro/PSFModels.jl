@@ -66,29 +66,31 @@ function _gaussian(px, py, x, y, fwhm::BivariateLike, amp, theta, background)
 end
 
 """
-    GaussianPSFSymmetric(x, y, fwhm, flux, bkg) -> GaussianPSFSymmetric{T}
+    CircularGaussianPSF(x, y, fwhm, flux, bkg) -> CircularGaussianPSF{T}
+
+Circular, symmetric Gaussian PSF with centroid `(x, y)` and FWHM given by `fwhm`. The `flux` is the integral of the PSF over all space, and `bkg` is a scalar background level added to the PSF.
 
 ```jldoctest
-julia> using PSFModels: GaussianPSFSymmetric
+julia> using PSFModels: CircularGaussianPSF
 
-julia> GaussianPSFSymmetric(1.0, 2.0, 3.0, 4.0, 5.0) isa GaussianPSFSymmetric{Float64}
+julia> CircularGaussianPSF(1.0, 2.0, 3.0, 4.0, 5.0) isa CircularGaussianPSF{Float64}
 true
 ```
 """
-Base.@kwdef struct GaussianPSFSymmetric{T} <: AbstractPSFModel{T}
+Base.@kwdef struct CircularGaussianPSF{T} <: AbstractPSFModel{T}
     x::T
     y::T
     fwhm::T
     flux::T
     bkg::T
-    function GaussianPSFSymmetric(x, y, fwhm, flux, bkg)
+    function CircularGaussianPSF(x, y, fwhm, flux, bkg)
         T = promote_type(typeof(x), typeof(y), typeof(fwhm), typeof(flux), typeof(bkg))
         T = T <: Integer ? Float64 : T # promote to Float if all inputs are integers
         return new{T}(T(x), T(y), T(fwhm), T(flux), T(bkg))
     end
 end
 
-function evaluate(model::GaussianPSFSymmetric{T}, px, py) where T
+function evaluate(model::CircularGaussianPSF{T}, px, py) where T
     dx = px - model.x
     dy = py - model.y
     sqmahab = (dx^2 + dy^2) / model.fwhm^2
@@ -97,7 +99,7 @@ function evaluate(model::GaussianPSFSymmetric{T}, px, py) where T
     return muladd(amp, exp(T(GAUSS_PRE) * sqmahab), model.bkg)
 end
 
-function fit_deriv(model::GaussianPSFSymmetric{T}, px, py) where T
+function fit_deriv(model::CircularGaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
     dy = py - model.y
@@ -114,7 +116,7 @@ function fit_deriv(model::GaussianPSFSymmetric{T}, px, py) where T
     return SA[dg_dx, dg_dy, dg_dfwhm, dg_dflux, dg_dbkg]
 end
 
-function fit_hessian(model::GaussianPSFSymmetric{T}, px, py) where T
+function fit_hessian(model::CircularGaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
     dy = py - model.y
@@ -159,4 +161,33 @@ function fit_hessian(model::GaussianPSFSymmetric{T}, px, py) where T
         0     0     0      0      0
     ]
     return H
+end
+
+############################################
+
+"""
+    GaussianPSF(x, y, x_fwhm, y_fwhm, theta, flux, bkg) -> GaussianPSF{T}
+
+General asymmetric Gaussian PSF with centroid `(x, y)`, FWHM along the x and y axes given by `x_fwhm` and `y_fwhm`, and rotated by `theta` degrees counter-clockwise from the x-axis. The `flux` is the integral of the PSF over all space, and `bkg` is a scalar background level added to the PSF.
+
+```jldoctest
+julia> using PSFModels: GaussianPSF
+
+julia> GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=4.0, bkg=5.0) isa GaussianPSF{Float64}
+true
+```
+"""
+Base.@kwdef struct GaussianPSF{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    x_fwhm::T
+    y_fwhm::T
+    theta::T
+    flux::T
+    bkg::T
+    function GaussianPSF(x, y, x_fwhm, y_fwhm, theta, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(x_fwhm), typeof(y_fwhm), typeof(theta), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T # promote to Float if all inputs are integers
+        return new{T}(T(x), T(y), T(x_fwhm), T(y_fwhm), T(theta), T(flux), T(bkg))
+    end
 end
