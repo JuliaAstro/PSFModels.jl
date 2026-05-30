@@ -5,6 +5,7 @@ authors = ["Miles Lucas <mdlucas@hawaii.edu> and contributors"]
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
@@ -14,6 +15,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 ADTypes = "1"
+ConstructionBase = "1"
 ForwardDiff = "0.1, 1"
 Optim = "1, 2"
 RecipesBase = "1"
