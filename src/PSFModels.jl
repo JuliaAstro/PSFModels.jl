@@ -1,14 +1,11 @@
 module PSFModels
 
 import ADTypes
-using CoordinateTransformations
 import ForwardDiff
-using KeywordCalls
-using Optim
-using Rotations
-using SpecialFunctions
-using StaticArrays
-using Statistics
+import Optim
+using Rotations: RotMatrix
+using SpecialFunctions: besselj1
+using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
 

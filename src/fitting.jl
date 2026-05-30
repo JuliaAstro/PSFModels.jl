@@ -120,7 +120,7 @@ function fit(model::Model,
              inds=axes(image);
              func_kwargs=(;),
              loss=abs2,
-             alg=NewtonTrustRegion(),
+             alg=Optim.NewtonTrustRegion(),
              maxfwhm=Inf,
              inv_var=nothing,
              kwargs...) where T
@@ -133,7 +133,7 @@ function fit(model::Model,
     end
     _loss = build_loss_function(model, params, image, inv_var, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
-    result = optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
+    result = Optim.optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
