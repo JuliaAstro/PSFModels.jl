@@ -46,7 +46,7 @@ end
 # ---------------------------------------------------------------------------
 
 function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
-                   image, inds, inv_var, loss, maxfwhm) where {T}
+                   image, inds, inv_var, loss) where {T}
 
     FT = float(T)
 
@@ -120,7 +120,7 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
 end
 
 function _make_fg(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
-                  image, inds, inv_var, loss, maxfwhm) where {T}
+                  image, inds, inv_var, loss) where {T}
 
     FT = float(T)
 
@@ -167,7 +167,7 @@ end
 
 """
     PSFModels.fit(model::AbstractPSFModel, image, inds=axes(image);
-                  fixed=(;), loss=LossFunctions.L2DistLoss(), maxfwhm=Inf,
+                  fixed=(;), loss=LossFunctions.L2DistLoss(),
                   alg=nothing, inv_var=nothing, kwargs...)
 
 Fit the free parameters of `model` to `image[inds]` using `loss` as the
@@ -196,7 +196,6 @@ function fit(model::AbstractPSFModel{T},
              inds=axes(image);
              fixed::NamedTuple=(;),
              loss::LossFunctions.SupervisedLoss=LossFunctions.L2DistLoss(),
-             maxfwhm=Inf,
              alg=nothing,
              inv_var=nothing,
              kwargs...) where {T}
@@ -225,9 +224,9 @@ function fit(model::AbstractPSFModel{T},
     end
 
     objective = if alg isa Union{Optim.FirstOrderOptimizer, Optim.SecondOrderOptimizer} && use_hessian
-                    _make_fgh(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss, maxfwhm)
+                    _make_fgh(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
                 elseif alg isa Optim.FirstOrderOptimizer && use_deriv
-                    _make_fg(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss, maxfwhm)
+                    _make_fg(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
                 else
                     # No analytic derivatives — scalar loss only (fall back to AD via Optim)
                     function _scalar_loss(xv)
