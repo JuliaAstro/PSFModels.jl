@@ -9,7 +9,7 @@ using SpecialFunctions: besselj1
 using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, fit_deriv, fit_hessian
+export CircularGaussianPSF, GaussianPSF, evaluate, evaluate_fg, evaluate_fgh, centroid, integral
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
@@ -24,6 +24,7 @@ end
 """Abstract type for PSF models. All PSF models should be subtypes of this abstract type, and implement the following methods:"""
 abstract type AbstractPSFModel{T} end
 Base.Broadcast.broadcastable(m::AbstractPSFModel) = Ref(m)
+(model::AbstractPSFModel)(x, y) = evaluate(model, x, y)
 
 """
     evaluate(model::AbstractPSFModel{T}, x::Real, y::Real)::T

@@ -78,33 +78,12 @@ function evaluate(model::CircularGaussianPSF{T}, px, py) where T
 end
 
 # import ForwardDiff: gradient
-# using PSFModels: CircularGaussianPSF, fit_deriv, evaluate
+# using PSFModels: CircularGaussianPSF, evaluate_fg, evaluate
 # using ConstructionBase: getproperties
 # t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
-# gradient(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_deriv(t, -1, 1))
-function fit_deriv(model::CircularGaussianPSF{T}, px, py) where T
-    _gauss_pre = T(GAUSS_PRE)
-    dx = px - model.x
-    dy = py - model.y
-    fwhm = model.fwhm
-    sqmahab = (dx^2 + dy^2) / fwhm^2
-    norm = -(T(π) * fwhm^2 / _gauss_pre)
-    amp = model.flux / norm
-    g = exp(_gauss_pre * sqmahab)
-    dg_dx = -2 * amp * _gauss_pre * g * dx / fwhm^2
-    dg_dy = -2 * amp * _gauss_pre * g * dy / fwhm^2
-    dg_dfwhm = amp * g * (-2 / fwhm - 2 * _gauss_pre * sqmahab / fwhm)
-    dg_dflux = g / norm
-    dg_dbkg = one(T)
-    return SA[dg_dx, dg_dy, dg_dfwhm, dg_dflux, dg_dbkg]
-end
-
-# import ForwardDiff: hessian
-# using PSFModels: CircularGaussianPSF, fit_hessian, evaluate
-# using ConstructionBase: getproperties
-# t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
-# hessian(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_hessian(t, -1, 1))
-function fit_hessian(model::CircularGaussianPSF{T}, px, py) where T
+# _, g = evaluate_fg(t, -1, 1)
+# gradient(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::CircularGaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
     dy = py - model.y
@@ -114,12 +93,49 @@ function fit_hessian(model::CircularGaussianPSF{T}, px, py) where T
     norm = -(T(π) * fwhm² / _gauss_pre)
     amp = model.flux / norm
     g = exp(_gauss_pre * sqmahab)
+    Ag = amp * g
+    f = muladd(amp, g, model.bkg)
+    # Gradient ↓
+    γ_f2 = _gauss_pre / fwhm²
+    df_dx    = -2 * Ag * γ_f2 * dx
+    df_dy    = -2 * Ag * γ_f2 * dy
+    df_dfwhm = -2 * Ag * (1 + _gauss_pre * sqmahab) / fwhm
+    df_dflux = g / norm
+    df_dbkg  = one(T)
+    G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
+    return f, G
+end
+
+# import ForwardDiff: hessian
+# using PSFModels: CircularGaussianPSF, evaluate_fgh, evaluate
+# using ConstructionBase: getproperties
+# t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
+# _, _, h = evaluate_fgh(t, -1, 1)
+# hessian(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(h)
+function evaluate_fgh(model::CircularGaussianPSF{T}, px, py) where T
+    _gauss_pre = T(GAUSS_PRE)
+    dx = px - model.x
+    dy = py - model.y
+    fwhm = model.fwhm
+    fwhm² = fwhm^2
+    sqmahab = (dx^2 + dy^2) / fwhm²
+    norm = -(T(π) * fwhm² / _gauss_pre)
+    amp = model.flux / norm
+    g = exp(_gauss_pre * sqmahab)
+    Ag = amp * g
+    f = muladd(amp, g, model.bkg)
 
     # Shared sub-expressions
-    Ag = amp * g
-    γ_f2 = _gauss_pre / fwhm² # γ/fwhm²
-    γr2_f = _gauss_pre * sqmahab / fwhm # γr²/fwhm
-    one_γr2 = 1 + _gauss_pre * sqmahab # (1 + γr²)
+    γ_f2 = _gauss_pre / fwhm²  # γ/fwhm²
+    one_γr2 = 1 + _gauss_pre * sqmahab  # (1 + γr²)
+
+    # Gradient
+    df_dx    = -2 * Ag * γ_f2 * dx
+    df_dy    = -2 * Ag * γ_f2 * dy
+    df_dfwhm = -2 * Ag * one_γr2 / fwhm
+    df_dflux = g / norm
+    df_dbkg  = one(T)
+    G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
 
     # second partials w.r.t. position
     dxx = 2 * Ag * γ_f2 * (1 + 2 * _gauss_pre * dx^2 / fwhm²)
@@ -148,7 +164,7 @@ function fit_hessian(model::CircularGaussianPSF{T}, px, py) where T
         dxfl  dyfl  dff_l  0      0
         0     0     0      0      0
     ]
-    return H
+    return f, G, H
 end
 
 ############################################
@@ -197,13 +213,14 @@ function evaluate(model::GaussianPSF{T}, px, py) where T
 end
 
 # import ForwardDiff: gradient
-# using PSFModels: GaussianPSF, fit_deriv, evaluate
+# using PSFModels: GaussianPSF, evaluate_fg, evaluate
 # using ConstructionBase: getproperties
 # t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
-# gradient(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_deriv(t, -1, 1))
-function fit_deriv(model::GaussianPSF{T}, px, py) where T
+# _, g = evaluate_fg(t, -1, 1)
+# gradient(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::GaussianPSF{T}, px, py) where T
     _gauss_pre = T(GAUSS_PRE)
-    d = deg2rad(one(T)) # factor to convert degrees to radians for theta derivatives
+    d = deg2rad(one(T))  # factor to convert degrees to radians for theta derivatives
     dx = px - model.x
     dy = py - model.y
     ax = model.x_fwhm
@@ -220,54 +237,70 @@ function fit_deriv(model::GaussianPSF{T}, px, py) where T
     amp = model.flux / norm
     g = exp(_gauss_pre * sqmahab)
     Ag = amp * g
-    # ∂f/∂x, ∂f/∂y
-    df_dx = -2 * Ag * _gauss_pre * (cs * u / ax² - sn * v / ay²)
-    df_dy = -2 * Ag * _gauss_pre * (sn * u / ax² + cs * v / ay²)
-    # ∂f/∂x_fwhm, ∂f/∂y_fwhm
-    df_dax = -Ag / ax * (1 + 2 * _gauss_pre * u^2 / ax²)
-    df_day = -Ag / ay * (1 + 2 * _gauss_pre * v^2 / ay²)
-    # ∂f/∂theta (theta in degrees, include d=π/180 factor)
-    df_dtheta = 2 * d * Ag * _gauss_pre * u * v * (1 / ax² - 1 / ay²)
-    # ∂f/∂flux
-    df_dflux = g / norm
-    # ∂f/∂bkg
-    df_dbkg = one(T)
-    return SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
-end
+    f = muladd(amp, g, model.bkg)
 
-# import ForwardDiff: hessian
-# using PSFModels: GaussianPSF, fit_hessian, evaluate
-# using ConstructionBase: getproperties
-# t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
-# hessian(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(fit_hessian(t, -1, 1))
-function fit_hessian(model::GaussianPSF{T}, px, py) where T
-    _gauss_pre = T(GAUSS_PRE)
-    d = deg2rad(one(T)) # factor to convert degrees to radians for theta derivatives
-    dx = px - model.x
-    dy = py - model.y
-    ax = model.x_fwhm
-    ay = model.y_fwhm
-    ax² = ax^2
-    ay² = ay^2
-    θ = deg2rad(model.theta)
-    cs = cos(θ)
-    sn = sin(θ)
-    u = cs * dx + sn * dy
-    v = -sn * dx + cs * dy
-    sqmahab = u^2 / ax² + v^2 / ay²
-    norm = -(T(π) * ax * ay / _gauss_pre)
-    amp = model.flux / norm
-    g = exp(_gauss_pre * sqmahab)
-    Ag = amp * g
+    # Gradient ↓
     γ = _gauss_pre
-    D = 1 / ax² - 1 / ay²  # (1/ax² - 1/ay²), used in theta terms
-
-    # First derivatives of sqmahab w.r.t. each parameter
+    D = 1 / ax² - 1 / ay²
     Qx     = -2 * (cs * u / ax² - sn * v / ay²)
     Qy     = -2 * (sn * u / ax² + cs * v / ay²)
     Qax    = -2 * u^2 / ax^3
     Qay    = -2 * v^2 / ay^3
     Qtheta = d * 2 * u * v * D
+    df_dx     = Ag * γ * Qx
+    df_dy     = Ag * γ * Qy
+    df_dax    = Ag * (-1 / ax + γ * Qax)
+    df_day    = Ag * (-1 / ay + γ * Qay)
+    df_dtheta = Ag * γ * Qtheta
+    df_dflux  = g / norm
+    df_dbkg   = one(T)
+    G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
+    return f, G
+end
+
+# import ForwardDiff: hessian
+# using PSFModels: GaussianPSF, evaluate_fgh, evaluate
+# using ConstructionBase: getproperties
+# t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
+# _, _, h = evaluate_fgh(t, -1, 1)
+# hessian(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(h)
+function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
+    γ = T(GAUSS_PRE)
+    d = deg2rad(one(T))  # factor to convert degrees to radians for theta derivatives
+    dx = px - model.x
+    dy = py - model.y
+    ax = model.x_fwhm
+    ay = model.y_fwhm
+    ax² = ax^2
+    ay² = ay^2
+    θ = deg2rad(model.theta)
+    cs = cos(θ)
+    sn = sin(θ)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    sqmahab = u^2 / ax² + v^2 / ay²
+    norm = -(T(π) * ax * ay / γ)
+    amp = model.flux / norm
+    g = exp(γ * sqmahab)
+    Ag = amp * g
+    f = muladd(amp, g, model.bkg)
+
+    # First derivatives of sqmahab w.r.t. each parameter (used for both gradient and Hessian)
+    D = 1 / ax² - 1 / ay²  # (1/ax² - 1/ay²), used in theta terms
+    Qx     = -2 * (cs * u / ax² - sn * v / ay²)
+    Qy     = -2 * (sn * u / ax² + cs * v / ay²)
+    Qax    = -2 * u^2 / ax^3
+    Qay    = -2 * v^2 / ay^3
+    Qtheta = d * 2 * u * v * D
+
+    # Gradient
+    df_dx     = Ag * γ * Qx
+    df_dy     = Ag * γ * Qy
+    df_dax    = Ag * (-1 / ax + γ * Qax)
+    df_day    = Ag * (-1 / ay + γ * Qay)
+    df_dtheta = Ag * γ * Qtheta
+    df_dflux  = g / norm
+    df_dbkg   = one(T)
 
     # Second derivatives of sqmahab
     Rxx      = 2 * (cs^2 / ax² + sn^2 / ay²)
@@ -310,10 +343,10 @@ function fit_hessian(model::GaussianPSF{T}, px, py) where T
     daxay    = Ag * (1 / (ax * ay) - γ * Qay / ax - γ * Qax / ay + γ^2 * Qax * Qay)
 
     # Cross terms with flux (∂A/∂flux = 1/norm, ∂²A/∂flux∂ax = 1/(norm*ax), etc.)
-    dxflux   = γ * g * Qx / norm
-    dyflux   = γ * g * Qy / norm
-    daxflux  = g / norm * (-1 / ax + γ * Qax)
-    dayflux  = g / norm * (-1 / ay + γ * Qay)
+    dxflux     = γ * g * Qx / norm
+    dyflux     = γ * g * Qy / norm
+    daxflux    = g / norm * (-1 / ax + γ * Qax)
+    dayflux    = g / norm * (-1 / ay + γ * Qay)
     dthetaflux = γ * g * Qtheta / norm
 
     H = SA[
@@ -325,5 +358,5 @@ function fit_hessian(model::GaussianPSF{T}, px, py) where T
         dxflux  dyflux  daxflux  dayflux  dthetaflux  0          0
         0       0       0        0        0           0          0
     ]
-    return H
+    return f, SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg], H
 end
