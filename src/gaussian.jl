@@ -77,7 +77,7 @@ function evaluate(model::CircularGaussianPSF{T}, px, py) where T
     return muladd(amp, exp(T(GAUSS_PRE) * sqmahab), model.bkg)
 end
 
-# import ForwardDiff: gradient
+# using ForwardDiff: gradient
 # using PSFModels: CircularGaussianPSF, evaluate_fg, evaluate
 # using ConstructionBase: getproperties
 # t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
@@ -106,7 +106,7 @@ function evaluate_fg(model::CircularGaussianPSF{T}, px, py) where T
     return f, G
 end
 
-# import ForwardDiff: hessian
+# using ForwardDiff: hessian
 # using PSFModels: CircularGaussianPSF, evaluate_fgh, evaluate
 # using ConstructionBase: getproperties
 # t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
@@ -212,7 +212,7 @@ function evaluate(model::GaussianPSF{T}, px, py) where T
     return muladd(amp, exp(T(GAUSS_PRE) * sqmahab), model.bkg)
 end
 
-# import ForwardDiff: gradient
+# using ForwardDiff: gradient
 # using PSFModels: GaussianPSF, evaluate_fg, evaluate
 # using ConstructionBase: getproperties
 # t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
@@ -258,7 +258,7 @@ function evaluate_fg(model::GaussianPSF{T}, px, py) where T
     return f, G
 end
 
-# import ForwardDiff: hessian
+# using ForwardDiff: hessian
 # using PSFModels: GaussianPSF, evaluate_fgh, evaluate
 # using ConstructionBase: getproperties
 # t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
