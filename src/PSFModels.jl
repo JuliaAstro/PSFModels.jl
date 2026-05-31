@@ -169,9 +169,11 @@ Fill the pre-allocated matrix `out` with `evaluate(model, px, py)` for each pixe
 second axis to `inds[2]`, so offset ranges are handled correctly.
 """
 function render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
-    for (i, px) in enumerate(inds[1])
-        for (j, py) in enumerate(inds[2])
-            @inbounds out[i, j] = evaluate(model, px, py)
+    xs, ys = inds
+    @inbounds for i in eachindex(xs)
+        px = xs[i]
+        for j in eachindex(ys)
+            out[i, j] = evaluate(model, px, ys[j])
         end
     end
     return out
