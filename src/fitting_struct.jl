@@ -67,19 +67,22 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
                     d = image[idx]
                     ld  = LossFunctions.deriv(loss, f_val, d)
                     ldd = LossFunctions.deriv2(loss, f_val, d)
-                    loss_val += w * loss(f_val, d)
+                    loss_val = muladd(w, loss(f_val, d), loss_val)
                     wld  = w * ld
                     wldd = w * ldd
-                    @inbounds for (j, fj) in pairs(free_idx)
+                    @inbounds @simd for j in eachindex(free_idx)
+                        fj = free_idx[j]
                         gj = g_full[fj]
-                        for (i, fi) in pairs(free_idx)
-                            H[i, j] += wldd * g_full[fi] * gj +
-                                       wld  * h_full[fi, fj]
+                        # We could get fancy and only loop over the upper triangle here since H is symmetric, 
+                        # but benchmarks suggest it's not actually faster
+                        for i in eachindex(free_idx)
+                            fi = free_idx[i]
+                            H[i, j] += wldd * g_full[fi] * gj + wld * h_full[fi, fj]
                         end
                     end
                     if !isnothing(G)
-                        @inbounds for (i, fi) in pairs(free_idx)
-                            # G[i] += wld * g_full[fi]
+                        @inbounds @simd for i in eachindex(free_idx)
+                            fi = free_idx[i]
                             G[i] = muladd(wld, g_full[fi], G[i])
                         end
                     end
@@ -97,8 +100,9 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
                     ld = LossFunctions.deriv(loss, f_val, d)
                     loss_val += w * loss(f_val, d)
                     wld = w * ld
-                    @inbounds for (i, fi) in pairs(free_idx)
-                        G[i] += wld * g_full[fi]
+                    @inbounds @simd for i in eachindex(free_idx)
+                        fi = free_idx[i]
+                        G[i] = muladd(wld, g_full[fi], G[i])
                     end
                 end
                 return ifelse(!isnothing(F), loss_val, nothing)
@@ -108,10 +112,7 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
                     px = idx[1]
                     py = idx[2]
                     w = isnothing(inv_var) ? one(FT) : inv_var[idx]
-                    loss_val += w * loss(
-                        evaluate(m, px, py),
-                        image[idx]
-                    )
+                    loss_val = muladd(w, loss(evaluate(m, px, py), image[idx]), loss_val)
                 end
                 return ifelse(!isnothing(F), loss_val, nothing)
             end
@@ -137,10 +138,10 @@ function _make_fg(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tu
                     f_val, g_full = evaluate_fg(m, px, py)
                     d = image[idx]
                     ld = LossFunctions.deriv(loss, f_val, d)
-                    loss_val += w * loss(f_val, d)
+                    loss_val = muladd(w, loss(f_val, d), loss_val)
                     wld = w * ld
                     @inbounds for (i, fi) in pairs(free_idx)
-                        G[i] += wld * g_full[fi]
+                        G[i] = muladd(wld, g_full[fi], G[i])
                     end
                 end
                 return !isnothing(F) ? loss_val : nothing
@@ -150,10 +151,7 @@ function _make_fg(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tu
                     px = idx[1]
                     py = idx[2]
                     w = isnothing(inv_var) ? one(FT) : inv_var[idx]
-                    loss_val += w * loss(
-                        evaluate(m, px, py),
-                        image[idx],
-                    )
+                    loss_val = muladd(w, loss(evaluate(m, px, py), image[idx]), loss_val)
                 end
                 return ifelse(!isnothing(F), loss_val, nothing)
             end
