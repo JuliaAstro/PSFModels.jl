@@ -2,8 +2,9 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
+import NLSolversBase
 import Optim
-using ConstructionBase: constructorof, getfields, setproperties # Use these to query / update structs in a generic way for fitting
+using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting
 using Rotations: RotMatrix
 using SpecialFunctions: besselj1
 using StaticArrays: SA
@@ -25,6 +26,8 @@ end
 abstract type AbstractPSFModel{T} end
 Base.Broadcast.broadcastable(m::AbstractPSFModel) = Ref(m)
 (model::AbstractPSFModel)(x, y) = evaluate(model, x, y)
+(model::AbstractPSFModel)(idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
+evaluate(model::AbstractPSFModel, idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
 
 """
     evaluate(model::AbstractPSFModel{T}, x::Real, y::Real)::T
@@ -89,5 +92,6 @@ _curried_point(P::BivariateLike) = P
 _curried_point(point...) = Tuple(point)
 
 include("fitting.jl")
+include("fitting_struct.jl")
 
 end # module PSFModels

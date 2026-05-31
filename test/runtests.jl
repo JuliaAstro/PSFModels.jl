@@ -201,3 +201,4 @@ end
 
 include("plotting.jl")
 include("fitting.jl")
+include("fitting_struct.jl")
