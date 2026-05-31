@@ -208,6 +208,8 @@ function fit(model::AbstractPSFModel{T},
     free_names, free_idx, x0 = free_params(model, fixed)
     free_names_val = Val(free_names) # for type stability in model_from_vector
 
+    # TODO: Not sure if we should default to using autodiff with NewtonTrustRegion
+    # if the model has an analytic gradient but no Hessian
     use_hessian = _has_hessian(model) && LossFunctions.istwicedifferentiable(loss)
     use_deriv = _has_deriv(model) && LossFunctions.isdifferentiable(loss)
 
