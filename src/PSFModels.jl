@@ -58,7 +58,7 @@ default implementation assumes the integral is given by a field `flux` in the mo
 integral(model::AbstractPSFModel) = hasproperty(model, :flux) ? model.flux : error("Model does not have a `flux` field; either add one or implement `integral(model)` for this model type.")
 
 """
-    fwhm(model::AbstractPSFModel) → (x_fwhm::T, y_fwhm::T)
+    fwhm(model::AbstractPSFModel{T}) → (x_fwhm::T, y_fwhm::T)
 Return the full width at half maximum (FWHM) of the PSF model as a tuple `(x_fwhm, y_fwhm)` in the x and y directions. By default, this function checks for a single `fwhm` field and returns it for both axes, or separate `x_fwhm` and `y_fwhm` fields if they exist. Models with more complex definitions of FWHM should implement their own version of this function.
 """
 function fwhm(model::AbstractPSFModel)
@@ -68,6 +68,18 @@ function fwhm(model::AbstractPSFModel)
         return (model.x_fwhm, model.y_fwhm)
     else
         error("Model does not have `fwhm` or `x_fwhm` and `y_fwhm` fields; either add them or implement `fwhm(model)` for this model type.")
+    end
+end
+
+"""
+    theta(model::AbstractPSFModel{T}) → θ::T
+Return the rotation angle `theta` of the PSF model in degrees CCW from the x-axis. By default, this function checks for a `theta` field and returns it, or **returns zero if no such field exists**. Models with more complex definitions of rotation should implement their own version of this function.
+"""
+function theta(model::AbstractPSFModel{T}) where T
+    if hasproperty(model, :theta)
+        return model.theta
+    else
+        return zero(T)
     end
 end
 
@@ -112,13 +124,31 @@ function ellipse_bounds(a, b, θ)
     return x_bound, y_bound
 end
 
-function bounding_box(model::AbstractPSFModel, factor=5)
-    # default bounding box is 5x5 around centroid, but specific models can override this
+"""
+    extent(model::AbstractPSFModel, fwhm_factor=5) → (x_range::Tuple, y_range::Tuple)
+Returns the extent of the PSF model which is typically useful for fitting, plotting, etc., 
+`((x_min, x_max), (y_min, y_max))`. By default, the extent is the smallest axis-aligned
+rectangle enclosing an ellipse centered on the model centroid whose major and minor axis
+lengths are `fwhm_factor` times the model FWHM values. Models with more
+complex shapes can override this function to provide a more appropriate extent.
+
+```jldoctest
+julia> using PSFModels: extent, CircularGaussianPSF, GaussianPSF
+
+julia> extent(CircularGaussianPSF(x=10, y=20, fwhm=5, flux=30, bkg=1), 5)
+((-2.5, 22.5), (7.5, 32.5))
+
+julia> extent(GaussianPSF(x=10, y=20, x_fwhm=5, y_fwhm=3, theta=90, flux=30, bkg=1), 5)
+((2.5, 17.5), (7.5, 32.5))
+```
+"""
+function extent(model::AbstractPSFModel, fwhm_factor=5)
+    # default extent is 5x5 around centroid, but specific models can override this
     x0, y0 = centroid(model)
     FWHM = fwhm(model)
-    a, b = factor * FWHM[1], factor * FWHM[2]
-    dx, dy = ellipse_bounds(a, b, 0)
-    return (x0 - 2.5, x0 + 2.5), (y0 - 2.5, y0 + 2.5)
+    a, b = fwhm_factor * FWHM[1] / 2, fwhm_factor * FWHM[2] / 2
+    dx, dy = ellipse_bounds(a, b, theta(model))
+    return (x0 - dx, x0 + dx), (y0 - dy, y0 + dy)
 end
 
 include("gaussian.jl")
