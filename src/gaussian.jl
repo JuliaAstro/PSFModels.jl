@@ -301,6 +301,7 @@ function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
     df_dtheta = Ag * γ * Qtheta
     df_dflux  = g / norm
     df_dbkg   = one(T)
+    G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
 
     # Second derivatives of sqmahab
     Rxx      = 2 * (cs^2 / ax² + sn^2 / ay²)
@@ -358,5 +359,5 @@ function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
         dxflux  dyflux  daxflux  dayflux  dthetaflux  0          0
         0       0       0        0        0           0          0
     ]
-    return f, SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg], H
+    return f, G, H
 end
