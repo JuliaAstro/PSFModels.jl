@@ -6,19 +6,6 @@ using LinearAlgebra: diag
 using Test
 
 # ---------------------------------------------------------------------------
-# Helper: generate a noise-free synthetic image from a struct model
-# ---------------------------------------------------------------------------
-
-function synth_image(model::PSFModels.AbstractPSFModel, inds)
-    img = similar(Array{Float64}, map(length, inds))
-    for idx in CartesianIndices(inds)
-        px, py = Tuple(idx)
-        img[idx] = evaluate(model, px, py)
-    end
-    return img
-end
-
-# ---------------------------------------------------------------------------
 # Tests for free_params / model_from_vector
 # ---------------------------------------------------------------------------
 
@@ -62,7 +49,7 @@ end
 @testset "struct fit CircularGaussianPSF" begin
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
-    img = synth_image(truth, inds)
+    img = render(truth, inds)
     # Initial guess: perturbed ~5% away from truth
     init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
 
@@ -103,7 +90,7 @@ end
 @testset "struct fit GaussianPSF" begin
     inds = (1:40, 1:40)
     truth = GaussianPSF(x=18.5, y=17.3, x_fwhm=5.0, y_fwhm=3.5, theta=15.0, flux=300.0, bkg=2.0)
-    img = synth_image(truth, inds)
+    img = render(truth, inds)
     # Initial guess: perturbed ~5% away from truth
     init = GaussianPSF(x=19.3, y=16.7, x_fwhm=5.3, y_fwhm=3.3, theta=13.0, flux=285.0, bkg=2.2)
 
@@ -134,7 +121,7 @@ end
 
 @testset "struct fit argument errors" begin
     m = CircularGaussianPSF(x=5.5, y=5.2, fwhm=3.0, flux=100.0, bkg=1.0)
-    img = synth_image(m, (1:10, 1:10))
+    img = render(m, (1:10, 1:10))
     init = CircularGaussianPSF(x=5.8, y=4.9, fwhm=3.2, flux=95.0, bkg=1.1)
     @test_throws ArgumentError fit(init, img; inv_var=zeros(size(img)))
     @test_throws ArgumentError fit(init, img; inv_var=fill(-1.0, size(img)))

@@ -12,7 +12,7 @@ using SpecialFunctions: besselj1
 using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, evaluate, evaluate_fg, evaluate_fgh, centroid, integral
+export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
@@ -33,12 +33,14 @@ evaluate(model::AbstractPSFModel, idx::CartesianIndex) = evaluate(model, Tuple(i
 
 """
     evaluate(model::AbstractPSFModel{T}, x::Real, y::Real)::T
+
 Evaluate the PSF model at position `(x, y)`.
 """
 function evaluate end
 
 """
     centroid(model::AbstractPSFModel{T}) → (x::T, y::T)
+
 Return the centroid of the PSF model as a tuple `(x, y)`;
 default implementation assumes the centroid is given by fields `x` and `y` in the model struct.
 """
@@ -52,6 +54,7 @@ end
 
 """
     integral(model::AbstractPSFModel{T})::T
+
 Return the integral of the PSF model over all space;
 default implementation assumes the integral is given by a field `flux` in the model struct.
 """
@@ -59,6 +62,7 @@ integral(model::AbstractPSFModel) = hasproperty(model, :flux) ? model.flux : err
 
 """
     fwhm(model::AbstractPSFModel{T}) → (x_fwhm::T, y_fwhm::T)
+
 Return the full width at half maximum (FWHM) of the PSF model as a tuple `(x_fwhm, y_fwhm)` in the x and y directions. By default, this function checks for a single `fwhm` field and returns it for both axes, or separate `x_fwhm` and `y_fwhm` fields if they exist. Models with more complex definitions of FWHM should implement their own version of this function.
 """
 function fwhm(model::AbstractPSFModel)
@@ -73,6 +77,7 @@ end
 
 """
     theta(model::AbstractPSFModel{T}) → θ::T
+
 Return the rotation angle `theta` of the PSF model in degrees CCW from the x-axis. By default, this function checks for a `theta` field and returns it, or **returns zero if no such field exists**. Models with more complex definitions of rotation should implement their own version of this function.
 """
 function theta(model::AbstractPSFModel{T}) where T
@@ -85,6 +90,7 @@ end
 
 """
     evaluate_fg(model::AbstractPSFModel{T}, x::Real, y::Real) → (f::T, G::SVector{T})
+
 Returns the model value `f` and partial derivatives of the `model`
 with respect to the parameters `G` at position `(x, y)`.
 """
@@ -98,9 +104,12 @@ with respect to the parameters at position `(x, y)`.
 function evaluate_fgh end
 
 """
-    ellipse_bounds(a, b, θ)
-Returns the bounding box of an ellipse with semi-major axis `a`, 
-semi-minor axis `b`, and rotation angle `θ` (degrees CCW from x-axis).
+    ellipse_bounds(a, b, θ) → (x_bound, y_bound)
+
+Returns the half-width and half-height of the smallest axis-aligned
+rectangle enclosing an ellipse with semi-major axis `a`, semi-minor
+axis `b`, and rotation angle `θ` (degrees counterclockwise from the
+x-axis).
 
 ```jldoctest
 julia> using PSFModels: ellipse_bounds
@@ -126,6 +135,7 @@ end
 
 """
     extent(model::AbstractPSFModel, fwhm_factor=5) → (x_range::Tuple, y_range::Tuple)
+
 Returns the extent of the PSF model which is typically useful for fitting, plotting, etc., 
 `((x_min, x_max), (y_min, y_max))`. By default, the extent is the smallest axis-aligned
 rectangle enclosing an ellipse centered on the model centroid whose major and minor axis
@@ -149,6 +159,45 @@ function extent(model::AbstractPSFModel, fwhm_factor=5)
     a, b = fwhm_factor * FWHM[1] / 2, fwhm_factor * FWHM[2] / 2
     dx, dy = ellipse_bounds(a, b, theta(model))
     return (x0 - dx, x0 + dx), (y0 - dy, y0 + dy)
+end
+
+"""
+    render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
+
+Fill the pre-allocated matrix `out` with `evaluate(model, px, py)` for each pixel
+`(px, py)` in `inds`. The first axis of `out` corresponds to `inds[1]` and the
+second axis to `inds[2]`, so offset ranges are handled correctly.
+"""
+function render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
+    for (i, px) in enumerate(inds[1])
+        for (j, py) in enumerate(inds[2])
+            @inbounds out[i, j] = evaluate(model, px, py)
+        end
+    end
+    return out
+end
+
+"""
+    render(model::AbstractPSFModel{T}, inds) → Matrix{float(T)}
+
+Allocate and return a matrix whose `[i, j]` entry is `evaluate(model, px, py)` for
+`px = inds[1][i]` and `py = inds[2][j]`.
+"""
+function render(model::AbstractPSFModel{T}, inds) where {T}
+    out = Matrix{float(T)}(undef, length(inds[1]), length(inds[2]))
+    return render!(out, model, inds)
+end
+
+"""
+    render(model::AbstractPSFModel) → Matrix
+
+Allocate and return a matrix covering the region returned by `extent(model)`,
+rounding the bounds to the nearest integer.
+"""
+function render(model::AbstractPSFModel)
+    (x_lo, x_hi), (y_lo, y_hi) = extent(model)
+    inds = (round(Int, x_lo):round(Int, x_hi), round(Int, y_lo):round(Int, y_hi))
+    return render(model, inds)
 end
 
 include("gaussian.jl")
