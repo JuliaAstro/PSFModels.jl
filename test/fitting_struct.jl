@@ -24,15 +24,17 @@ end
 
 @testset "free_params / model_from_vector" begin
     m = CircularGaussianPSF(x=1.0, y=2.0, fwhm=4.0, flux=10.0, bkg=1.0)
-    names, x0 = free_params(m)
+    names, idx, x0 = free_params(m)
     @test names == (:x, :y, :fwhm, :flux, :bkg)
+    @test idx == (1, 2, 3, 4, 5)
     @test x0 == [1.0, 2.0, 4.0, 10.0, 1.0]
 
-    names_fixed, x0_fixed = free_params(m, (bkg=1.0,))
+    names_fixed, idx_fixed, x0_fixed = free_params(m, (bkg=1.0,))
     @test names_fixed == (:x, :y, :fwhm, :flux)
+    @test idx_fixed == (1, 2, 3, 4)
     @test length(x0_fixed) == 4
 
-    m2 = model_from_vector(m, names, [1.1, 2.2, 3.3, 9.0, 0.5], (;))
+    m2 = model_from_vector(m, Val(names), [1.1, 2.2, 3.3, 9.0, 0.5], (;))
     @test m2.x ≈ 1.1
     @test m2.y ≈ 2.2
     @test m2.fwhm ≈ 3.3
