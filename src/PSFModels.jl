@@ -2,6 +2,8 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
+using LinearAlgebra: inv
+import LossFunctions
 import NLSolversBase
 import Optim
 using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting

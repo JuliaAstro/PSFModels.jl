@@ -1,6 +1,3 @@
-import LossFunctions
-import NLSolversBase: only_fgh!, only_fg!
-using LinearAlgebra: inv
 
 # ---------------------------------------------------------------------------
 # Parameter vector ↔ model instance
@@ -25,8 +22,15 @@ end
 Reconstruct the model from an optimizer vector `x`, merging in the fixed
 parameters.
 """
-function model_from_vector(model, free_names, x::AbstractVector, fixed::NamedTuple)
-    updates = NamedTuple{free_names}(Tuple(x))
+function model_from_vector(model, free_names::NTuple{N, Symbol}, x::AbstractVector, fixed::NamedTuple) where {N}
+    updates = NamedTuple{free_names}(ntuple(i -> x[i], Val(N)))
+    return setproperties(model, merge(updates, fixed))
+end
+
+# Type-stable internal variant: names are encoded in the Val type parameter so
+# Julia can specialize NamedTuple{names} and setproperties concretely.
+function model_from_vector(model, ::Val{names}, x::AbstractVector, fixed::NamedTuple) where {names}
+    updates = NamedTuple{names}(ntuple(i -> x[i], Val(length(names))))
     return setproperties(model, merge(updates, fixed))
 end
 
@@ -46,10 +50,15 @@ end
 # NLSolversBase objective builders
 # ---------------------------------------------------------------------------
 
-function _make_fgh(model0, free_names, free_idx, fixed, image, inds, inv_var, loss, maxfwhm)
-    return only_fgh!(
+function _make_fgh(model0::AbstractPSFModel{T}, free_names, free_idx, fixed, image, inds, inv_var, loss, maxfwhm) where {T}
+    FT = float(T)
+    n = length(free_idx)
+    g_buf = Vector{FT}(undef, n)
+    h_buf = Matrix{FT}(undef, n, n)
+    free_names_val = Val(free_names)
+    return NLSolversBase.only_fgh!(
         function (F, G, H, x)
-            m = model_from_vector(model0, free_names, x, fixed)
+            m = model_from_vector(model0, free_names_val, x, fixed)
             need_G = !isnothing(G)
             need_H = !isnothing(H)
             if need_G; fill!(G, 0); end
@@ -63,18 +72,35 @@ function _make_fgh(model0, free_names, free_idx, fixed, image, inds, inv_var, lo
                     d = image[idx]
                     ld  = LossFunctions.deriv(loss, f_val, d)
                     ldd = LossFunctions.deriv2(loss, f_val, d)
-                    g = g_full[free_idx]
-                    h = h_full[free_idx, free_idx]
                     loss_val += w * loss(f_val, d)
-                    H .+= w .* (ldd .* g .* g' .+ ld .* h)
-                    if need_G; G .+= w .* ld .* g; end
+                    @inbounds for (i, fi) in enumerate(free_idx)
+                        g_buf[i] = g_full[fi]
+                        for (j, fj) in enumerate(free_idx)
+                            h_buf[i, j] = h_full[fi, fj]
+                        end
+                    end
+                    wld  = w * ld
+                    wldd = w * ldd
+                    @inbounds for j in 1:n
+                        gj = g_buf[j]
+                        for i in 1:n
+                            H[i, j] += wldd * g_buf[i] * gj + wld * h_buf[i, j]
+                        end
+                    end
+                    if need_G
+                        @inbounds for i in 1:n
+                            G[i] += wld * g_buf[i]
+                        end
+                    end
                 elseif need_G
                     f_val, g_full = evaluate_fg(m, px, py)
                     d = image[idx]
                     ld = LossFunctions.deriv(loss, f_val, d)
-                    g = g_full[free_idx]
                     loss_val += w * loss(f_val, d)
-                    if need_G; G .+= w .* ld .* g; end
+                    wld = w * ld
+                    @inbounds for (i, fi) in enumerate(free_idx)
+                        G[i] += wld * g_full[fi]
+                    end
                 else
                     loss_val += w * loss(evaluate(m, px, py), image[idx])
                 end
@@ -84,10 +110,14 @@ function _make_fgh(model0, free_names, free_idx, fixed, image, inds, inv_var, lo
     )
 end
 
-function _make_fg(model0, free_names, free_idx, fixed, image, inds, inv_var, loss, maxfwhm)
-    return only_fg!(
+function _make_fg(model0::AbstractPSFModel{T}, free_names, free_idx, fixed, image, inds, inv_var, loss, maxfwhm) where {T}
+    FT = float(T)
+    n = length(free_idx)
+    g_buf = Vector{FT}(undef, n)
+    free_names_val = Val(free_names)
+    return NLSolversBase.only_fg!(
         function (F, G, x)
-            m = model_from_vector(model0, free_names, x, fixed)
+            m = model_from_vector(model0, free_names_val, x, fixed)
             if !_bounds_ok(m, maxfwhm)
                 if G !== nothing; fill!(G, 0); end
                 return F !== nothing ? oftype(float(one(eltype(x))), Inf) : nothing
@@ -101,9 +131,14 @@ function _make_fg(model0, free_names, free_idx, fixed, image, inds, inv_var, los
                     f_val, g_full = evaluate_fg(m, px, py)
                     d = image[idx]
                     ld = LossFunctions.deriv(loss, f_val, d)
-                    g = g_full[free_idx]
                     loss_val += w * loss(f_val, d)
-                    G .+= w .* ld .* g
+                    wld = w * ld
+                    @inbounds for (i, fi) in enumerate(free_idx)
+                        g_buf[i] = g_full[fi]
+                    end
+                    @inbounds for i in 1:n
+                        G[i] += wld * g_buf[i]
+                    end
                 else
                     loss_val += w * loss(evaluate(m, px, py), image[idx])
                 end
@@ -196,11 +231,10 @@ function fit(model::AbstractPSFModel{T},
         result = Optim.optimize(_scalar_loss, x0, alg, Optim.Options(; kwargs...);
                                 autodiff=ADTypes.AutoForwardDiff())
     end
-    return
     Optim.converged(result) || @warn "optimizer did not converge" result
 
     x_best = Optim.minimizer(result)
-    best_model = model_from_vector(model, free_names, x_best, fixed)
+    best_model = model_from_vector(model, Val(free_names), x_best, fixed)
 
     if isnothing(inv_var)
         return best_model, result
