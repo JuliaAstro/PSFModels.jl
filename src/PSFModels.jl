@@ -226,5 +226,6 @@ _curried_point(point...) = Tuple(point)
 
 include("fitting.jl")
 include("fitting_struct.jl")
+include("levenberg_marquardt.jl")
 
 end # module PSFModels
