@@ -1,8 +1,4 @@
 
-# ---------------------------------------------------------------------------
-# Levenberg-Marquardt result type
-# ---------------------------------------------------------------------------
-
 """
     LMResult{T}
 
@@ -19,8 +15,8 @@ Fields:
 - `iterations`:  total number of Levenberg-Marquardt iterations performed
 - `λ_final`:     damping parameter value at termination
 """
-struct LMResult{T}
-    minimizer::Vector{T}
+struct LMResult{T,V<:AbstractVector{T}}
+    minimizer::V
     minimum::T
     cost_init::T
     converged::Bool
@@ -43,7 +39,48 @@ function Base.show(io::IO, r::LMResult)
 end
 
 # ---------------------------------------------------------------------------
-# Internal accumulator: cost + Jᵀ W J + Jᵀ W r
+# LM damping strategies
+# ---------------------------------------------------------------------------
+
+abstract type AbstractLMDamping end
+"""
+    MarquardtDamping(; min_diagonal=1e-6)::MarquardtDamping
+
+Damping strategy for Levenberg-Marquardt where the diagonal entries are
+scaled by `max(A[i, i], min_diagonal)` to prevent small curvature directions from being under-damped.
+"""
+Base.@kwdef struct MarquardtDamping{T} <: AbstractLMDamping
+    min_diagonal::T = 1e-6
+end
+function damp!(A, damping::MarquardtDamping, λ)
+    min_diagonal = damping.min_diagonal
+    @inbounds for i in 1:size(A, 1)
+        A[i, i] += λ * max(A[i, i], min_diagonal)
+    end
+end
+
+"""
+    LevenbergDamping()::LevenbergDamping
+
+Damping strategy for Levenberg-Marquardt where a uniform `λ I` shift is applied with no scaling.
+"""
+struct LevenbergDamping{T} <: AbstractLMDamping end
+function damp!(A, damping::LevenbergDamping, λ)
+    @inbounds for i in 1:size(A, 1)
+        A[i, i] += λ
+    end
+end
+
+"""
+    NoDamping()::NoDamping
+
+Damping strategy for Levenberg-Marquardt where no damping is applied; equivalent to Gauss-Newton. Not recommended for general use.
+"""
+struct NoDamping <: AbstractLMDamping end
+function damp!(A, damping::NoDamping, λ) end # No-op
+
+# ---------------------------------------------------------------------------
+# fit_lm
 # ---------------------------------------------------------------------------
 
 # Build the Gauss-Newton approximation to the Hessian (A = Jᵀ W J) and the
@@ -52,34 +89,12 @@ end
 # The Jacobian row for pixel i is `g_full[free_idx]`, the projection of the
 # full analytic gradient onto the free parameters.  g_full is a StaticArrays
 # SVector (immutable), so we index into it rather than mutating it.
-function _lm_accum_fg(m::AbstractPSFModel, free_idx, image, inds, inv_var,
-                      n::Int, ::Type{FT}) where {FT}
-    A    = zeros(FT, n, n)
-    b    = zeros(FT, n)
-    cost = zero(FT)
-    for idx in CartesianIndices(inds)
-        px, py = idx[1], idx[2]
-        w = isnothing(inv_var) ? one(FT) : FT(inv_var[idx])
-        f_val, g_full = evaluate_fg(m, px, py)
-        r  = FT(f_val) - FT(image[idx])
-        wr = w * r
-        cost = muladd(w * r, r, cost)
-        @inbounds for j in 1:n
-            gj = FT(g_full[free_idx[j]])
-            b[j] = muladd(wr, gj, b[j])
-            for i in 1:n
-                A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
-            end
-        end
-    end
-    return cost, A, b
-end
-
-function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, inv_var,
-                       n::Int) where {FT}
+function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, inv_var) where {FT}
+    @assert size(A, 1) == size(A, 2) == length(b) == length(free_idx)
     fill!(A, zero(FT))
     fill!(b, zero(FT))
     cost = zero(FT)
+    n = length(free_idx)
     for idx in CartesianIndices(inds)
         px, py = idx[1], idx[2]
         w = isnothing(inv_var) ? one(FT) : FT(inv_var[idx])
@@ -95,19 +110,13 @@ function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::Abstract
             end
         end
     end
-    return cost, A, b
+    return cost
 end
-
-# ---------------------------------------------------------------------------
-# fit_lm
-# ---------------------------------------------------------------------------
 
 """
     PSFModels.fit_lm(model::AbstractPSFModel, image, inds=axes(image);
                      fixed=(;), inv_var=nothing,
-                     λ_init=1e-4, λ_up=10.0, λ_down=10.0,
-                     λ_min=1e-12, λ_max=1e12,
-                     damping=:marquardt, min_diagonal=1e-6,
+                     damping::AbstractLMDamping=MarquardtDamping(),
                      max_iter=200, x_tol=1e-8, f_tol=1e-8, g_tol=1e-8,
                      show_trace=false)
 
@@ -149,11 +158,8 @@ is accepted and ``\\lambda`` is decreased; otherwise it is rejected and
 - `λ_up`: factor by which `λ` is multiplied on rejection (default `10`)
 - `λ_down`: factor by which `λ` is divided on acceptance (default `10`)
 - `λ_min`, `λ_max`: lower/upper bounds on the damping parameter
-- `damping`: `:marquardt` (default) scales the diagonal by `diag(Jᵀ W J)`;
-  `:levenberg` uses a uniform `λ I` shift
-- `min_diagonal`: floor applied to `diag(Jᵀ W J)` entries in Marquardt mode
-  to prevent near-zero diagonals from making the damping ineffective
-  (default `1e-6`)
+- `damping::AbstractLMDamping`: specifies the damping strategy
+  (`MarquardtDamping`, `LevenbergDamping`, or `NoDamping`)
 - `max_iter`: maximum number of LM iterations (default `200`)
 - `x_tol`: step-norm convergence criterion:
   ``\\|\\delta\\| \\le x\\_tol\\cdot(\\|x\\|+x\\_tol)`` (default `1e-8`)
@@ -162,6 +168,12 @@ is accepted and ``\\lambda`` is decreased; otherwise it is rejected and
 - `g_tol`: gradient-norm convergence criterion ``\\|J^\\top W r\\|``
   (default `1e-8`)
 - `show_trace`: print per-iteration statistics to stdout (default `false`)
+
+# Damping strategies
+- `Marquardt`: diagonal entries are scaled by `max(A[i, i], min_diagonal)` to
+  prevent small curvature directions from being under-damped
+- `Levenberg`: uniform damping with no scaling
+- `NoDamping`: no damping; equivalent to Gauss-Newton (not recommended)
 """
 function fit_lm(model::AbstractPSFModel{T},
                 image::AbstractMatrix,
@@ -173,8 +185,7 @@ function fit_lm(model::AbstractPSFModel{T},
                 λ_down::Real=10.0,
                 λ_min::Real=1e-12,
                 λ_max::Real=1e12,
-                damping::Symbol=:marquardt,
-                min_diagonal::Real=1e-6,
+                damping::AbstractLMDamping=MarquardtDamping(),
                 max_iter::Integer=200,
                 x_tol::Real=1e-8,
                 f_tol::Real=1e-8,
@@ -191,10 +202,8 @@ function fit_lm(model::AbstractPSFModel{T},
     _has_deriv(model) ||
         throw(ArgumentError("model does not implement `evaluate_fg`; " *
                             "Levenberg-Marquardt requires analytic gradients"))
-    damping in (:marquardt, :levenberg) ||
-        throw(ArgumentError("`damping` must be `:marquardt` or `:levenberg`"))
 
-    # --- Parameter bookkeeping ---
+    # Parameter bookkeeping
     free_names, free_idx, x0 = free_params(model, fixed)
     n = length(x0)
     n > 0 || throw(ArgumentError("all model parameters are fixed; nothing to fit"))
@@ -202,24 +211,23 @@ function fit_lm(model::AbstractPSFModel{T},
 
     # Pre-allocate for in-place accumulation
     FT = float(T)
-    x  = Vector{FT}(x0)
-    λ  = FT(λ_init)
+    λ = FT(λ_init)
+    x = Vector{FT}(x0)
     A, b = zeros(FT, n, n), zeros(FT, n)
     A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
     A_damp = zeros(FT, n, n)
 
-    # --- Initial cost and Jacobian ---
+    # Initial cost and Jacobian
     m0 = model_from_vector(model, free_names_val, x, fixed)
-    cost, A, b = _lm_accum_fg!(A, b, m0, free_idx, image, inds, inv_var, n)
-    # cost, A, b = _lm_accum_fg(m0, free_idx, image, inds, inv_var, n, FT)
+    cost = _lm_accum_fg!(A, b, m0, free_idx, image, inds, inv_var)
     cost_init  = cost
 
     if show_trace
         gnorm0 = sqrt(sum(abs2, b))
-        println("Iter    0 | cost = $cost_init | λ = $λ | ||g|| = $gnorm0  (initial)")
+        println("Initialization | cost = $cost_init | λ = $λ | ||g|| = $gnorm0")
     end
 
-    # --- LM iteration ---
+    # LM iteration
     x_converged = false
     f_converged = false
     g_converged = false
@@ -241,13 +249,7 @@ function fit_lm(model::AbstractPSFModel{T},
 
         # Build the damped normal matrix A + λD
         A_damp .= A
-        @inbounds for i in 1:n
-            A_damp[i, i] += if damping === :marquardt
-                FT(λ) * max(A[i, i], FT(min_diagonal))
-            else  # :levenberg
-                FT(λ)
-            end
-        end
+        damp!(A_damp, damping, λ)
 
         # Solve (A + λD) δ = −b
         δ     = A_damp \ (-b)
@@ -256,8 +258,7 @@ function fit_lm(model::AbstractPSFModel{T},
         # Evaluate the candidate step
         x_cand = x + δ
         m_cand = model_from_vector(model, free_names_val, x_cand, fixed)
-        cost_cand, A_cand, b_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, inv_var, n)
-        # cost_cand, A_cand, b_cand = _lm_accum_fg(m_cand, free_idx, image, inds, inv_var, n, FT)
+        cost_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, inv_var)
         accepted = cost_cand < cost
 
         if show_trace
@@ -269,7 +270,7 @@ function fit_lm(model::AbstractPSFModel{T},
         if accepted
             Δcost = cost - cost_cand
             x    .= x_cand
-            cost = cost_cand
+            cost  = cost_cand
             A    .= A_cand
             b    .= b_cand
             λ    = max(λ / FT(λ_down), FT(λ_min))
