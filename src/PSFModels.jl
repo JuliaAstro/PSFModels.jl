@@ -2,7 +2,7 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
-using LinearAlgebra: inv, cholesky, cholesky!, ldiv!, I
+using LinearAlgebra: inv, cholesky, cholesky!, ldiv!, I, Symmetric, diag, pinv
 import LossFunctions
 import NLSolversBase
 import Optim
@@ -10,6 +10,7 @@ using ConstructionBase: constructorof, getfields, getproperties, setproperties #
 using Rotations: RotMatrix
 using SpecialFunctions: besselj1
 using StaticArrays: SA, SVector, MVector, MMatrix
+using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
 export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!

@@ -1,6 +1,7 @@
-using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit
+using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss
 using BenchmarkTools
 import LossFunctions
+import Optim
 using PrettyTables: pretty_table
 
 function show_benchmarks(results)
@@ -27,9 +28,9 @@ end
 const SUITE = BenchmarkGroup()
 SUITE["core"] = BenchmarkGroup()
 
-let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0),
-    inds  = (1:30, 1:30),
-    image = [evaluate(model, px, py) for px in inds[1], py in inds[2]]
+let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
+    inds  = (1:30, 1:30)
+    image = render(model, inds)
     fixed = (; bkg=1.1,)
     free_names, free_idx, x0 = free_params(model, fixed)
     free_names = Val(free_names)
@@ -38,10 +39,32 @@ let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0),
                         G = zeros(5); H = zeros(5, 5))
 end
 
+# ---------------------------------------------------------------------------
+# LM fitting benchmarks
+# ---------------------------------------------------------------------------
+SUITE["fitting"] = BenchmarkGroup()
+
+let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
+    inds  = (1:30, 1:30)
+    image = render(model, inds)
+    init = CircularGaussianPSF(x=15.5, y=14.5, fwhm=3.5, flux=9.0, bkg=1.2)
+    SUITE["fitting"]["fit_lm (L2)"] = @benchmarkable fit_lm($init, $image, $inds)
+    SUITE["fitting"]["fit_lm (Huber IRLS)"] = @benchmarkable fit_lm($init, $image, $inds;
+        reweight=$(LossFunctions.HuberLoss(1.0)))
+    SUITE["fitting"]["fit_lm (Tukey IRLS)"] = @benchmarkable fit_lm($init, $image, $inds;
+        reweight=$(TukeyLoss()))
+    SUITE["fitting"]["fit (Optim NewtonTrustRegion)"] = @benchmarkable fit($init, $image, $inds;
+        x_abstol=1e-8, alg=Optim.NewtonTrustRegion())
+    SUITE["fitting"]["fit (Optim LBFGS)"] = @benchmarkable fit($init, $image, $inds;
+        x_abstol=1e-8, alg=Optim.LBFGS())
+end
+
 # If not on CI, we'll show a nice table
 if get(ENV, "CI", "false") == "false"
     # Run the benchmarks
     results = run(SUITE, verbose=true)
     println("⎯⎯⎯ Core Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
     show_benchmarks(results["core"])
+    println("⎯⎯⎯ Fitting Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
+    show_benchmarks(results["fitting"])
 end

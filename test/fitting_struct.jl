@@ -1,8 +1,10 @@
 using PSFModels
-using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit
+using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm
+using PSFModels: MADScale, FixedScale, MScale, TukeyLoss, estimate_scale, weight
 import LossFunctions
 import Optim
 using LinearAlgebra: diag
+using StableRNGs
 using Test
 
 # ---------------------------------------------------------------------------
@@ -126,4 +128,132 @@ end
     @test_throws ArgumentError fit(init, img; inv_var=zeros(size(img)))
     @test_throws ArgumentError fit(init, img; inv_var=fill(-1.0, size(img)))
     @test_throws ArgumentError fit(init, img; inv_var=fill(1.0, (11, 10)))
+end
+
+# ---------------------------------------------------------------------------
+# LM fitting (fit_lm) tests
+# ---------------------------------------------------------------------------
+
+@testset "fit_lm noiseless recovery" begin
+    inds = (1:30, 1:30)
+    truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
+    img = render(truth, inds)
+    init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
+
+    result = fit_lm(init, img, inds)
+    @test result.converged
+    best = CircularGaussianPSF(result.minimizer...)
+    @test best.x    ≈ truth.x    rtol=1e-3
+    @test best.y    ≈ truth.y    rtol=1e-3
+    @test best.fwhm ≈ truth.fwhm rtol=1e-3
+    @test best.flux ≈ truth.flux rtol=1e-3
+    @test size(result.cov) == (5, 5)
+    @test isnan(result.σ_final)  # no IRLS ⇒ no scale estimate
+end
+
+@testset "fit_lm with inv_var" begin
+    inds = (1:30, 1:30)
+    truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
+    img = render(truth, inds)
+    init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
+
+    inv_var = fill(1.0, size(img))
+    result = fit_lm(init, img, inds; inv_var)
+    @test result.converged
+    @test size(result.cov) == (5, 5)
+end
+
+@testset "fit_lm IRLS — noiseless parity" begin
+    # On clean data, IRLS should recover the same parameters as plain L2
+    inds = (1:30, 1:30)
+    truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
+    img = render(truth, inds)
+    init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
+
+    result_l2 = fit_lm(init, img, inds)
+    result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0))
+    result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss())
+
+    best_l2 = CircularGaussianPSF(result_l2.minimizer...)
+    best_huber = CircularGaussianPSF(result_huber.minimizer...)
+    best_tukey = CircularGaussianPSF(result_tukey.minimizer...)
+
+    @test result_huber.converged
+    @test result_tukey.converged
+    @test best_huber.x ≈ truth.x rtol=1e-2
+    @test best_huber.y ≈ truth.y rtol=1e-2
+    @test best_tukey.x ≈ truth.x rtol=5e-2
+    @test best_tukey.y ≈ truth.y rtol=5e-2
+end
+
+@testset "fit_lm IRLS — outlier rejection" begin
+    inds = (1:30, 1:30)
+    truth = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=200.0, bkg=1.0)
+    img = render(truth, inds)
+    # Add Gaussian noise and scattered severe outliers in the wings
+    rng = StableRNG(42)
+    img .= img .+ 0.5 .* randn(rng, size(img))
+    # Several 20σ outliers: severe enough to bias flux and FWHM
+    img[5, 5]   += 10.0
+    img[25, 6]  += 10.0
+    img[8, 24]  += 10.0
+    img[15, 28] += 10.0
+    img[22, 12] += 10.0
+
+    init = CircularGaussianPSF(x=15.5, y=14.5, fwhm=3.5, flux=180.0, bkg=1.5)
+
+    result_l2 = fit_lm(init, img, inds; max_iter=500)
+    @test result_l2.converged
+    best_l2 = CircularGaussianPSF(result_l2.minimizer...)
+
+    result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0), max_iter=500)
+    @test result_huber.converged
+    best_huber = CircularGaussianPSF(result_huber.minimizer...)
+
+    result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss(), max_iter=500)
+    @test result_tukey.converged
+    best_tukey = CircularGaussianPSF(result_tukey.minimizer...)
+
+    # IRLS improves flux accuracy: outliers inflate the wings, which L2
+    # compensates for by reducing the total flux; robust weights suppress
+    # those outliers and recover a more accurate flux estimate.
+    err_l2_flux = abs(best_l2.flux - truth.flux)
+    @test abs(best_huber.flux - truth.flux) < err_l2_flux
+    @test abs(best_tukey.flux - truth.flux) < err_l2_flux
+
+    # IRLS improves FWHM accuracy: outlier pixels in the wings cause L2 to
+    # over-widen the fitted profile; downweighting them tightens the estimate.
+    err_l2_fwhm = abs(best_l2.fwhm - truth.fwhm)
+    @test abs(best_huber.fwhm - truth.fwhm) < err_l2_fwhm
+    @test abs(best_tukey.fwhm - truth.fwhm) < err_l2_fwhm
+end
+
+@testset "TukeyLoss properties" begin
+    loss = TukeyLoss(; c=4.685)
+    @test loss(0.0, 0.0) == 0.0
+    # For small residuals, should behave like L2
+    @test LossFunctions.deriv(loss, 0.1, 0.0) ≈ 0.1 atol=1e-3
+    # For residuals beyond c, derivative should be zero
+    @test LossFunctions.deriv(loss, 10.0, 0.0) ≈ 0.0 atol=1e-6
+    # Weight function
+    @test weight(loss, 0.0) ≈ 1.0 atol=1e-6
+    @test weight(loss, 10.0) == 0.0
+    @test weight(loss, 2.0) > 0.0  # within threshold, positive weight
+end
+
+@testset "IRLS weight function" begin
+    @test weight(LossFunctions.L2DistLoss(), 1.0) == 1.0
+    @test weight(LossFunctions.L2DistLoss(), 0.0) ≈ 1.0 atol=1e-6
+    @test weight(LossFunctions.HuberLoss(1.0), 0.5) == 1.0
+    @test weight(LossFunctions.HuberLoss(1.0), 2.0) < 1.0
+end
+
+@testset "fit_lm argument errors" begin
+    m = CircularGaussianPSF(x=5.5, y=5.2, fwhm=3.0, flux=100.0, bkg=1.0)
+    img = render(m, (1:10, 1:10))
+    init = CircularGaussianPSF(x=5.8, y=4.9, fwhm=3.2, flux=95.0, bkg=1.1)
+    @test_throws ArgumentError fit_lm(init, img; inv_var=zeros(size(img)))
+    @test_throws ArgumentError fit_lm(init, img; inv_var=fill(-1.0, size(img)))
+    @test_throws ArgumentError fit_lm(init, img; inv_var=fill(1.0, (11, 10)))
+    @test_throws ArgumentError fit_lm(init, img; fixed=(x=1.0, y=2.0, fwhm=3.0, flux=100.0, bkg=1.0))
 end
