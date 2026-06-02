@@ -154,6 +154,7 @@ is accepted and ``\\lambda`` is decreased; otherwise it is rejected and
 
 - `fixed`: `NamedTuple` of frozen parameter name → value pairs
 - `inv_var`: inverse-variance weights, same shape as `image`
+- `reweight`: if `true`, allows `inv_var` to be updated based on residuals (default `false`)
 - `λ_init`: initial damping parameter (default `1e-4`)
 - `λ_up`: factor by which `λ` is multiplied on rejection (default `10`)
 - `λ_down`: factor by which `λ` is divided on acceptance (default `10`)
@@ -190,9 +191,10 @@ function fit_lm(model::AbstractPSFModel{T},
                 x_tol::Real=1e-8,
                 f_tol::Real=1e-8,
                 g_tol::Real=1e-8,
-                show_trace::Bool=false) where {T}
+                show_trace::Bool=false,
+                reweight::Bool=false) where {T}
 
-    # --- Validate inputs ---
+    # Validate inputs
     if !isnothing(inv_var)
         size(inv_var) == size(image) ||
             throw(ArgumentError("`inv_var` must be the same size as `image`"))
@@ -201,7 +203,7 @@ function fit_lm(model::AbstractPSFModel{T},
     end
     _has_deriv(model) ||
         throw(ArgumentError("model does not implement `evaluate_fg`; " *
-                            "Levenberg-Marquardt requires analytic gradients"))
+                            "Levenberg-Marquardt requires gradient"))
 
     # Parameter bookkeeping
     free_names, free_idx, x0 = free_params(model, fixed)
@@ -212,10 +214,12 @@ function fit_lm(model::AbstractPSFModel{T},
     # Pre-allocate for in-place accumulation
     FT = float(T)
     λ = FT(λ_init)
-    x = Vector{FT}(x0)
+    x, x_cand = Vector{FT}(x0), Vector{FT}(undef, n)
     A, b = zeros(FT, n, n), zeros(FT, n)
     A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
     A_damp = zeros(FT, n, n)
+    F_buffer = zeros(FT, n, n)
+    δ = zeros(FT, n)
 
     # Initial cost and Jacobian
     m0 = model_from_vector(model, free_names_val, x, fixed)
@@ -237,9 +241,8 @@ function fit_lm(model::AbstractPSFModel{T},
     while iter < max_iter
         iter += 1
 
+        # Test for gradient-norm convergence
         gnorm = sqrt(sum(abs2, b))
-
-        # Gradient-norm convergence: already at a stationary point
         if gnorm ≤ FT(g_tol)
             g_converged = true
             converged   = true
@@ -251,12 +254,14 @@ function fit_lm(model::AbstractPSFModel{T},
         A_damp .= A
         damp!(A_damp, damping, λ)
 
-        # Solve (A + λD) δ = −b
-        δ     = A_damp \ (-b)
+        # Solve (A + λD) δ = −b; same as δ = A_damp \ (-b)
+        F_buffer .= A_damp
+        F = cholesky!(F_buffer)
+        ldiv!(δ, F, -b)
         δnorm = sqrt(sum(abs2, δ))
 
         # Evaluate the candidate step
-        x_cand = x + δ
+        x_cand .= x .+ δ
         m_cand = model_from_vector(model, free_names_val, x_cand, fixed)
         cost_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, inv_var)
         accepted = cost_cand < cost
@@ -287,16 +292,28 @@ function fit_lm(model::AbstractPSFModel{T},
         end
     end
 
-    converged || @warn "Levenberg-Marquardt did not converge after $iter iterations"
-
     best_model = model_from_vector(model, free_names_val, x, fixed)
     result = LMResult(x, cost, cost_init,
                       converged, x_converged, f_converged, g_converged,
                       iter, λ)
 
-    isnothing(inv_var) && return best_model, result
+    """
+        compute_cov!(JTJ, cost, n_obs, n_params, inv_var, reweight::Bool)
+        
+    Compute the covariance matrix of the free parameters at the solution from the Gauss-Newton approximation to the Hessian (JTJ = Jᵀ W J for weights W) and the cost (which must be the weighted sum of squares, Χ² = rᵀ W r) at the solution. If `!isnothing(inv_var)`, then the covariance is given by the Cramér-Rao bound `inv(Jᵀ W J)`. Otherwise, we estimate the noise variance `σ² = cost / (n_obs - n_params)` and return `σ² * inv(Jᵀ J)`, which is the standard covariance estimate for nonlinear least squares and is asymptotically unbiased when the model is correct. If the relative weighting encoded by `inv_var` is trusted but its overall normalization may be inaccurate, you can set `reweight=true` to re-scale the covariance by the factor `cost / dof` to account for any mis-estimation of the noise variance.
+    """
+    function compute_cov!(JTJ, cost, n_obs, n_params, inv_var, reweight::Bool)
+        F = cholesky!(JTJ) # modfies JTJ in-place to compute the Cholesky factorization
+        cov = F \ I # = inv(JTJ), more stable
+        if isnothing(inv_var) || reweight
+            dof = n_obs - n_params
+            dof > 0 || throw(ArgumentError("degrees of freedom must be positive to compute covariance"))
+            σ² = cost / dof
+            cov *= σ²
+        end
+        return cov
+    end
 
-    # Covariance estimate: (Jᵀ W J)⁻¹ at the solution
-    cov = inv(A)
+    cov = compute_cov!(A, cost, prod(length, inds), n, inv_var, reweight)
     return best_model, result, cov
 end

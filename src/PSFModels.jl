@@ -2,14 +2,14 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
-using LinearAlgebra: inv
+using LinearAlgebra: inv, cholesky, cholesky!, ldiv!, I
 import LossFunctions
 import NLSolversBase
 import Optim
 using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting
 using Rotations: RotMatrix
 using SpecialFunctions: besselj1
-using StaticArrays: SA
+using StaticArrays: SA, SVector, MVector, MMatrix
 
 export gaussian, normal, airydisk, moffat
 export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!
@@ -30,6 +30,14 @@ Base.Broadcast.broadcastable(m::AbstractPSFModel) = Ref(m)
 (model::AbstractPSFModel)(x, y) = evaluate(model, x, y)
 (model::AbstractPSFModel)(idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
 evaluate(model::AbstractPSFModel, idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
+function evaluate_fg(model::AbstractPSFModel, x, y, free_idx::AbstractVector)
+    f, g = evaluate_fg(model, x, y)
+    return f, view(g, free_idx)
+end
+function evaluate_fg(model::AbstractPSFModel, x, y, free_idx::SVector)
+    f, g = evaluate_fg(model, x, y)
+    return f, g[free_idx]
+end
 
 """
     evaluate(model::AbstractPSFModel{T}, x::Real, y::Real)::T
