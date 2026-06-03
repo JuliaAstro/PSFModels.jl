@@ -1,15 +1,23 @@
 using PSFModels
 using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm
 using PSFModels: MADScale, FixedScale, MScale, TukeyLoss, estimate_scale, weight
+using Distributions: Poisson
 import LossFunctions
 import Optim
 using LinearAlgebra: diag
 using StableRNGs
+using Statistics: mean, median, std
 using Test
 
 # ---------------------------------------------------------------------------
 # Tests for free_params / model_from_vector
 # ---------------------------------------------------------------------------
+
+const irls_losses = (
+    LossFunctions.HuberLoss(1.0),
+    TukeyLoss(),
+    nothing, # no IRLS ⇒ no reweighting
+)
 
 @testset "free_params / model_from_vector" begin
     m = CircularGaussianPSF(x=1.0, y=2.0, fwhm=4.0, flux=10.0, bkg=1.0)
@@ -140,27 +148,21 @@ end
     img = render(truth, inds)
     init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
 
-    result = fit_lm(init, img, inds)
+    # No inv_var
+    best, result = fit_lm(init, img, inds)
     @test result.converged
-    best = CircularGaussianPSF(result.minimizer...)
     @test best.x    ≈ truth.x    rtol=1e-3
     @test best.y    ≈ truth.y    rtol=1e-3
     @test best.fwhm ≈ truth.fwhm rtol=1e-3
     @test best.flux ≈ truth.flux rtol=1e-3
     @test size(result.cov) == (5, 5)
     @test isnan(result.σ_final)  # no IRLS ⇒ no scale estimate
-end
 
-@testset "fit_lm with inv_var" begin
-    inds = (1:30, 1:30)
-    truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
-    img = render(truth, inds)
-    init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
-
+    # With unity inv_var
     inv_var = fill(1.0, size(img))
-    result = fit_lm(init, img, inds; inv_var)
-    @test result.converged
-    @test size(result.cov) == (5, 5)
+    best2, result2 = fit_lm(init, img, inds; inv_var)
+    @test result2.converged
+    @test result.minimizer ≈ result2.minimizer
 end
 
 @testset "fit_lm IRLS — noiseless parity" begin
@@ -170,13 +172,9 @@ end
     img = render(truth, inds)
     init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
 
-    result_l2 = fit_lm(init, img, inds)
-    result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0))
-    result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss())
-
-    best_l2 = CircularGaussianPSF(result_l2.minimizer...)
-    best_huber = CircularGaussianPSF(result_huber.minimizer...)
-    best_tukey = CircularGaussianPSF(result_tukey.minimizer...)
+    best_l2, result_l2 = fit_lm(init, img, inds)
+    best_huber, result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0))
+    best_tukey, result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss())
 
     @test result_huber.converged
     @test result_tukey.converged
@@ -202,17 +200,14 @@ end
 
     init = CircularGaussianPSF(x=15.5, y=14.5, fwhm=3.5, flux=180.0, bkg=1.5)
 
-    result_l2 = fit_lm(init, img, inds; max_iter=500)
+    best_l2, result_l2 = fit_lm(init, img, inds; max_iter=500)
     @test result_l2.converged
-    best_l2 = CircularGaussianPSF(result_l2.minimizer...)
 
-    result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0), max_iter=500)
+    best_huber, result_huber = fit_lm(init, img, inds; reweight=LossFunctions.HuberLoss(1.0), max_iter=500)
     @test result_huber.converged
-    best_huber = CircularGaussianPSF(result_huber.minimizer...)
 
-    result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss(), max_iter=500)
+    best_tukey, result_tukey = fit_lm(init, img, inds; reweight=TukeyLoss(), max_iter=500)
     @test result_tukey.converged
-    best_tukey = CircularGaussianPSF(result_tukey.minimizer...)
 
     # IRLS improves flux accuracy: outliers inflate the wings, which L2
     # compensates for by reducing the total flux; robust weights suppress
@@ -226,6 +221,45 @@ end
     err_l2_fwhm = abs(best_l2.fwhm - truth.fwhm)
     @test abs(best_huber.fwhm - truth.fwhm) < err_l2_fwhm
     @test abs(best_tukey.fwhm - truth.fwhm) < err_l2_fwhm
+end
+
+@testset "fit_lm IRLS — Poisson Errors" begin
+    @testset "No inverse variance information" begin
+        inds = (1:20, 1:20)
+        # for flux in (1000.0, 10000.0)
+        bkg = 100.0
+        for snr in (50.0, 100.0)
+            flux = snr * sqrt(bkg)
+            v = [10.0, 10.0, 4.0, flux, bkg]
+            truth = CircularGaussianPSF(x=v[1], y=v[2], fwhm=v[3], flux=v[4], bkg=v[5])
+            img = render(truth, inds)
+            img_noisy = similar(img) # buffer to hold Poisson noise realizations
+            # Add Poisson noise
+            rng = StableRNG(42)
+            init = CircularGaussianPSF(x=v[1]+0.5, y=v[2]+0.5, fwhm=v[3]-0.5, flux=0.8*flux, bkg=v[5]*0.9)
+
+            for loss in (LossFunctions.HuberLoss(1.0), TukeyLoss(), nothing)
+                N_tests = 1000
+                minimizers = Matrix{Float64}(undef, 5, N_tests)
+                for i in 1:N_tests
+                    img_noisy .= rand.(Ref(rng), Poisson.(img))
+                    best, result = fit_lm(init, img_noisy; reweight=loss)
+                    @test result.converged
+                    minimizers[:, i] = result.minimizer
+                end
+                minimizer_means = mean(minimizers, dims=2)[:, 1]
+                minimizer_medians = median(minimizers, dims=2)[:, 1]
+                minimizer_stds = std(minimizers, dims=2)[:, 1]
+                # median over many noise realizations should be close to truth
+                @test minimizer_medians ≈ v rtol=1e-2
+                # fraction of runs where minimizer is within 1σ of truth should be ~68% for each parameter
+                within_1σ = sum(abs.(minimizers .- v) .< minimizer_stds, dims=2)[:, 1] ./ N_tests
+                # within_1σ is slightly high (~0.69 -- 0.76); the cov calculation when reweighting
+                # is somewhat conservative and may overestimate uncertainties
+                @test all(within_1σ .>= 0.68 - 0.1) && all(within_1σ .<= 0.68 + 0.1)
+            end
+        end
+    end
 end
 
 @testset "TukeyLoss properties" begin
