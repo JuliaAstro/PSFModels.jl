@@ -2,7 +2,7 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
-using LinearAlgebra: inv, cholesky, cholesky!, ldiv!, I, Symmetric, diag, pinv
+using LinearAlgebra: inv, cholesky!, ldiv!, I, Symmetric, pinv
 import LossFunctions
 import NLSolversBase
 import Optim
@@ -13,7 +13,7 @@ using StaticArrays: SA, SVector, MVector, MMatrix
 using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!
+export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!, peak, amplitude
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
@@ -31,6 +31,8 @@ Base.Broadcast.broadcastable(m::AbstractPSFModel) = Ref(m)
 (model::AbstractPSFModel)(x, y) = evaluate(model, x, y)
 (model::AbstractPSFModel)(idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
 evaluate(model::AbstractPSFModel, idx::CartesianIndex) = evaluate(model, Tuple(idx)...)
+evaluate_fg(model::AbstractPSFModel, idx::CartesianIndex) = evaluate_fg(model, Tuple(idx)...)
+evaluate_fgh(model::AbstractPSFModel, idx::CartesianIndex) = evaluate_fgh(model, Tuple(idx)...)
 function evaluate_fg(model::AbstractPSFModel, x, y, free_idx::AbstractVector)
     f, g = evaluate_fg(model, x, y)
     return f, view(g, free_idx)
@@ -68,6 +70,33 @@ Return the integral of the PSF model over all space;
 default implementation assumes the integral is given by a field `flux` in the model struct.
 """
 integral(model::AbstractPSFModel) = hasproperty(model, :flux) ? model.flux : error("Model does not have a `flux` field; either add one or implement `integral(model)` for this model type.")
+
+"""
+    peak(model::AbstractPSFModel{T})::T
+
+Return the peak value of the PSF model. By default, this
+function evaluates the model at its centroid, but
+models can override this.
+"""
+peak(model::AbstractPSFModel) = evaluate(model, centroid(model)...)
+
+"""
+    amplitude(model::AbstractPSFModel{T})::T
+
+Return the amplitude of the PSF model, defined as the peak value
+minus the background. By default, this function assumes a `bkg`
+field in the model struct and computes the amplitude as
+`peak(model) - model.bkg`. Models without a `bkg` field or with
+more complex definitions of amplitude should implement their own
+version of this function.
+"""
+function amplitude(model::AbstractPSFModel)
+    if hasproperty(model, :bkg)
+        return peak(model) - model.bkg
+    else
+        error("Cannot compute amplitude as model does not have a `bkg` field; either add one or implement `amplitude(model)` for this model type.")
+    end
+end
 
 """
     fwhm(model::AbstractPSFModel{T}) → (x_fwhm::T, y_fwhm::T)

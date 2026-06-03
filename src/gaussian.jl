@@ -67,6 +67,7 @@ Base.@kwdef struct CircularGaussianPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(fwhm), T(flux), T(bkg))
     end
 end
+peak(model::CircularGaussianPSF) = model.flux / (π * model.fwhm^2 / -GAUSS_PRE) + model.bkg
 
 function evaluate(model::CircularGaussianPSF{T}, px, py) where T
     dx = px - model.x
