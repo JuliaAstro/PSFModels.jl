@@ -1,5 +1,6 @@
-using PSFModels: PsfPlot
+using PSFModels: PsfPlot, gaussian, airydisk, moffat
 using RecipesBase: apply_recipe
+using Test
 
 @testset "plotting - $K" for K in (gaussian, airydisk, moffat)
     psf = K(x=0, y=1, fwhm=5)

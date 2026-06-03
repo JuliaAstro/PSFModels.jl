@@ -1,5 +1,9 @@
-using PSFModels: fit, generate_params, vector_from_params
+using PSFModels: fit, generate_params, vector_from_params, gaussian, airydisk, moffat
 using LinearAlgebra: diag
+using StableRNGs
+using Test
+
+rng = StableRNG(112358)
 
 function generate_model(rng, model, params, inds)
     cartinds = CartesianIndices(inds)
@@ -24,29 +28,22 @@ function test_fitting(rng, model, params, inds; kwargs...)
     end
     psf = generate_model(rng, model, params, inds)
     _keys = keys(params)
-    _vals = PSFModels.vector_from_params(Float64, params)
+    _vals = vector_from_params(Float64, params)
     # perturb starting guess by a little
     _vals .*= 1 .+ 1e-2 .* randn(rng, length(_vals))
-    P0 = PSFModels.generate_params(_keys, _vals)
-    P, bestfit = fit(model, P0, psf; x_abstol = 5e-5, kwargs...)
+    P0 = generate_params(_keys, _vals)
+    P, bestfit = fit(model, P0, psf; x_abstol=5e-5, kwargs...)
     test_params(params, P)
     @test bestfit.(CartesianIndices(psf)) ≈ psf rtol=1e-2
 
-    # Now add error, fit with inverse variance weights, and check that we recover the same parameters
-    # σ = 0.05 # Fractional error to add to each pixel
-    # psf_noisy = psf .* (1 .+ randn(rng, size(psf)) .* σ)
-    # inv_var = @. inv((σ * psf)^2)
+    # Now add error, fit with inverse variance weights
     σ = 0.01 * maximum(psf) # Absolute error to add to each pixel
     psf_noisy = psf .+ σ .* randn(rng, size(psf))
     inv_var = fill(inv(σ^2), size(psf))
-    P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=inv_var, kwargs...)
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=zeros(size(psf)), kwargs...) # inv_var can't be 0
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=fill(-1.0, size(psf)), kwargs...) # inv_var can't be negative
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5e-5, inv_var=fill(1.0, size(psf) .+ (1,)), kwargs...) # inv_var must be same size as image
-    # The precision tests have random failures right now, think more about how to do this in a robust way
-    # sterr = generate_params(keys(P_noisy), 2 .* sqrt.(max.(0, diag(cov))))
-    # test_params(params, P_noisy; rtol=0.1, atol=sterr)
-    # @test bestfit_noisy.(CartesianIndices(psf)) ≈ psf rtol=1e-1
+    P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=inv_var, kwargs...)
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=zeros(size(psf)), kwargs...) # inv_var can't be 0
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=fill(-1.0, size(psf)), kwargs...) # inv_var can't be negative
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=fill(1.0, size(psf) .+ (1,)), kwargs...) # inv_var must be same size as image
     return nothing
 end
 
