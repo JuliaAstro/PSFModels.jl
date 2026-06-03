@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area
 using Test
 
 # Tests generic API, type return, etc
@@ -40,7 +40,11 @@ end
 for model in (CircularGaussianPSF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10.0),
               CircularGaussianPSF(x=1.3f0, y=2.4f0, fwhm=3.0f0, flux=120.0f0, bkg=10.0f0),
               GaussianPSF(x=2.5, y=5.0, x_fwhm=3.0, y_fwhm=4.0, theta=35, flux=120.0, bkg=10),
-              GaussianPSF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35f0, flux=120.0f0, bkg=10.0f0))
+              GaussianPSF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35f0, flux=120.0f0, bkg=10.0f0),
+              CircularGaussianPRF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10.0),
+              CircularGaussianPRF(x=1.3f0, y=2.4f0, fwhm=3.0f0, flux=120.0f0, bkg=10.0f0),
+              GaussianPRF(x=2.5, y=5.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=120.0, bkg=10),
+              GaussianPRF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35.0f0, flux=120.0f0, bkg=10.0f0))
     @testset "API: $(typeof(model))" begin
         test_common(model)
     end
@@ -108,5 +112,60 @@ end
     # equal fwhm + theta=0 reduces to CircularGaussianPSF
     mc = CircularGaussianPSF(x=1.5, y=2.5, fwhm=8, flux=3, bkg=0)
     mg = GaussianPSF(x=1.5, y=2.5, x_fwhm=8, y_fwhm=8, theta=0, flux=3, bkg=0)
+    @test evaluate(mc, 3, 4) ≈ evaluate(mg, 3, 4)
+end
+
+@testset "CircularGaussianPRF" begin
+    @testset "constructor promotion" begin
+        @test CircularGaussianPRF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10) isa CircularGaussianPRF{Float64}
+        @test CircularGaussianPRF(x=1.3f0, y=2.4f0, fwhm=3.0f0, flux=120.0f0, bkg=10.0f0) isa CircularGaussianPRF{Float32}
+        @test CircularGaussianPRF(x=1, y=2, fwhm=3, flux=120, bkg=10) isa CircularGaussianPRF{Float64}
+        @test CircularGaussianPRF(x=BigFloat(1.3), y=BigFloat(2.4), fwhm=BigFloat(3.0), flux=BigFloat(120.0), bkg=BigFloat(10.0)) isa CircularGaussianPRF{BigFloat}
+    end
+
+    m = CircularGaussianPRF(x=0, y=0, fwhm=10, flux=1, bkg=10)
+    @test centroid(m) == (0.0, 0.0)
+    @test integral(m) == 1.0
+    @test fwhm(m) == (10.0, 10.0)
+    @test effective_area(m) ≈ 226.6180070913597 rtol=1e-6
+    @test background(m) == 10.0
+    @test peak(m) ≈ amplitude(m) + background(m)
+    @test theta(m) == 0.0
+    r1 = evaluate(m, 1, 2)
+    @test r1 isa Float64
+    @test r1 ≈ 10.007652480658708 ≈ m(1, 2)
+    let (f, g) = evaluate_fg(m, 1, 2)
+        @test f ≈ evaluate(m, 1, 2)
+        @test g ≈ [0.00042238646952845753, 0.0008447735386125179, -0.0013132200987741396, 0.007652480658708134, 1.0]
+    end
+end
+
+@testset "GaussianPRF" begin
+    @testset "constructor promotion" begin
+        @test GaussianPRF(x=1.3, y=2.4, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=120.0, bkg=10.0) isa GaussianPRF{Float64}
+        @test GaussianPRF(x=1.3f0, y=2.4f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35.0f0, flux=120.0f0, bkg=10.0f0) isa GaussianPRF{Float32}
+        @test GaussianPRF(x=1, y=2, x_fwhm=3, y_fwhm=4, theta=35, flux=120, bkg=10) isa GaussianPRF{Float64}
+        @test GaussianPRF(x=BigFloat(1.3), y=BigFloat(2.4), x_fwhm=BigFloat(3.0), y_fwhm=BigFloat(4.0), theta=BigFloat(35.0), flux=BigFloat(120.0), bkg=BigFloat(10.0)) isa GaussianPRF{BigFloat}
+    end
+
+    m = GaussianPRF(x=0, y=0, x_fwhm=10, y_fwhm=6, theta=55.0, flux=1, bkg=10)
+    @test centroid(m) == (0.0, 0.0)
+    @test integral(m) == 1.0
+    @test fwhm(m) == (10.0, 6.0)
+    @test effective_area(m) ≈ 135.9708042548158 rtol=1e-6
+    @test background(m) == 10.0
+    @test peak(m) ≈ amplitude(m) + background(m)
+    @test theta(m) == 55.0
+    r1 = evaluate(m, 1, 2)
+    @test r1 isa Float64
+    @test r1 ≈ 10.012636019260277
+    let (f, g) = evaluate_fg(m, 1, 2)
+        @test f ≈ evaluate(m, 1, 2)
+        @test g ≈ [0.00036857849874118024, 0.001625201537357658, -0.0009181257637637815, -0.0020450982870187633, 1.5499301125181995e-5, 0.012636019260278195, 1.0]
+    end
+
+    # equal x/y fwhm with theta=0 collapses to CircularGaussianPRF
+    mc = CircularGaussianPRF(x=1.5, y=2.5, fwhm=8, flux=3, bkg=0)
+    mg = GaussianPRF(x=1.5, y=2.5, x_fwhm=8, y_fwhm=8, theta=0, flux=3, bkg=0)
     @test evaluate(mc, 3, 4) ≈ evaluate(mg, 3, 4)
 end

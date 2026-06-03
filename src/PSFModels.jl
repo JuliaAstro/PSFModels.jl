@@ -8,12 +8,12 @@ import NLSolversBase
 import Optim
 using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting
 using Rotations: RotMatrix
-using SpecialFunctions: besselj1
+using SpecialFunctions: besselj1, erf
 using StaticArrays: SA, SVector, MVector, MMatrix
 using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
+export CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 

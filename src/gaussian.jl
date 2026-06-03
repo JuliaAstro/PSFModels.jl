@@ -1,4 +1,5 @@
-# this is the factor to convert 1/(2σ²) to 1/(2fwhm²)
+# Gaussian exponent coefficient when parameterized by FWHM:
+# exp(-4*log(2) * r² / fwhm²) for effective radius r
 const GAUSS_PRE = -4 * log(2)
 
 @doc raw"""
@@ -43,11 +44,23 @@ An alias for [`gaussian`](@ref)
 """
 const normal = gaussian
 
-"""
-    CircularGaussianPSF(x, y, fwhm, flux, bkg) -> CircularGaussianPSF{T}
+@doc raw"""
+    CircularGaussianPSF(x, y, fwhm, flux, bkg) → CircularGaussianPSF{T}
 
-Circular, symmetric Gaussian PSF with centroid `(x, y)` and FWHM given by `fwhm`. The `flux` is the integral of the PSF over all space, and `bkg` is a scalar background level added to the PSF.
+Circular, symmetric Gaussian PSF with centroid `(x, y)` and FWHM given by `fwhm`. 
+The `flux` is the integral of the PSF over all space, and `bkg` is a scalar background level added to the PSF.
+The model is evaluated as 
 
+```math
+I(x, y) = \frac{F}{\pi\,\mathrm{FWHM}^2/(4\ln 2)}
+\exp\!\left[-4\ln 2\,
+\frac{(x-x_0)^2 + (y-y_0)^2}{\mathrm{FWHM}^2}\right]
++ B
+```
+
+where ``(x_0, y_0)`` is the centroid, ``F`` is the total flux, and ``B`` is the background level.
+
+# Examples
 ```jldoctest
 julia> using PSFModels: CircularGaussianPSF
 
@@ -68,7 +81,7 @@ Base.@kwdef struct CircularGaussianPSF{T} <: AbstractPSFModel{T}
     end
 end
 peak(model::CircularGaussianPSF{T}) where T = model.flux / (π * model.fwhm^2 / -T(GAUSS_PRE)) + model.bkg
-effective_area(model::CircularGaussianPSF) = π * model.fwhm^2 / (2 * log(2))
+effective_area(model::CircularGaussianPSF{T}) where T = π * model.fwhm^2 / T(2 * log(2))
 
 function evaluate(model::CircularGaussianPSF{T}, px, py) where T
     dx = px - model.x
@@ -171,11 +184,38 @@ end
 
 ############################################
 
-"""
+@doc raw"""
     GaussianPSF(x, y, x_fwhm, y_fwhm, theta, flux, bkg) -> GaussianPSF{T}
 
-General asymmetric Gaussian PSF with centroid `(x, y)`, FWHM along the x and y axes given by `x_fwhm` and `y_fwhm`, and rotated by `theta` degrees counter-clockwise from the x-axis. The `flux` is the integral of the PSF over all space, and `bkg` is a scalar background level added to the PSF.
+General asymmetric Gaussian PSF with centroid `(x, y)`, FWHM along the x and y axes
+given by `x_fwhm` and `y_fwhm`, and rotated by `theta` degrees counter-clockwise
+from the x-axis. The `flux` is the integral of the PSF over all space, and `bkg`
+is a scalar background level added to the PSF.
 
+The model is evaluated as
+
+```math
+I(x, y) = \frac{F}{\pi\,\mathrm{FWHM}_x\,\mathrm{FWHM}_y/(4\ln 2)}
+\exp\!\left[-4\ln 2\,
+\left(
+\frac{u^2}{\mathrm{FWHM}_x^2}
++
+\frac{v^2}{\mathrm{FWHM}_y^2}
+\right)\right]
++ B,
+```
+
+where
+
+```math
+u = \cos\theta\,(x-x_0) + \sin\theta\,(y-y_0),
+\qquad
+v = -\sin\theta\,(x-x_0) + \cos\theta\,(y-y_0),
+```
+
+``F`` is the total flux and ``B`` is the background level.
+
+# Examples
 ```jldoctest
 julia> using PSFModels: GaussianPSF
 
@@ -204,8 +244,7 @@ function evaluate(model::GaussianPSF{T}, px, py) where T
     θ = deg2rad(model.theta)
     dx = px - model.x
     dy = py - model.y
-    cs = cos(θ)
-    sn = sin(θ)
+    sn, cs = sincos(θ)
     u = cs * dx + sn * dy
     v = -sn * dx + cs * dy
     ax = model.x_fwhm
@@ -232,8 +271,7 @@ function evaluate_fg(model::GaussianPSF{T}, px, py) where T
     ax² = ax^2
     ay² = ay^2
     θ = deg2rad(model.theta)
-    cs = cos(θ)
-    sn = sin(θ)
+    sn, cs = sincos(θ)
     u = cs * dx + sn * dy
     v = -sn * dx + cs * dy
     sqmahab = u^2 / ax² + v^2 / ay²
@@ -364,4 +402,229 @@ function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
         0       0       0        0        0           0          0
     ]
     return f, G, H
+end
+
+############################################
+
+@doc raw"""
+    CircularGaussianPRF(x, y, fwhm, flux, bkg) -> CircularGaussianPRF{T}
+
+Circular, symmetric Gaussian pixel response function (PRF) with centroid `(x, y)` and FWHM
+given by `fwhm`. The PRF is the underlying Gaussian PSF integrated analytically over each
+pixel. The `flux` is the total flux (sum of PRF values over all pixels equals `flux`), and
+`bkg` is a scalar background level added to the PRF.
+
+The PRF value at pixel center `(px, py)` is the integral of the Gaussian PSF over the pixel
+area `[px-0.5, px+0.5] × [py-0.5, py+0.5]`.
+
+The model is evaluated as 
+
+```math
+f(px, py) = \frac{\mathrm{flux}}{4}
+    \left[\mathrm{erf}\!\left(\frac{2\sqrt{\ln 2}\,(px + 0.5 - x)}{\mathrm{fwhm}}\right)
+         -\mathrm{erf}\!\left(\frac{2\sqrt{\ln 2}\,(px - 0.5 - x)}{\mathrm{fwhm}}\right)\right]
+    \left[\mathrm{erf}\!\left(\frac{2\sqrt{\ln 2}\,(py + 0.5 - y)}{\mathrm{fwhm}}\right)
+         -\mathrm{erf}\!\left(\frac{2\sqrt{\ln 2}\,(py - 0.5 - y)}{\mathrm{fwhm}}\right)\right]
+    + \mathrm{bkg}
+```
+
+# Examples
+```jldoctest
+julia> using PSFModels: CircularGaussianPRF
+
+julia> CircularGaussianPRF(1.0, 2.0, 3.0, 4.0, 5.0) isa CircularGaussianPRF{Float64}
+true
+```
+"""
+Base.@kwdef struct CircularGaussianPRF{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    fwhm::T
+    flux::T
+    bkg::T
+    function CircularGaussianPRF(x, y, fwhm, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(fwhm), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T
+        return new{T}(T(x), T(y), T(fwhm), T(flux), T(bkg))
+    end
+end
+
+# Peak occurs when centroid is exactly at a pixel centre: flux * erf(√ln2 / fwhm)² + bkg
+peak(model::CircularGaussianPRF{T}) where T =
+    model.flux * erf(sqrt(T(log(2))) / model.fwhm)^2 + model.bkg
+effective_area(model::CircularGaussianPRF{T}) where T = π * model.fwhm^2 / T(2 * log(2))
+
+function evaluate(model::CircularGaussianPRF{T}, px, py) where T
+    α = 2 * sqrt(T(log(2))) / model.fwhm
+    dx = px - model.x
+    dy = py - model.y
+    Ex = erf(α * (dx + T(0.5))) - erf(α * (dx - T(0.5)))
+    Ey = erf(α * (dy + T(0.5))) - erf(α * (dy - T(0.5)))
+    return muladd(model.flux / 4, Ex * Ey, model.bkg)
+end
+
+# using ForwardDiff: gradient
+# using PSFModels: CircularGaussianPRF, evaluate_fg, evaluate
+# using ConstructionBase: getproperties
+# t = CircularGaussianPRF(x=0.0, y=0.0, fwhm=10.0, flux=1.0, bkg=10.0)
+# _, g = evaluate_fg(t, 1, 2)
+# gradient(x->evaluate(CircularGaussianPRF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::CircularGaussianPRF{T}, px, py) where T
+    α = 2 * sqrt(T(log(2))) / model.fwhm
+    dx = px - model.x
+    dy = py - model.y
+    u_p = α * (dx + T(0.5))
+    u_m = α * (dx - T(0.5))
+    v_p = α * (dy + T(0.5))
+    v_m = α * (dy - T(0.5))
+    Ex = erf(u_p) - erf(u_m)
+    Ey = erf(v_p) - erf(v_m)
+    f = muladd(model.flux / 4, Ex * Ey, model.bkg)
+
+    # Derivative factors: d/du erf(u) = (2/√π) exp(-u²)
+    _2_sqrtpi = 2 / sqrt(T(π))
+    Gxp = _2_sqrtpi * exp(-u_p^2)
+    Gxm = _2_sqrtpi * exp(-u_m^2)
+    Gyp = _2_sqrtpi * exp(-v_p^2)
+    Gym = _2_sqrtpi * exp(-v_m^2)
+
+    df_dx = model.flux / 4 * Ey * α * (Gxm - Gxp)
+    df_dy = model.flux / 4 * Ex * α * (Gym - Gyp)
+    df_dfwhm = model.flux / 4 / model.fwhm * ((Gxm * u_m - Gxp * u_p) * Ey + Ex * (Gym * v_m - Gyp * v_p))
+    df_dflux = Ex * Ey / 4
+    df_dbkg  = one(T)
+    G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
+    return f, G
+end
+
+############################################
+
+@doc raw"""
+    GaussianPRF(x, y, x_fwhm, y_fwhm, theta, flux, bkg) -> GaussianPRF{T}
+
+Asymmetric Gaussian pixel response function (PRF) with centroid `(x, y)`, FWHM along the
+x and y axes given by `x_fwhm` and `y_fwhm`, and rotated by `theta` degrees
+counter-clockwise from the x-axis. The PRF is the underlying Gaussian PSF
+integrated analytically over each pixel. The `flux` is the total flux (sum of PRF values
+over all pixels equals `flux`), and `bkg` is a scalar background level added to the PRF.
+
+The PRF value at pixel center `(px, py)` is the integral of the Gaussian PSF over the pixel
+area `[px-0.5, px+0.5] × [py-0.5, py+0.5]`, evaluated after rotating the coordinates
+by `-theta` to align with the principal axes.
+
+The model is evaluated as 
+
+```math
+f(px, py) = \\frac{\\mathrm{flux}}{4}
+    \\left[\\mathrm{erf}\\!\\left(\\frac{2\\sqrt{\\ln 2}\\,(u + 0.5)}{x\\_\\mathrm{fwhm}}\\right)
+         -\\mathrm{erf}\\!\\left(\\frac{2\\sqrt{\\ln 2}\\,(u - 0.5)}{x\\_\\mathrm{fwhm}}\\right)\\right]
+    \\left[\\mathrm{erf}\\!\\left(\\frac{2\\sqrt{\\ln 2}\\,(v + 0.5)}{y\\_\\mathrm{fwhm}}\\right)
+         -\\mathrm{erf}\\!\\left(\\frac{2\\sqrt{\\ln 2}\\,(v - 0.5)}{y\\_\\mathrm{fwhm}}\\right)\\right]
+    + \\mathrm{bkg}
+```
+
+where 
+
+```math
+u = \cos\theta\,(x-x_0) + \sin\theta\,(y-y_0),
+\qquad
+v = -\sin\theta\,(x-x_0) + \cos\theta\,(y-y_0),
+```
+
+```jldoctest
+julia> using PSFModels: GaussianPRF
+
+julia> GaussianPRF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=4.0, bkg=5.0) isa GaussianPRF{Float64}
+true
+```
+"""
+Base.@kwdef struct GaussianPRF{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    x_fwhm::T
+    y_fwhm::T
+    theta::T
+    flux::T
+    bkg::T
+    function GaussianPRF(x, y, x_fwhm, y_fwhm, theta, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(x_fwhm), typeof(y_fwhm), typeof(theta), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T
+        return new{T}(T(x), T(y), T(x_fwhm), T(y_fwhm), T(theta), T(flux), T(bkg))
+    end
+end
+
+# Peak occurs when centroid is at a pixel centre: flux * erf(√ln2/x_fwhm) * erf(√ln2/y_fwhm) + bkg
+peak(model::GaussianPRF{T}) where T =
+    model.flux * erf(sqrt(T(log(2))) / model.x_fwhm) * erf(sqrt(T(log(2))) / model.y_fwhm) + model.bkg
+effective_area(model::GaussianPRF{T}) where T = π * model.x_fwhm * model.y_fwhm / T(2 * log(2))
+
+function evaluate(model::GaussianPRF{T}, px, py) where T
+    c = sqrt(-T(GAUSS_PRE)) # 2 * sqrt(T(log(2)))
+    αx = c / model.x_fwhm
+    αy = c / model.y_fwhm
+    dx = px - model.x
+    dy = py - model.y
+    # rotate coordinates into axis-aligned frame
+    θ = deg2rad(model.theta)
+    sn, cs = sincos(θ)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    Ex = erf(αx * (u + T(0.5))) - erf(αx * (u - T(0.5)))
+    Ey = erf(αy * (v + T(0.5))) - erf(αy * (v - T(0.5)))
+    return muladd(model.flux / 4, Ex * Ey, model.bkg)
+end
+
+# using ForwardDiff: gradient
+# using PSFModels: GaussianPRF, evaluate_fg, evaluate
+# using ConstructionBase: getproperties
+# t = GaussianPRF(x=0.0, y=0.0, x_fwhm=10.0, y_fwhm=6.0, theta=45.0, flux=1.0, bkg=10.0)
+# _, g = evaluate_fg(t, 1, 2)
+# gradient(x->evaluate(GaussianPRF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::GaussianPRF{T}, px, py) where T
+    c = sqrt(-T(GAUSS_PRE)) # 2 * sqrt(T(log(2)))
+    αx = c / model.x_fwhm
+    αy = c / model.y_fwhm
+    dx = px - model.x
+    dy = py - model.y
+    # rotate coordinates into axis-aligned frame
+    θ = deg2rad(model.theta)
+    sn, cs = sincos(θ)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    u_p = αx * (u + T(0.5))
+    u_m = αx * (u - T(0.5))
+    v_p = αy * (v + T(0.5))
+    v_m = αy * (v - T(0.5))
+    Ex = erf(u_p) - erf(u_m)
+    Ey = erf(v_p) - erf(v_m)
+    f = muladd(model.flux / 4, Ex * Ey, model.bkg)
+
+    # Derivative factors: d/du erf(u) = (2/√π) exp(-u²)
+    _2_sqrtpi = T(2 / sqrt(π))
+    Gxp = _2_sqrtpi * exp(-u_p^2)
+    Gxm = _2_sqrtpi * exp(-u_m^2)
+    Gyp = _2_sqrtpi * exp(-v_p^2)
+    Gym = _2_sqrtpi * exp(-v_m^2)
+
+    fl4 = model.flux / 4
+    # partials of the difference-of-erfs w.r.t. the rotated coordinates
+    dEx_du = αx * (Gxm - Gxp)
+    dEy_dv = αy * (Gym - Gyp)
+
+    # ∂f/∂x: ∂u/∂x = -cs, ∂v/∂x = sn
+    #   ∂f/∂x = fl4*((-dEx_du)*(-cs)*Ey + Ex*(-dEy_dv)*sn) = fl4*(dEx_du*cs*Ey - dEy_dv*sn*Ex)
+    df_dx    = fl4 * (cs * dEx_du * Ey - sn * dEy_dv * Ex)
+    # ∂f/∂y: ∂u/∂y = -sn, ∂v/∂y = -cs
+    #   ∂f/∂y = fl4*((-dEx_du)*(-sn)*Ey + Ex*(-dEy_dv)*(-cs)) = fl4*(dEx_du*sn*Ey + dEy_dv*cs*Ex)
+    df_dy    = fl4 * (sn * dEx_du * Ey + cs * dEy_dv * Ex)
+    # ∂f/∂x_fwhm: same form but with u replacing dx
+    df_dax   = fl4 / model.x_fwhm * (Gxm * u_m - Gxp * u_p) * Ey
+    df_day   = fl4 / model.y_fwhm * Ex * (Gym * v_m - Gyp * v_p)
+    # ∂f/∂θ: ∂u/∂θ = d*v, ∂v/∂θ = -d*u, where d = deg2rad(1) = π / 180
+    #   ∂f/∂θ = fl4*((-dEx_du)*d*v*Ey + Ex*(-dEy_dv)*(-d*u)) = fl4*d*(dEy_dv*u*Ex - dEx_du*v*Ey)
+    df_dtheta = fl4 * deg2rad(one(T)) * (dEy_dv * u * Ex - dEx_du * v * Ey)
+    df_dflux = Ex * Ey / 4
+    df_dbkg  = one(T)
+    G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
+    return f, G
 end
