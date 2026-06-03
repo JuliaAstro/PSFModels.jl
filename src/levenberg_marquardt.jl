@@ -16,6 +16,7 @@ Fields:
 - `λ_final`:     damping parameter value at termination
 - `σ_final`:     final scale estimate (NaN if not applicable)
 - `cov`:         covariance matrix of the free parameters
+- `chisq`:       final reduced chi-squared (cost per degree of freedom)
 """
 struct LMResult{T,V<:AbstractVector{T},M<:AbstractMatrix{T}}
     minimizer::V
@@ -29,6 +30,7 @@ struct LMResult{T,V<:AbstractVector{T},M<:AbstractMatrix{T}}
     λ_final::T
     σ_final::T
     cov::M
+    chisq::T
 end
 
 function Base.show(io::IO, r::LMResult)
@@ -119,7 +121,7 @@ true
 """
 struct MADScale <: AbstractScaleEstimator end
 
-function estimate_scale(::MADScale, r::AbstractVector{<:Real})
+function estimate_scale(::MADScale, r::AbstractArray)
     med = median(r)
     return 1.4826 * median(abs.(r .- med))
 end
@@ -141,7 +143,7 @@ julia> estimate_scale(FixedScale(2.0), randn(100))
 struct FixedScale{T<:Real} <: AbstractScaleEstimator
     σ::T
 end
-estimate_scale(est::FixedScale, ::AbstractVector) = est.σ
+estimate_scale(est::FixedScale, ::AbstractArray) = est.σ
 
 """
     MScale(; δ=0.5, tol=1e-6, max_iter=30)
@@ -173,10 +175,10 @@ Base.@kwdef struct MScale{T} <: AbstractScaleEstimator
     max_iter::Int = 30
 end
 
-function estimate_scale(est::MScale, r::AbstractVector{<:Real})
-    T = float(eltype(r))
-    δ = T(est.δ)
-    tol = T(est.tol)
+function estimate_scale(est::MScale, r::AbstractArray{T}) where T
+    FT = float(T)
+    δ = FT(est.δ)
+    tol = FT(est.tol)
     # Initial estimate from MAD
     σ = estimate_scale(MADScale(), r)
     n = length(r)
@@ -184,7 +186,7 @@ function estimate_scale(est::MScale, r::AbstractVector{<:Real})
         σ2 = σ^2
         # χ(r) = r² for |r| ≤ 3σ, else (3σ)² (capped to bound influence)
         cap = 9 * σ2
-        χ_sum = zero(T)
+        χ_sum = zero(FT)
         @inbounds for ri in r
             ri2 = ri^2
             χ_sum += ifelse(ri2 < cap, ri2, cap)
@@ -335,6 +337,41 @@ function weight(loss::LossFunctions.SupervisedLoss, r::T) where {T}
 end
 
 # ---------------------------------------------------------------------------
+# Covariance estimators
+# ---------------------------------------------------------------------------
+
+abstract type AbstractCovarianceEstimator end
+
+"""`KnownWeightsCovarianceEstimator()` assumes that the weights provided (e.g. via `inv_var`) are correct and returns the covariance as the inverse of the Gauss-Newton Hessian approximation.
+"""
+struct KnownWeightsCovarianceEstimator <: AbstractCovarianceEstimator end
+function covariance!(::KnownWeightsCovarianceEstimator, JTJ, cost_val, dof)
+    # For known weights (e.g. from inv_var), the covariance 
+    # is simply the inverse of the Gauss-Newton Hessian approximation
+    cov = try
+        F = cholesky!(Symmetric(JTJ))
+        F \ I # = inv(JTJ), more stable
+    catch
+        pinv(JTJ) # fallback to pseudo-inverse if JTJ is not positive definite
+    end
+    return cov
+end
+"""`ReweightedCovarianceEstimator()` inflates the covariance by the reduced cost per degree of freedom to account for the fact that the IRLS weights are estimated from the data and may not be correct."""
+struct ReweightedCovarianceEstimator <: AbstractCovarianceEstimator end
+function covariance!(::ReweightedCovarianceEstimator, JTJ, cost_val, dof)
+    # For reweighted estimates, the covariance is inflated by the reduced cost per degree of freedom
+    # F = cholesky!(Symmetric(JTJ))
+    # cov = F \ I # = inv(JTJ), more stable
+    cov = try
+        F = cholesky!(Symmetric(JTJ))
+        F \ I # = inv(JTJ), more stable
+    catch
+        pinv(JTJ) # fallback to pseudo-inverse if JTJ is not positive definite
+    end
+    return (cost_val / dof) * cov
+end
+
+# ---------------------------------------------------------------------------
 # fit_lm
 # ---------------------------------------------------------------------------
 
@@ -344,24 +381,25 @@ end
 # The Jacobian row for pixel i is `g_full[free_idx]`, the projection of the
 # full analytic gradient onto the free parameters.  g_full is a StaticArrays
 # SVector (immutable), so we index into it rather than mutating it.
-function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, inv_var, weights=nothing) where {FT}
+function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, residuals, inv_var, weights=nothing) where {FT}
+    # Get the weight based on arguments provided
+    function _w(use_weights, use_inv_var, weights, inv_var, idx)
+        return use_weights ? FT(weights[idx]) : (use_inv_var ? FT(inv_var[idx]) : one(FT))
+    end
     @assert size(A, 1) == size(A, 2) == length(b) == length(free_idx)
+    @assert size(image) == size(residuals)
     fill!(A, zero(FT))
     fill!(b, zero(FT))
     cost = zero(FT)
     n = length(free_idx)
-    use_weights = weights !== nothing
+    # Weights come from IRLS, supercede inv_var if provided
+    use_weights = !isnothing(weights)
+    use_inv_var = !isnothing(inv_var)
     for idx in CartesianIndices(inds)
-        px, py = idx[1], idx[2]
-        w = if use_weights
-            FT(weights[idx])
-        elseif isnothing(inv_var)
-            one(FT)
-        else
-            FT(inv_var[idx])
-        end
-        f_val, g_full = evaluate_fg(m, px, py)
-        r  = FT(f_val) - FT(image[idx])
+        w = _w(use_weights, use_inv_var, weights, inv_var, idx)
+        f_val, g_full = evaluate_fg(m, idx)
+        r = FT(f_val) - FT(image[idx])
+        residuals[idx] = r
         wr = w * r
         cost = muladd(w * r, r, cost)
         @inbounds for j in 1:n
@@ -380,8 +418,10 @@ end
                      fixed=(;), inv_var=nothing,
                      damping::AbstractLMDamping=MarquardtDamping(),
                      max_iter=200, x_tol=1e-8, f_tol=1e-8, g_tol=1e-8,
-                     show_trace=false, reweight=nothing,
-                     scale_estimator=nothing)
+                     show_trace=false, 
+                     reweight=nothing,
+                     scale_estimator=nothing,
+                     covariance_estimator=KnownWeightsCovarianceEstimator())
 
 Fit the free parameters of `model` to `image[inds]` under weighted L2 loss
 using the Levenberg-Marquardt algorithm.  The model must implement
@@ -393,8 +433,7 @@ frozen during the fit.  All other fields of `model` are free.
 Inverse variance weights can be passed via `inv_var`; it must be the same size
 as `image`.
 
-Returns an `LMResult` containing the fitted parameters, cost, convergence
-flags, and covariance matrix.
+Returns `(best_model, result::LMResult)`.
 
 # Algorithm
 
@@ -414,8 +453,8 @@ is accepted and ``\\lambda`` is decreased; otherwise it is rejected and
 
 # Iteratively Reweighted Least Squares
 
-Pass `reweight` as a `LossFunctions.SupervisedLoss` (e.g. `HuberLoss()`,
-`TukeyLoss()`) to enable iteratively reweighted least squares (IRLS). After
+Pass `reweight` as a `LossFunctions.SupervisedLoss` (e.g. `LossFunctions.HuberLoss()`,
+`PSFModels.TukeyLoss()`) to enable iteratively reweighted least squares (IRLS). After
 each accepted LM step, the residuals are used to recompute pixel weights via
 ``w_i^{\\text{final}} = w_i^{\\text{base}} \\cdot w(r_i/\\sigma)`` where
 ``w(r) = \\psi(r)/r`` is derived from the loss function's influence function
@@ -424,17 +463,32 @@ rejection — useful for cosmic rays, bad pixels, and satellite trails in
 astronomical images.
 
 The scale ``\\sigma`` is estimated by `scale_estimator`. If not provided,
-it defaults to `FixedScale` (from `inv_var`) when `inv_var` is supplied,
-otherwise `MADScale()`. Available scale estimators:
+it defaults to `FixedScale` inferred from `inv_var` if supplied,
+otherwise `MADScale()` is used. Available scale estimators:
 - `MADScale()` — median absolute deviation (robust, default without `inv_var`)
 - `FixedScale(σ)` — fixed user-provided scale
 - `MScale(; δ=0.5)` — iterative M-scale (most robust, highest cost)
 
-Recommended loss functions for IRLS (all from `LossFunctions` or `PSFModels`):
-- `HuberLoss(c)` — soft downweighting of outliers, suitable for mildly
+Recommended loss functions for IRLS:
+- `LossFunctions.HuberLoss(c)` — soft downweighting of outliers, suitable for mildly
   contaminated data or crowded-field photometry
-- `TukeyLoss(; c=4.685)` — complete rejection of extreme outliers, ideal
+- `PSFModels.TukeyLoss(; c=4.685)` — complete rejection of extreme outliers, ideal
   for cosmic rays and bad pixels in space-based imaging
+
+# Covariance Estimation
+The covariance of the fitted parameters is estimated from the Gauss-Newton Hessian
+approximation to the Hessian at the solution. For known good input weights `inv_var`,
+the covariance is simply the inverse of this Hessian approximation. Use 
+`covariance_estimator = KnownWeightsCovarianceEstimator()` for this behavior.
+However, when IRLS reweighting is used and the weights are estimated from the data,
+the covariance is inflated by the reduced cost per degree of freedom to account for
+uncertainty in the weights. In this case, use `ReweightedCovarianceEstimator`.
+
+# Damping Strategies
+- `Marquardt`: diagonal entries are scaled by `max(A[i, i], min_diagonal)` to
+  prevent small curvature directions from being under-damped
+- `Levenberg`: uniform damping with no scaling
+- `NoDamping`: no damping; equivalent to Gauss-Newton (not recommended)
 
 # Keyword arguments
 
@@ -444,6 +498,7 @@ Recommended loss functions for IRLS (all from `LossFunctions` or `PSFModels`):
   or `nothing` (default) for standard L2 fitting
 - `scale_estimator::AbstractScaleEstimator`: scale estimator for IRLS;
   defaults to `FixedScale` (from `inv_var`) or `MADScale()` (see above)
+- `covariance_estimator::AbstractCovarianceEstimator`: method for estimating the covariance matrix of the fitted parameters; defaults to `ReweightedCovarianceEstimator` when IRLS is used and `KnownWeightsCovarianceEstimator` otherwise
 - `λ_init`: initial damping parameter (default `1e-4`)
 - `λ_up`: factor by which `λ` is multiplied on rejection (default `10`)
 - `λ_down`: factor by which `λ` is divided on acceptance (default `10`)
@@ -458,12 +513,6 @@ Recommended loss functions for IRLS (all from `LossFunctions` or `PSFModels`):
 - `g_tol`: gradient-norm convergence criterion ``\\|J^\\top W r\\|``
   (default `1e-8`)
 - `show_trace`: print per-iteration statistics to stdout (default `false`)
-
-# Damping strategies
-- `Marquardt`: diagonal entries are scaled by `max(A[i, i], min_diagonal)` to
-  prevent small curvature directions from being under-damped
-- `Levenberg`: uniform damping with no scaling
-- `NoDamping`: no damping; equivalent to Gauss-Newton (not recommended)
 """
 function fit_lm(model::AbstractPSFModel{T},
                 image::AbstractMatrix,
@@ -482,7 +531,8 @@ function fit_lm(model::AbstractPSFModel{T},
                 g_tol::Real=1e-8,
                 show_trace::Bool=false,
                 reweight::Union{Nothing, LossFunctions.SupervisedLoss}=nothing,
-                scale_estimator::Union{Nothing, AbstractScaleEstimator}=nothing) where {T}
+                scale_estimator::Union{Nothing, AbstractScaleEstimator}=nothing,
+                covariance_estimator::Union{Nothing, AbstractCovarianceEstimator}=nothing) where {T}
 
     # Validate inputs
     if !isnothing(inv_var)
@@ -504,6 +554,7 @@ function fit_lm(model::AbstractPSFModel{T},
     # Pre-allocate for in-place accumulation
     FT = float(T)
     λ = FT(λ_init)
+    residuals = zeros(FT, axes(image))
     x, x_cand = Vector{FT}(x0), Vector{FT}(undef, n)
     A, b = zeros(FT, n, n), zeros(FT, n)
     A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
@@ -512,32 +563,27 @@ function fit_lm(model::AbstractPSFModel{T},
     δ = zeros(FT, n)
 
     # IRLS setup
-    do_irls = reweight !== nothing
+    do_irls = !isnothing(reweight)
     # Determine scale estimator: explicit > FixedScale from inv_var > MAD
     scale_est = if !isnothing(scale_estimator)
-        scale_estimator
-    elseif !isnothing(inv_var)
-        # FixedScale from inv_var — σ ≈ 1/√(inv_var) averaged over the cutout
-        FixedScale(sqrt(FT(1) / mean(x -> FT(x), view(inv_var, inds...))))
-    else
-        MADScale()
-    end
-    σ_final = FT(NaN)
+                    scale_estimator
+                elseif !isnothing(inv_var)
+                    # FixedScale from inv_var — σ ≈ 1/√(inv_var) averaged over the cutout
+                    FixedScale(sqrt(inv(mean(view(inv_var, inds...)))))
+                else
+                    MADScale()
+                end
+    σ_final = FT(NaN) # Scale estimate from IRLS (NaN if not applicable)
     # Pre-allocate weight arrays for IRLS
-    weights = do_irls ? similar(image, FT) : nothing
-    base_weights = do_irls ? similar(image, FT) : nothing
-    residuals = do_irls ? Vector{FT}(undef, prod(length, inds)) : nothing
+    weights = nothing # Declare so it can be updated in-place if do_irls
     if do_irls
-        # Initialize base weights from inv_var (or 1)
-        for idx in CartesianIndices(inds)
-            base_weights[idx] = isnothing(inv_var) ? one(FT) : FT(inv_var[idx])
-        end
-        weights .= base_weights
+        weights = similar(image, FT)
+        isnothing(inv_var) ? fill!(weights, one(FT)) : copyto!(weights, inv_var)
     end
 
     # Initial cost and Jacobian
     m0 = model_from_vector(model, free_names_val, x, fixed)
-    cost = _lm_accum_fg!(A, b, m0, free_idx, image, inds, inv_var, weights)
+    cost = _lm_accum_fg!(A, b, m0, free_idx, image, inds, residuals, inv_var, weights)
     cost_init  = cost
 
     if show_trace
@@ -557,7 +603,7 @@ function fit_lm(model::AbstractPSFModel{T},
 
         # Test for gradient-norm convergence
         gnorm = sqrt(sum(abs2, b))
-        if gnorm ≤ FT(g_tol)
+        if gnorm ≤ g_tol
             g_converged = true
             converged   = true
             show_trace && println("Iter $(lpad(iter,4)) | converged on gradient norm (||g|| = $gnorm)")
@@ -577,7 +623,7 @@ function fit_lm(model::AbstractPSFModel{T},
         # Evaluate the candidate step
         x_cand .= x .+ δ
         m_cand = model_from_vector(model, free_names_val, x_cand, fixed)
-        cost_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, inv_var, weights)
+        cost_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, residuals, inv_var, weights)
         accepted = cost_cand < cost
 
         if show_trace
@@ -592,11 +638,11 @@ function fit_lm(model::AbstractPSFModel{T},
             cost  = cost_cand
             A    .= A_cand
             b    .= b_cand
-            λ    = max(λ / FT(λ_down), FT(λ_min))
+            λ     = max(λ / FT(λ_down), FT(λ_min))
 
             # Check standard LM convergence before reweighting
-            x_converged = δnorm ≤ FT(x_tol) * (sqrt(sum(abs2, x)) + FT(x_tol))
-            f_converged = Δcost ≤ FT(f_tol) * (abs(cost) + FT(f_tol))
+            x_converged = δnorm ≤ x_tol * (sqrt(sum(abs2, x)) + x_tol)
+            f_converged = Δcost ≤ f_tol * (abs(cost) + f_tol)
 
             if x_converged || f_converged
                 converged = true
@@ -605,28 +651,19 @@ function fit_lm(model::AbstractPSFModel{T},
 
             # IRLS: recompute weights from current residuals
             if do_irls
-                # Compute residuals for the current model
-                ri = 1
-                for idx in CartesianIndices(inds)
-                    px, py = idx[1], idx[2]
-                    f_val = evaluate(m_cand, px, py)
-                    residuals[ri] = FT(f_val) - FT(image[idx])
-                    ri += 1
-                end
                 σ_final = estimate_scale(scale_est, residuals)
 
                 # Skip reweighting if scale is zero (noiseless or degenerate)
                 if σ_final > eps(FT)
-                    ri = 1
                     for idx in CartesianIndices(inds)
-                        r_scaled = residuals[ri] / σ_final
-                        weights[idx] = base_weights[idx] * weight(reweight, FT(r_scaled))
-                        ri += 1
+                        r_scaled = residuals[idx] / σ_final
+                        ivar = isnothing(inv_var) ? one(FT) : inv_var[idx]
+                        weights[idx] = ivar * weight(reweight, FT(r_scaled))
                     end
                     # Recompute cost and gradient with new weights
-                    cost = _lm_accum_fg!(A, b, m_cand, free_idx, image, inds, inv_var, weights)
+                    cost = _lm_accum_fg!(A, b, m_cand, free_idx, image, inds, residuals, inv_var, weights)
                     # Reset λ — the Gauss-Newton approximation changed with the new weights
-                    λ = FT(λ_init)
+                    λ = λ_init
                 end
             end
         else
@@ -636,25 +673,20 @@ function fit_lm(model::AbstractPSFModel{T},
 
     best_model = model_from_vector(model, free_names_val, x, fixed)
 
-    # Compute covariance matrix
-    function _compute_cov(JTJ, cost_val, n_obs, n_params)
-        dof = n_obs - n_params
-        dof > 0 || throw(ArgumentError("degrees of freedom must be positive to compute covariance"))
-        σ² = cost_val / dof
-        cov = try
-            cholesky!(Symmetric(JTJ)) \ I
-        catch
-            # Fall back to pinv if Cholesky fails (may happen with heavy IRLS downweighting)
-            pinv(Symmetric(JTJ))
-        end
-        cov *= σ²
-        return cov
-    end
-    n_obs = prod(length, inds)
-    cov = _compute_cov(A, cost, n_obs, n)
+    covariance_estimator = if !isnothing(covariance_estimator)
+                            covariance_estimator
+                        elseif !isnothing(inv_var) && !do_irls
+                            KnownWeightsCovarianceEstimator()
+                        else
+                            ReweightedCovarianceEstimator()
+                        end
+
+    dof = prod(length, inds) - n
+    χ² = cost / dof
+    cov = covariance!(covariance_estimator, A, cost, dof)
 
     result = LMResult(x, cost, cost_init,
                       converged, x_converged, f_converged, g_converged,
-                      iter, λ, σ_final, cov)
-    return result
+                      iter, λ, σ_final, cov, χ²)
+    return best_model, result
 end
