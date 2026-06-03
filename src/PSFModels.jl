@@ -13,7 +13,7 @@ using StaticArrays: SA, SVector, MVector, MMatrix
 using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!, peak, amplitude
+export CircularGaussianPSF, GaussianPSF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
 
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
@@ -97,6 +97,23 @@ function amplitude(model::AbstractPSFModel)
         error("Cannot compute amplitude as model does not have a `bkg` field; either add one or implement `amplitude(model)` for this model type.")
     end
 end
+
+"""
+    effective_area(model::AbstractPSFModel{T})::T
+
+Return the effective area of the PSF model, defined as 
+``\\frac{\\left(\\int PSF(x, y) dx dy\\right)^2}{\\int PSF(x, y)^2 dx dy}``. 
+For PSF fitting
+photometry, this is the effective number of noisy pixels that contribute
+to the measurement -- the variance of the flux measurement is approximately
+the variance of the background noise per pixel times the effective area. 
+Models with more complex definitions of effective area should implement 
+their own version of this function.
+
+For a star image with PSF `P` and background noise per pixel with variance `σ²`, 
+the maximum likelihood estimate of the flux is ``F^\\hat = \\frac{\\sum_i P_i (D_i - B_i)}{\\sum_i P_i^2}``, where `D_i` is the observed data, `B_i` is the background, and `P_i` is the PSF value at pixel `i`. The variance of the flux measurement is ``var(F^\\hat) = σ² * effective_area(P)``.
+"""
+function effective_area(model::AbstractPSFModel) end
 
 """
     fwhm(model::AbstractPSFModel{T}) → (x_fwhm::T, y_fwhm::T)

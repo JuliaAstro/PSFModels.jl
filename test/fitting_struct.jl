@@ -59,6 +59,7 @@ end
 @testset "struct fit CircularGaussianPSF" begin
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x=13.5, y=12.3, fwhm=4.0, flux=200.0, bkg=5.0)
+    @test effective_area(truth) ≈ 36.25888113461755 rtol=1e-6
     img = render(truth, inds)
     # Initial guess: perturbed ~5% away from truth
     init = CircularGaussianPSF(x=14.1, y=11.8, fwhm=4.3, flux=190.0, bkg=5.5)
@@ -100,6 +101,7 @@ end
 @testset "struct fit GaussianPSF" begin
     inds = (1:40, 1:40)
     truth = GaussianPSF(x=18.5, y=17.3, x_fwhm=5.0, y_fwhm=3.5, theta=15.0, flux=300.0, bkg=2.0)
+    @test effective_area(truth) ≈ 39.65815124098794 rtol=1e-6
     img = render(truth, inds)
     # Initial guess: perturbed ~5% away from truth
     init = GaussianPSF(x=19.3, y=16.7, x_fwhm=5.3, y_fwhm=3.3, theta=13.0, flux=285.0, bkg=2.2)
@@ -227,9 +229,12 @@ end
     @testset "No inverse variance information" begin
         inds = (1:20, 1:20)
         bkg = 100.0
-        for snr in (50.0, 100.0)
-            flux = snr * sqrt(bkg)
-            v = [10.0, 10.0, 4.0, flux, bkg]
+        for snr in (25.0, 50.0)
+            v = [10.0, 10.0, 4.0, 0.0, bkg] # setting flux below
+            A_eff = 4π * (v[3]/2)^2 / (8 * log(2)) # effective area of the PSF in pixels
+            flux = snr * sqrt(bkg * A_eff) # flux as a function of matched-filter snr and background level
+            println(flux)
+            v[4] = flux
             truth = CircularGaussianPSF(x=v[1], y=v[2], fwhm=v[3], flux=v[4], bkg=v[5])
             img = render(truth, inds)
             img_noisy = similar(img) # buffer to hold Poisson noise realizations
