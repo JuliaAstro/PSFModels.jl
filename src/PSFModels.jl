@@ -72,6 +72,19 @@ default implementation assumes the integral is given by a field `flux` in the mo
 integral(model::AbstractPSFModel) = hasproperty(model, :flux) ? model.flux : error("Model does not have a `flux` field; either add one or implement `integral(model)` for this model type.")
 
 """
+    background(model::AbstractPSFModel{T})::T
+Return the background level of the PSF model; 
+if `bkg` field exists, return that, otherwise return `zero(T)`.
+"""
+function background(model::AbstractPSFModel)
+    if hasproperty(model, :bkg)
+        return model.bkg
+    else
+        error("Model does not have a `bkg` field; either add one or implement `background(model)` for this model type.")
+    end
+end
+
+"""
     peak(model::AbstractPSFModel{T})::T
 
 Return the peak value of the PSF model. By default, this
@@ -84,19 +97,10 @@ peak(model::AbstractPSFModel) = evaluate(model, centroid(model)...)
     amplitude(model::AbstractPSFModel{T})::T
 
 Return the amplitude of the PSF model, defined as the peak value
-minus the background. By default, this function assumes a `bkg`
-field in the model struct and computes the amplitude as
-`peak(model) - model.bkg`. Models without a `bkg` field or with
-more complex definitions of amplitude should implement their own
-version of this function.
+minus the background. Default implementation is
+`peak(model) - background(model)`.
 """
-function amplitude(model::AbstractPSFModel)
-    if hasproperty(model, :bkg)
-        return peak(model) - model.bkg
-    else
-        error("Cannot compute amplitude as model does not have a `bkg` field; either add one or implement `amplitude(model)` for this model type.")
-    end
-end
+amplitude(model::AbstractPSFModel) = peak(model) - background(model)
 
 """
     effective_area(model::AbstractPSFModel{T})::T
