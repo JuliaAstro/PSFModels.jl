@@ -226,7 +226,6 @@ end
 @testset "fit_lm IRLS — Poisson Errors" begin
     @testset "No inverse variance information" begin
         inds = (1:20, 1:20)
-        # for flux in (1000.0, 10000.0)
         bkg = 100.0
         for snr in (50.0, 100.0)
             flux = snr * sqrt(bkg)
@@ -290,4 +289,7 @@ end
     @test_throws ArgumentError fit_lm(init, img; inv_var=fill(-1.0, size(img)))
     @test_throws ArgumentError fit_lm(init, img; inv_var=fill(1.0, (11, 10)))
     @test_throws ArgumentError fit_lm(init, img; fixed=(x=1.0, y=2.0, fwhm=3.0, flux=100.0, bkg=1.0))
+    @test_throws ArgumentError fit_lm(init, img; inv_var=fill(NaN, size(img)))
+    @test_throws ArgumentError fit_lm(init, img; inv_var=fill(Inf, size(img)))
+    @test_throws ArgumentError fit_lm(init, img, (1:2, 1:2)) # dof < 0
 end

@@ -41,6 +41,7 @@ function Base.show(io::IO, r::LMResult)
                 ", g: ", r.g_converged, ")")
     println(io, "  iterations: ", r.iterations)
     println(io, "  cost:       ", r.minimum, "  (init: ", r.cost_init, ")")
+    println(io, "  reduced χ²:  ", r.chisq)
     if !isnan(r.σ_final)
         println(io, "  σ_final:    ", r.σ_final)
     end
@@ -73,7 +74,7 @@ end
 
 Damping strategy for Levenberg-Marquardt where a uniform `λ I` shift is applied with no scaling.
 """
-struct LevenbergDamping{T} <: AbstractLMDamping end
+struct LevenbergDamping <: AbstractLMDamping end
 function damp!(A, damping::LevenbergDamping, λ)
     @inbounds for i in 1:size(A, 1)
         A[i, i] += λ
@@ -180,7 +181,7 @@ function estimate_scale(est::MScale, r::AbstractArray{T}) where T
     δ = FT(est.δ)
     tol = FT(est.tol)
     # Initial estimate from MAD
-    σ = estimate_scale(MADScale(), r)
+    σ = max(estimate_scale(MADScale(), r), eps(FT))
     n = length(r)
     for _ in 1:est.max_iter
         σ2 = σ^2
@@ -383,8 +384,8 @@ end
 # SVector (immutable), so we index into it rather than mutating it.
 function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, residuals, inv_var, weights=nothing) where {FT}
     # Get the weight based on arguments provided
-    function _w(use_weights, use_inv_var, weights, inv_var, idx)
-        return use_weights ? FT(weights[idx]) : (use_inv_var ? FT(inv_var[idx]) : one(FT))
+    function _w(use_weights, use_inv_var, weights, inv_var, idx, ::Type{FT}) where FT
+        return FT(use_weights ? weights[idx] : (use_inv_var ? inv_var[idx] : one(FT)))
     end
     @assert size(A, 1) == size(A, 2) == length(b) == length(free_idx)
     @assert size(image) == size(residuals)
@@ -396,15 +397,17 @@ function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::Abstract
     use_weights = !isnothing(weights)
     use_inv_var = !isnothing(inv_var)
     for idx in CartesianIndices(inds)
-        w = _w(use_weights, use_inv_var, weights, inv_var, idx)
+        w = _w(use_weights, use_inv_var, weights, inv_var, idx, FT)
         f_val, g_full = evaluate_fg(m, idx)
         r = FT(f_val) - FT(image[idx])
         residuals[idx] = r
         wr = w * r
-        cost = muladd(w * r, r, cost)
+        cost = muladd(wr, r, cost)
         @inbounds for j in 1:n
             gj = FT(g_full[free_idx[j]])
             b[j] = muladd(wr, gj, b[j])
+            # A is symmetric so we could only compute upper triangle,
+            # but this is not a bottleneck
             for i in 1:n
                 A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
             end
@@ -421,7 +424,7 @@ end
                      show_trace=false, 
                      reweight=nothing,
                      scale_estimator=nothing,
-                     covariance_estimator=KnownWeightsCovarianceEstimator())
+                     covariance_estimator=nothing)
 
 Fit the free parameters of `model` to `image[inds]` under weighted L2 loss
 using the Levenberg-Marquardt algorithm.  The model must implement
@@ -538,17 +541,24 @@ function fit_lm(model::AbstractPSFModel{T},
     if !isnothing(inv_var)
         size(inv_var) == size(image) ||
             throw(ArgumentError("`inv_var` must be the same size as `image`"))
-        any(<=(0), inv_var) &&
-            throw(ArgumentError("`inv_var` must be > 0 everywhere"))
+        all(x -> isfinite(x) && x > 0, inv_var) ||
+            throw(ArgumentError("`inv_var` must be finite and > 0 everywhere"))
+        
     end
     _has_deriv(model) ||
         throw(ArgumentError("model does not implement `evaluate_fg`; " *
                             "Levenberg-Marquardt requires gradient"))
+                        
+    # Converting here simplifies downstream indexing
+    inds = CartesianIndices(inds)
 
     # Parameter bookkeeping
     free_names, free_idx, x0 = free_params(model, fixed)
     n = length(x0)
     n > 0 || throw(ArgumentError("all model parameters are fixed; nothing to fit"))
+    dof = length(inds) - n
+    dof > 0 || throw(ArgumentError("degrees of freedom must be positive; " *
+                                  "too many free parameters ($n) for the number of pixels ($(prod(length, inds)))"))
     free_names_val = Val(free_names)
 
     # Pre-allocate for in-place accumulation
@@ -559,7 +569,6 @@ function fit_lm(model::AbstractPSFModel{T},
     A, b = zeros(FT, n, n), zeros(FT, n)
     A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
     A_damp = zeros(FT, n, n)
-    F_buffer = zeros(FT, n, n)
     δ = zeros(FT, n)
 
     # IRLS setup
@@ -569,7 +578,7 @@ function fit_lm(model::AbstractPSFModel{T},
                     scale_estimator
                 elseif !isnothing(inv_var)
                     # FixedScale from inv_var — σ ≈ 1/√(inv_var) averaged over the cutout
-                    FixedScale(sqrt(inv(mean(view(inv_var, inds...)))))
+                    FixedScale(sqrt(inv(mean(view(inv_var, inds)))))
                 else
                     MADScale()
                 end
@@ -601,7 +610,9 @@ function fit_lm(model::AbstractPSFModel{T},
     while iter < max_iter
         iter += 1
 
-        # Test for gradient-norm convergence
+        # Test for gradient-norm convergence before attempting the linear solve,
+        # since if the gradient is small we are already close to a local minimum 
+        # and the step direction may be unreliable
         gnorm = sqrt(sum(abs2, b))
         if gnorm ≤ g_tol
             g_converged = true
@@ -615,8 +626,15 @@ function fit_lm(model::AbstractPSFModel{T},
         damp!(A_damp, damping, λ)
 
         # Solve (A + λD) δ = −b; same as δ = A_damp \ (-b)
-        F_buffer .= A_damp
-        F = cholesky!(Symmetric(F_buffer))
+        local F
+        try
+            F = cholesky!(Symmetric(A_damp))
+        catch e
+            # If the matrix is not positive definite, increase λ and retry
+            e isa LinearAlgebra.PosDefException || rethrow()
+            λ = min(λ * FT(λ_up), FT(λ_max))
+            continue
+        end
         ldiv!(δ, F, -b)
         δnorm = sqrt(sum(abs2, δ))
 
@@ -634,11 +652,11 @@ function fit_lm(model::AbstractPSFModel{T},
 
         if accepted
             Δcost = cost - cost_cand
-            x    .= x_cand
             cost  = cost_cand
+            λ     = max(λ / FT(λ_down), FT(λ_min))
+            x    .= x_cand
             A    .= A_cand
             b    .= b_cand
-            λ     = max(λ / FT(λ_down), FT(λ_min))
 
             # Check standard LM convergence before reweighting
             x_converged = δnorm ≤ x_tol * (sqrt(sum(abs2, x)) + x_tol)
@@ -651,7 +669,7 @@ function fit_lm(model::AbstractPSFModel{T},
 
             # IRLS: recompute weights from current residuals
             if do_irls
-                σ_final = estimate_scale(scale_est, residuals)
+                σ_final = estimate_scale(scale_est, view(residuals, inds))
 
                 # Skip reweighting if scale is zero (noiseless or degenerate)
                 if σ_final > eps(FT)
@@ -681,9 +699,13 @@ function fit_lm(model::AbstractPSFModel{T},
                             ReweightedCovarianceEstimator()
                         end
 
-    dof = prod(length, inds) - n
-    χ² = cost / dof
     cov = covariance!(covariance_estimator, A, cost, dof)
+    σ² = cost / dof # mean weighted squares residual per dof in data units
+    χ² = if isnothing(inv_var) && do_irls && !isnan(σ_final) && σ_final > eps(FT)
+        σ² / σ_final^2 # reduced chi-squared: cost per dof normalized by the estimated scale²
+    else
+        σ² # reduced chi-squared without scale normalization (e.g. when inv_var is provided or no IRLS)
+    end
 
     result = LMResult(x, cost, cost_init,
                       converged, x_converged, f_converged, g_converged,
