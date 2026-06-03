@@ -69,7 +69,13 @@ end
 Return the integral of the PSF model over all space;
 default implementation assumes the integral is given by a field `flux` in the model struct.
 """
-integral(model::AbstractPSFModel) = hasproperty(model, :flux) ? model.flux : error("Model does not have a `flux` field; either add one or implement `integral(model)` for this model type.")
+function integral(model::AbstractPSFModel)
+    if hasproperty(model, :flux)
+        return model.flux
+    else
+        error("Model does not have a `flux` field; either add one or implement `integral(model)` for this model type.")
+    end
+end
 
 """
     background(model::AbstractPSFModel{T})::T

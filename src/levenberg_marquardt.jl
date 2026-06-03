@@ -64,7 +64,7 @@ Base.@kwdef struct MarquardtDamping{T} <: AbstractLMDamping
 end
 function damp!(A, damping::MarquardtDamping, λ)
     min_diagonal = damping.min_diagonal
-    @inbounds for i in 1:size(A, 1)
+    @inbounds for i in axes(A, 1)
         A[i, i] += λ * max(A[i, i], min_diagonal)
     end
 end
@@ -76,7 +76,7 @@ Damping strategy for Levenberg-Marquardt where a uniform `λ I` shift is applied
 """
 struct LevenbergDamping <: AbstractLMDamping end
 function damp!(A, damping::LevenbergDamping, λ)
-    @inbounds for i in 1:size(A, 1)
+    @inbounds for i in axes(A, 1)
         A[i, i] += λ
     end
 end
