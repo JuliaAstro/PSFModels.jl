@@ -2,47 +2,8 @@
 # exp(-4*log(2) * r² / fwhm²) for effective radius r
 const GAUSS_PRE = -4 * log(2)
 
-@doc raw"""
-    gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
-    gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
-
-An unnormalized bivariate Gaussian distribution. The position can be specified
-in `(x, y)` coordinates as a `Tuple`, `AbstractVector`, or as separate
-arguments. If `theta` is given, the PSF will be rotated by `theta` degrees
-counter-clockwise from the x-axis. If `bkg` is given it will be added as a
-scalar to the PSF.
-
-The `fwhm` can be a scalar (isotropic) or a vector/tuple (diagonal). Keep in
-mind that `theta` has no effect for isotropic distributions and is degenerate
-with the `fwhm` parameters (i.e., theta=90 is the same as reversing the `fwhm`
-tuple)
-
-# Functional form
-```math
-f(x | x̂, \mathrm{FWHM}) = \exp[-4 \ln(2) ⋅ ||x - x̂|| / \mathrm{FWHM}^2]
-```
-where `x̂` and `x` are position vectors (indices) `||⋅||` represents the
-square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a
-scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or
-tuple, the weighting is applied along each axis (diagonal).
-"""
-function gaussian(T, px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
-    flux = amp * (π * (fwhm isa BivariateLike ? prod(fwhm) : fwhm^2) / -GAUSS_PRE)
-    model = if fwhm isa BivariateLike
-        GaussianPSF(x, y, fwhm..., theta, flux, bkg)
-    else
-        !iszero(theta) && @warn "isotropic gaussian is not affected by non-zero rotation angle $theta"
-        CircularGaussianPSF(x, y, fwhm, flux, bkg)
-    end
-    return convert(T, evaluate(model, px, py))
-end
-
-"""
-    normal
-
-An alias for [`gaussian`](@ref)
-"""
-const normal = gaussian
+# factor for scaling radius in terms of the fwhm
+const AIRY_PRE = π / 0.973
 
 @doc raw"""
     CircularGaussianPSF(x, y, fwhm, flux, bkg) → CircularGaussianPSF{T}
