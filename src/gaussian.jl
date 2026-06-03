@@ -67,7 +67,7 @@ Base.@kwdef struct CircularGaussianPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(fwhm), T(flux), T(bkg))
     end
 end
-peak(model::CircularGaussianPSF) = model.flux / (π * model.fwhm^2 / -GAUSS_PRE) + model.bkg
+peak(model::CircularGaussianPSF{T}) where T = model.flux / (π * model.fwhm^2 / -T(GAUSS_PRE)) + model.bkg
 effective_area(model::CircularGaussianPSF) = π * model.fwhm^2 / (2 * log(2))
 
 function evaluate(model::CircularGaussianPSF{T}, px, py) where T
@@ -197,7 +197,7 @@ Base.@kwdef struct GaussianPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(x_fwhm), T(y_fwhm), T(theta), T(flux), T(bkg))
     end
 end
-peak(model::GaussianPSF) = model.flux / (π * model.x_fwhm * model.y_fwhm / -GAUSS_PRE) + model.bkg
+peak(model::GaussianPSF{T}) where T = model.flux / (π * model.x_fwhm * model.y_fwhm / -T(GAUSS_PRE)) + model.bkg
 effective_area(model::GaussianPSF) = π * model.x_fwhm * model.y_fwhm / (2 * log(2))
 
 function evaluate(model::GaussianPSF{T}, px, py) where T
