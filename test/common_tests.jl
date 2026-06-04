@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffat, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffat, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
 using Test
 
 # Tests generic API, type return, etc
@@ -42,6 +42,8 @@ for model in (
         AiryPSF(x = 1.3f0, y = 2.4f0, radius = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
         CircularMoffat(x = 1.3, y = 2.4, α = 3.0, β = 3.5, flux = 120.0, bkg = 10.0),
         CircularMoffat(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
+        MoffatPSF(x = 2.5, y = 5.0, x_α = 3.0, y_α = 4.0, theta = 35.0, β = 3.5, flux = 120.0, bkg = 10.0),
+        MoffatPSF(x = 2.5f0, y = 5.0f0, x_α = 3.0f0, y_α = 4.0f0, theta = 35.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
         CircularGaussianPSF(x = 1.3, y = 2.4, fwhm = 3.0, flux = 120.0, bkg = 10.0),
         CircularGaussianPSF(x = 1.3f0, y = 2.4f0, fwhm = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
         GaussianPSF(x = 2.5, y = 5.0, x_fwhm = 3.0, y_fwhm = 4.0, theta = 35, flux = 120.0, bkg = 10),
@@ -79,6 +81,36 @@ end
         @test f ≈ evaluate(m, 1, 2)
         @test g ≈ [0.14736568804805128, 0.29473137609610256, -0.14736568804805128, 0.23407451180546335, 0.014736568804805127, 1.0]
     end
+end
+
+@testset "MoffatPSF" begin
+    @testset "constructor promotion" begin
+        @test MoffatPSF(x = 1.3, y = 2.4, x_α = 3.0, y_α = 4.0, theta = 35, β = 2.5, flux = 120.0, bkg = 10.0) isa MoffatPSF{Float64}
+        @test MoffatPSF(x = 1.3f0, y = 2.4f0, x_α = 3.0f0, y_α = 4.0f0, theta = 35.0f0, β = 2.5f0, flux = 120.0f0, bkg = 10.0f0) isa MoffatPSF{Float32}
+        @test MoffatPSF(x = 1, y = 2, x_α = 3, y_α = 4, theta = 35, β = 2, flux = 120, bkg = 10) isa MoffatPSF{Float64}
+        @test MoffatPSF(x = BigFloat(1.3), y = BigFloat(2.4), x_α = BigFloat(3.0), y_α = BigFloat(4.0), theta = BigFloat(35), β = BigFloat(2.5), flux = BigFloat(120.0), bkg = BigFloat(10.0)) isa MoffatPSF{BigFloat}
+    end
+
+    m = MoffatPSF(x = 0, y = 0, x_α = 5, y_α = 3, theta = 30, β = 3, flux = 50, bkg = 10)
+    @test centroid(m) == (0.0, 0.0)
+    @test integral(m) == 50.0
+    @test all(isapprox.(fwhm(m), (5.098245285339587, 3.058947171203752)))
+    @test effective_area(m) ≈ 58.90486225480862 rtol = 1.0e-6
+    @test background(m) == 10.0
+    @test peak(m) ≈ amplitude(m) + background(m)
+    @test theta(m) == 30.0
+    r1 = evaluate(m, 1, 2)
+    @test r1 isa Float64
+    @test r1 ≈ 10.948401781459316
+    let (f, g) = evaluate_fg(m, 1, 2)
+        @test f ≈ evaluate(m, 1, 2)
+        @test g ≈ [-0.016559689619557116, 0.6781570383450282, -0.0684867059819571, -0.07153854864611547, 0.012414115378633376, 0.2195970122399787, 0.01896803562918631, 1.0]
+    end
+
+    # equal fwhm + theta=0 reduces to CircularMoffatPSF
+    mc = CircularMoffat(x = 1.5, y = 2.5, α = 8, β = 2.5, flux = 3, bkg = 0)
+    mm = MoffatPSF(x = 1.5, y = 2.5, x_α = 8, y_α = 8, theta = 0, β = 2.5, flux = 3, bkg = 0)
+    @test evaluate(mc, 3, 4) ≈ evaluate(mm, 3, 4)
 end
 
 # Test specific models; verify return values

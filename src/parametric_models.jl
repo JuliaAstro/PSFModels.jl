@@ -740,7 +740,6 @@ function evaluate(model::CircularMoffat{T}, px, py) where {T}
     amp = model.flux * (model.β - 1) / (π * model.α^2)
     return muladd(amp, (1 + r2 / model.α^2)^(-model.β), model.bkg)
 end
-
 # using ForwardDiff: gradient
 # using PSFModels: CircularMoffat, evaluate_fg, evaluate
 # using ConstructionBase: getproperties
@@ -767,4 +766,119 @@ function evaluate_fg(model::CircularMoffat{T}, px, py) where {T}
     df_dflux = profile / norm
     df_dbkg = one(T)
     return f, SA[df_dx, df_dy, df_dα, df_dβ, df_dflux, df_dbkg]
+end
+
+@doc raw"""
+    MoffatPSF(x, y, x_α, y_α, theta, β, flux, bkg) -> MoffatPSF{T}
+
+General asymmetric Moffat PSF with centroid `(x, y)`, scale lengths `x_α`
+and `y_α` along the rotated axes, rotation angle `theta` in degrees
+counter-clockwise from the x-axis, wing parameter `β`, total `flux`, and
+background `bkg`.
+
+The model is evaluated as
+
+```math
+I(x, y) =
+F\,\frac{\beta - 1}{\pi\,\alpha_x\,\alpha_y}
+\left(
+1 + \frac{u^2}{\alpha_x^2} + \frac{v^2}{\alpha_y^2}
+\right)^{-\beta}
++ B,
+```
+
+where
+
+```math
+u = \cos\theta\,(x-x_0) + \sin\theta\,(y-y_0),
+\qquad
+v = -\sin\theta\,(x-x_0) + \cos\theta\,(y-y_0).
+```
+
+# Examples
+```jldoctest
+julia> using PSFModels: MoffatPSF
+
+julia> MoffatPSF(x=1.0, y=2.0, x_α=3.0, y_α=4.0, theta=35.0, β=2.5, flux=4.0, bkg=5.0) isa MoffatPSF{Float64}
+true
+```
+"""
+Base.@kwdef struct MoffatPSF{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    x_α::T
+    y_α::T
+    theta::T
+    β::T
+    flux::T
+    bkg::T
+
+    function MoffatPSF(x, y, x_α, y_α, theta, β, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(x_α), typeof(y_α), typeof(theta), typeof(β), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T
+        return new{T}(T(x), T(y), T(x_α), T(y_α), T(theta), T(β), T(flux), T(bkg))
+    end
+end
+amplitude(model::MoffatPSF) = model.flux * (model.β - 1) / (π * model.x_α * model.y_α)
+peak(model::MoffatPSF) = amplitude(model) + model.bkg
+effective_area(model::MoffatPSF) = π * model.x_α * model.y_α * (2 * model.β - 1) / (model.β - 1)^2
+function fwhm(model::MoffatPSF)
+    f = 2 * sqrt(exp2(1 / model.β) - 1)
+    return (model.x_α * f, model.y_α * f)
+end
+function evaluate(model::MoffatPSF{T}, px, py) where {T}
+    θ = deg2rad(model.theta)
+    dx = px - model.x
+    dy = py - model.y
+    sn, cs = sincos(θ)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    ax = model.x_α
+    ay = model.y_α
+    q = u^2 / ax^2 + v^2 / ay^2
+    amp = model.flux * (model.β - 1) / (T(π) * ax * ay)
+    return muladd(amp, (1 + q)^(-model.β), model.bkg)
+end
+# using ForwardDiff: gradient
+# using PSFModels: MoffatPSF, evaluate_fg, evaluate
+# using ConstructionBase: getproperties
+# t = MoffatPSF(x=1.0, y=2.0, x_α=3.0, y_α=4.0, theta=35.0, β=2.5, flux=6.0, bkg=7.0)
+# _, g = evaluate_fg(t, -1, 1)
+# gradient(x->evaluate(MoffatPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::MoffatPSF{T}, px, py) where {T}
+    d = deg2rad(one(T))
+    dx = px - model.x
+    dy = py - model.y
+    ax, ay, β = model.x_α, model.y_α, model.β
+    ax² = ax^2
+    ay² = ay^2
+    θ = deg2rad(model.theta)
+    sn, cs = sincos(θ)
+    u = cs * dx + sn * dy
+    v = -sn * dx + cs * dy
+    q = u^2 / ax² + v^2 / ay²
+    h = 1 + q
+    profile = h^(-β)
+    norm = π * ax * ay / (β - 1)
+    amp = model.flux / norm
+    Ag = amp * profile
+    f = muladd(amp, profile, model.bkg)
+
+    D = 1 / ax² - 1 / ay²
+    Qx = -2 * (cs * u / ax² - sn * v / ay²)
+    Qy = -2 * (sn * u / ax² + cs * v / ay²)
+    Qax = -2 * u^2 / ax^3
+    Qay = -2 * v^2 / ay^3
+    Qtheta = d * 2 * u * v * D
+    scale = -β / h
+    df_dx = Ag * scale * Qx
+    df_dy = Ag * scale * Qy
+    df_dax = Ag * (-1 / ax + scale * Qax)
+    df_day = Ag * (-1 / ay + scale * Qay)
+    df_dtheta = Ag * scale * Qtheta
+    df_dβ = Ag * (1 / (β - 1) - log(h))
+    df_dflux = profile / norm
+    df_dbkg = one(T)
+    G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dβ, df_dflux, df_dbkg]
+    return f, G
 end
