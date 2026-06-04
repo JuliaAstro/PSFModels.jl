@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm, TukeyLoss, weight, LMProblem, lm_irls, accum_residual!
+using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm, TukeyLoss, weight, FixedScale, LMProblem, lm_irls, accum_residual!
 using Distributions: Poisson
 import LossFunctions
 import Optim
@@ -208,6 +208,54 @@ end
     @test A[3, 2] == 0.0
     @test A[1, 2] != 0.0
     @test A[1, 3] != 0.0
+end
+
+@testset "lm_irls IRLS weight reset threshold" begin
+    xs = [0.0, 1.0, 2.0, 3.0]
+    ys = [1.0, 3.0, 5.0, 50.0]
+    active_idx = (1, 2)
+
+    function accum!(A, b, residuals, x, weights)
+        fill!(A, zero(eltype(A)))
+        fill!(b, zero(eltype(b)))
+        cost = zero(eltype(A))
+        for k in eachindex(xs)
+            w = isnothing(weights) ? one(eltype(A)) : weights[k]
+            r = x[1] * xs[k] + x[2] - ys[k]
+            cost += accum_residual!(A, b, residuals, k, r, (xs[k], 1.0), active_idx, w)
+        end
+        return cost
+    end
+
+    problem = LMProblem([0.0, 0.0], length(xs), accum!)
+
+    result_reset = lm_irls(
+        problem;
+        max_iter = 1,
+        x_tol = 0.0,
+        f_tol = 0.0,
+        g_tol = 0.0,
+        reweight = LossFunctions.HuberLoss(1.0),
+        scale_estimator = FixedScale(1.0),
+        λ_init = 1.0e-4,
+        λ_down = 10.0,
+        weight_reset_tol = 0.1,
+    )
+    @test result_reset.λ_final == 1.0e-4
+
+    result_keep = lm_irls(
+        problem;
+        max_iter = 1,
+        x_tol = 0.0,
+        f_tol = 0.0,
+        g_tol = 0.0,
+        reweight = LossFunctions.HuberLoss(1.0),
+        scale_estimator = FixedScale(1.0),
+        λ_init = 1.0e-4,
+        λ_down = 10.0,
+        weight_reset_tol = Inf,
+    )
+    @test result_keep.λ_final ≈ 1.0e-5
 end
 
 # ---------------------------------------------------------------------------

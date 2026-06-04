@@ -464,11 +464,14 @@ function lm_irls(
         show_trace::Bool = false,
         reweight::Union{Nothing, LossFunctions.SupervisedLoss} = nothing,
         scale_estimator::Union{Nothing, AbstractScaleEstimator} = nothing,
+        weight_reset_tol::Real = 0.1,
         covariance_estimator::Union{Nothing, AbstractCovarianceEstimator} = nothing
     ) where {T}
 
     # Input validation
     FT = float(T)
+    weight_reset_tol >= 0 || throw(ArgumentError("`weight_reset_tol` must be non-negative"))
+    isnan(weight_reset_tol) && throw(ArgumentError("`weight_reset_tol` must not be NaN"))
     x0 = Vector{FT}(problem.x0)
     n = length(x0)
     n > 0 || throw(ArgumentError("all parameters are fixed; nothing to fit"))
@@ -537,7 +540,6 @@ function lm_irls(
 
     while iter < max_iter
         iter += 1
-
         # If the gradient is already small, solving for a step can be unreliable.
         gnorm = sqrt(sum(abs2, b))
         if gnorm ≤ g_tol
@@ -599,18 +601,28 @@ function lm_irls(
 
                 if σ_final > eps(FT)
                     # Update weights based on the new residuals and scale estimate
+                    Δw² = zero(FT) # track the magnitude of weight changes to determine if we should reset λ
+                    wold² = zero(FT)
+                    wnew² = zero(FT)
                     @inbounds for k in eachindex(residuals)
+                        old_w = weights[k]
                         r_scaled = residuals[k] / σ_final
                         base_w = isnothing(base_weights) ? one(FT) : base_weights[k]
-                        weights[k] = base_w * weight(reweight, FT(r_scaled))
+                        new_w = base_w * weight(reweight, FT(r_scaled))
+                        Δw = new_w - old_w
+                        Δw² = muladd(Δw, Δw, Δw²)
+                        wold² = muladd(old_w, old_w, wold²)
+                        wnew² = muladd(new_w, new_w, wnew²)
+                        weights[k] = new_w
                     end
                     # Recompute normal equations with updated weights
                     cost = problem.accum!(A, b, residuals, x, weights)
-                    # After changing weights, we are no longer solving the same weighted
-                    # least-squares problem. A = J'WJ, b = J'Wr, and cost all change when 
-                    # W changes, so the old LM damping history is not strictly calibrated
-                    # to the new local quadratic model.
-                    λ = FT(λ_init)
+                    weight_change = sqrt(Δw²) / max(sqrt(wold²), sqrt(wnew²), eps(FT))
+                    # A large weight update means the weighted least-squares
+                    # objective changed enough to reset the damping history.
+                    if weight_change ≥ FT(weight_reset_tol)
+                        λ = FT(λ_init)
+                    end
                 end
             end
         else
@@ -628,6 +640,10 @@ function lm_irls(
 
     cov = covariance!(covariance_estimator, A, cost, dof)
     σ² = cost / dof
+    # If we performed IRLS, the effective cost is the sum of squared
+    # residuals divided by the final scale estimate squared, which gives a
+    # more meaningful reduced chi-squared value. If we didn't do IRLS,
+    # or if the scale estimate is not valid, we fall back to the unscaled σ².
     χ² = if isnothing(base_weights) && do_irls && !isnan(σ_final) && σ_final > eps(FT)
         σ² / σ_final^2
     else
@@ -708,6 +724,7 @@ end
                      show_trace=false, 
                      reweight=nothing,
                      scale_estimator=nothing,
+                     weight_reset_tol=0.1,
                      covariance_estimator=nothing)
 
 Fit the free parameters of `model` to `image[inds]` under weighted L2 loss
@@ -785,6 +802,9 @@ uncertainty in the weights. In this case, use `ReweightedCovarianceEstimator`.
   or `nothing` (default) for standard L2 fitting
 - `scale_estimator::AbstractScaleEstimator`: scale estimator for IRLS;
   defaults to `FixedScale` (from `inv_var`) or `MADScale()` (see above)
+- `weight_reset_tol`: reset `λ` to `λ_init` after an IRLS weight update only
+  when the symmetric relative L2 norm of the weight change is at least this
+  threshold (default `0.1`)
 - `covariance_estimator::AbstractCovarianceEstimator`: method for estimating the covariance matrix of the fitted parameters; defaults to `ReweightedCovarianceEstimator` when IRLS is used and `KnownWeightsCovarianceEstimator` otherwise
 - `λ_init`: initial damping parameter (default `1e-4`)
 - `λ_up`: factor by which `λ` is multiplied on rejection (default `10`)
@@ -820,6 +840,7 @@ function fit_lm(
         show_trace::Bool = false,
         reweight::Union{Nothing, LossFunctions.SupervisedLoss} = nothing,
         scale_estimator::Union{Nothing, AbstractScaleEstimator} = nothing,
+        weight_reset_tol::Real = 0.1,
         covariance_estimator::Union{Nothing, AbstractCovarianceEstimator} = nothing
     ) where {T}
 
@@ -871,6 +892,7 @@ function fit_lm(
         show_trace,
         reweight,
         scale_estimator,
+        weight_reset_tol,
         covariance_estimator
     )
     best_model = model_from_vector(model, free_names_val, result.minimizer, fixed)
