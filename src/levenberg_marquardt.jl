@@ -408,41 +408,6 @@ function LMProblem(x0::AbstractVector{T}, nobs::Integer, accum!::F, base_weights
 end
 
 """
-    accum_residual!(A, b, residuals, k, r, g, active_idx, w)
-
-Scatter one residual into the normal equations. `g` contains derivatives for
-the parameters listed in `active_idx`, whose entries are indices into the global
-parameter vector. Returns the weighted squared-residual contribution.
-"""
-function accum_residual!(
-        A::AbstractMatrix{FT},
-        b::AbstractVector{FT},
-        residuals::AbstractVector{FT},
-        k::Integer,
-        r,
-        g,
-        active_idx,
-        w
-    ) where {FT}
-    @assert length(g) == length(active_idx)
-    rr = FT(r)
-    ww = FT(w)
-    residuals[k] = rr
-    wr = ww * rr
-    cost = wr * rr
-    @inbounds for j in eachindex(active_idx)
-        col = active_idx[j]
-        gj = FT(g[j])
-        b[col] = muladd(wr, gj, b[col])
-        for i in eachindex(active_idx)
-            row = active_idx[i]
-            A[row, col] = muladd(ww * FT(g[i]), gj, A[row, col])
-        end
-    end
-    return cost
-end
-
-"""
     lm_irls(problem::LMProblem; kwargs...) -> LMResult
 
 Run Levenberg-Marquardt with optional IRLS reweighting on a generic
