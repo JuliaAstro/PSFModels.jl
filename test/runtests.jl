@@ -5,4 +5,3 @@ using SafeTestsets
 @safetestset "Functional interface - Fitting" include("functional_fitting_test.jl")
 @safetestset "Fitting" include("fitting_struct.jl")
 @safetestset "Plotting" include("plotting.jl")
-

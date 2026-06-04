@@ -135,7 +135,7 @@ end
 
 Return the rotation angle `theta` of the PSF model in degrees CCW from the x-axis. By default, this function checks for a `theta` field and returns it, or **returns zero if no such field exists**. Models with more complex definitions of rotation should implement their own version of this function.
 """
-function theta(model::AbstractPSFModel{T}) where T
+function theta(model::AbstractPSFModel{T}) where {T}
     if hasproperty(model, :theta)
         return model.theta
     else
@@ -206,7 +206,7 @@ julia> extent(GaussianPSF(x=10, y=20, x_fwhm=5, y_fwhm=3, theta=90, flux=30, bkg
 ((2.5, 17.5), (7.5, 32.5))
 ```
 """
-function extent(model::AbstractPSFModel, fwhm_factor=5)
+function extent(model::AbstractPSFModel, fwhm_factor = 5)
     # default extent is 5x5 around centroid, but specific models can override this
     x0, y0 = centroid(model)
     FWHM = fwhm(model)
@@ -261,7 +261,7 @@ include("functional_models.jl")
 include("plotting.jl")
 
 ######################################################
-# Fitting code 
+# Fitting code
 
 include("fitting.jl")
 include("fitting_struct.jl")

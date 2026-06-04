@@ -13,81 +13,82 @@ end
 
 function test_fitting(rng, model, params, inds; kwargs...)
     # Test that the recovered params are ~ P, allowing for tuple parameters
-    function test_params(params, P; rtol=1e-2, atol=0)
+    function test_params(params, P; rtol = 1.0e-2, atol = 0)
         # If rtol is scalar, make it a NamedTuple with the same keys as params
         rtol = rtol isa Number ? generate_params(keys(params), fill(rtol, length(vector_from_params(Float64, params)))) : rtol
         atol = atol isa Number ? generate_params(keys(params), fill(atol, length(vector_from_params(Float64, params)))) : atol
         for k in keys(params)
             if P[k] isa Tuple
-                @test P[k][1] ≈ params[k][1] rtol=rtol[k][1] atol=atol[k][1]
-                @test P[k][2] ≈ params[k][2] rtol=rtol[k][2] atol=atol[k][2]
+                @test P[k][1] ≈ params[k][1] rtol = rtol[k][1] atol = atol[k][1]
+                @test P[k][2] ≈ params[k][2] rtol = rtol[k][2] atol = atol[k][2]
             else
-                @test P[k] ≈ params[k] rtol=rtol[k] atol=atol[k]
+                @test P[k] ≈ params[k] rtol = rtol[k] atol = atol[k]
             end
         end
+        return
     end
     psf = generate_model(rng, model, params, inds)
     _keys = keys(params)
     _vals = vector_from_params(Float64, params)
     # perturb starting guess by a little
-    _vals .*= 1 .+ 1e-2 .* randn(rng, length(_vals))
+    _vals .*= 1 .+ 1.0e-2 .* randn(rng, length(_vals))
     P0 = generate_params(_keys, _vals)
-    P, bestfit = fit(model, P0, psf; x_abstol=5e-5, kwargs...)
+    P, bestfit = fit(model, P0, psf; x_abstol = 5.0e-5, kwargs...)
     test_params(params, P)
-    @test bestfit.(CartesianIndices(psf)) ≈ psf rtol=1e-2
+    @test bestfit.(CartesianIndices(psf)) ≈ psf rtol = 1.0e-2
 
     # Now add error, fit with inverse variance weights
     σ = 0.01 * maximum(psf) # Absolute error to add to each pixel
     psf_noisy = psf .+ σ .* randn(rng, size(psf))
     inv_var = fill(inv(σ^2), size(psf))
-    P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=inv_var, kwargs...)
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=zeros(size(psf)), kwargs...) # inv_var can't be 0
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=fill(-1.0, size(psf)), kwargs...) # inv_var can't be negative
-    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol=5e-5, inv_var=fill(1.0, size(psf) .+ (1,)), kwargs...) # inv_var must be same size as image
+    P_noisy, bestfit_noisy, cov = fit(model, P0, psf_noisy; x_abstol = 5.0e-5, inv_var = inv_var, kwargs...)
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5.0e-5, inv_var = zeros(size(psf)), kwargs...) # inv_var can't be 0
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5.0e-5, inv_var = fill(-1.0, size(psf)), kwargs...) # inv_var can't be negative
+    @test_throws ArgumentError fit(model, P0, psf_noisy; x_abstol = 5.0e-5, inv_var = fill(1.0, size(psf) .+ (1,)), kwargs...) # inv_var must be same size as image
     return nothing
 end
 
 @testset "test fitting synthetic PSFs" begin
     inds = 1:30, 1:30
     @testset "gaussian" begin
-        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
-        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
-        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
+        test_fitting(rng, gaussian, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds)
+        test_fitting(rng, gaussian, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), amp = 5), inds)
+        test_fitting(rng, gaussian, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), theta = 12, amp = 5), inds)
 
         # test using L1 loss
-        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds; loss=abs)
+        test_fitting(rng, gaussian, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), theta = 12, amp = 5), inds; loss = abs)
         # test using frozen variables
-        test_fitting(rng, gaussian, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds; func_kwargs=(;theta=0))
+        test_fitting(rng, gaussian, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), amp = 5), inds; func_kwargs = (; theta = 0))
 
-        @test_throws ArgumentError fit(gaussian, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
+        @test_throws ArgumentError fit(gaussian, (x = 12, y = 13, fwhm = 1, theta = 13), randn(10, 10))
     end
     @testset "airydisk" begin
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5, ratio=0.12), inds)
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds)
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5, ratio = 0.12), inds)
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), amp = 5), inds)
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), theta = 12, amp = 5), inds)
 
         # test using L1 loss
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; loss=abs)
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds; loss = abs)
         # test using frozen variables
-        test_fitting(rng, airydisk, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; func_kwargs=(;ratio=0))
+        test_fitting(rng, airydisk, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds; func_kwargs = (; ratio = 0))
 
-        @test_throws ArgumentError fit(airydisk, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
+        @test_throws ArgumentError fit(airydisk, (x = 12, y = 13, fwhm = 1, theta = 13), randn(10, 10))
     end
 
     @testset "moffat" begin
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds)
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5, alpha=1.2), inds)
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5), inds)
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), amp=5, alpha=1.2), inds)
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5), inds)
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=(2.6, 2.4), theta=12, amp=5, alpha=1.2), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5, alpha = 1.2), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), amp = 5), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), amp = 5, alpha = 1.2), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), theta = 12, amp = 5), inds)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = (2.6, 2.4), theta = 12, amp = 5, alpha = 1.2), inds)
 
         # test using L1 loss
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; loss=abs)
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds; loss = abs)
         # test using frozen variables
-        test_fitting(rng, moffat, (x=13.5, y=12.3, fwhm=2.6, amp=5), inds; func_kwargs=(;alpha=1))
+        test_fitting(rng, moffat, (x = 13.5, y = 12.3, fwhm = 2.6, amp = 5), inds; func_kwargs = (; alpha = 1))
 
-        @test_throws ArgumentError fit(moffat, (x=12, y=13, fwhm=1, theta=13), randn(10, 10))
+        @test_throws ArgumentError fit(moffat, (x = 12, y = 13, fwhm = 1, theta = 13), randn(10, 10))
     end
 end

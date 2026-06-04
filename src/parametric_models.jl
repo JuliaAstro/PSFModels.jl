@@ -41,10 +41,10 @@ Base.@kwdef struct CircularGaussianPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(fwhm), T(flux), T(bkg))
     end
 end
-peak(model::CircularGaussianPSF{T}) where T = model.flux / (π * model.fwhm^2 / -T(GAUSS_PRE)) + model.bkg
-effective_area(model::CircularGaussianPSF{T}) where T = π * model.fwhm^2 / T(2 * log(2))
+peak(model::CircularGaussianPSF{T}) where {T} = model.flux / (π * model.fwhm^2 / -T(GAUSS_PRE)) + model.bkg
+effective_area(model::CircularGaussianPSF{T}) where {T} = π * model.fwhm^2 / T(2 * log(2))
 
-function evaluate(model::CircularGaussianPSF{T}, px, py) where T
+function evaluate(model::CircularGaussianPSF{T}, px, py) where {T}
     dx = px - model.x
     dy = py - model.y
     sqmahab = (dx^2 + dy^2) / model.fwhm^2
@@ -59,7 +59,7 @@ end
 # t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
 # _, g = evaluate_fg(t, -1, 1)
 # gradient(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(g)
-function evaluate_fg(model::CircularGaussianPSF{T}, px, py) where T
+function evaluate_fg(model::CircularGaussianPSF{T}, px, py) where {T}
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
     dy = py - model.y
@@ -73,11 +73,11 @@ function evaluate_fg(model::CircularGaussianPSF{T}, px, py) where T
     f = muladd(amp, g, model.bkg)
     # Gradient ↓
     γ_f2 = _gauss_pre / fwhm²
-    df_dx    = -2 * Ag * γ_f2 * dx
-    df_dy    = -2 * Ag * γ_f2 * dy
+    df_dx = -2 * Ag * γ_f2 * dx
+    df_dy = -2 * Ag * γ_f2 * dy
     df_dfwhm = -2 * Ag * (1 + _gauss_pre * sqmahab) / fwhm
     df_dflux = g / norm
-    df_dbkg  = one(T)
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
     return f, G
 end
@@ -88,7 +88,7 @@ end
 # t = CircularGaussianPSF(x=1.0, y=2.0, fwhm=3.0, flux=6.0, bkg=7.0)
 # _, _, h = evaluate_fgh(t, -1, 1)
 # hessian(x->evaluate(CircularGaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(h)
-function evaluate_fgh(model::CircularGaussianPSF{T}, px, py) where T
+function evaluate_fgh(model::CircularGaussianPSF{T}, px, py) where {T}
     _gauss_pre = T(GAUSS_PRE)
     dx = px - model.x
     dy = py - model.y
@@ -106,11 +106,11 @@ function evaluate_fgh(model::CircularGaussianPSF{T}, px, py) where T
     one_γr2 = 1 + _gauss_pre * sqmahab  # (1 + γr²)
 
     # Gradient
-    df_dx    = -2 * Ag * γ_f2 * dx
-    df_dy    = -2 * Ag * γ_f2 * dy
+    df_dx = -2 * Ag * γ_f2 * dx
+    df_dy = -2 * Ag * γ_f2 * dy
     df_dfwhm = -2 * Ag * one_γr2 / fwhm
     df_dflux = g / norm
-    df_dbkg  = one(T)
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
 
     # second partials w.r.t. position
@@ -127,7 +127,7 @@ function evaluate_fgh(model::CircularGaussianPSF{T}, px, py) where T
     dyfl = -2 * _gauss_pre * g * dy / (fwhm² * norm)
 
     # fwhm × fwhm
-    dff  = Ag / fwhm² * (4 * one_γr2^2 + 2 * (1 + 3 * _gauss_pre * sqmahab))
+    dff = Ag / fwhm² * (4 * one_γr2^2 + 2 * (1 + 3 * _gauss_pre * sqmahab))
 
     # fwhm × flux
     dff_l = -2 * g * one_γr2 / (fwhm * norm)
@@ -198,10 +198,10 @@ Base.@kwdef struct GaussianPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(x_fwhm), T(y_fwhm), T(theta), T(flux), T(bkg))
     end
 end
-peak(model::GaussianPSF{T}) where T = model.flux / (π * model.x_fwhm * model.y_fwhm / -T(GAUSS_PRE)) + model.bkg
+peak(model::GaussianPSF{T}) where {T} = model.flux / (π * model.x_fwhm * model.y_fwhm / -T(GAUSS_PRE)) + model.bkg
 effective_area(model::GaussianPSF) = π * model.x_fwhm * model.y_fwhm / (2 * log(2))
 
-function evaluate(model::GaussianPSF{T}, px, py) where T
+function evaluate(model::GaussianPSF{T}, px, py) where {T}
     θ = deg2rad(model.theta)
     dx = px - model.x
     dy = py - model.y
@@ -222,7 +222,7 @@ end
 # t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
 # _, g = evaluate_fg(t, -1, 1)
 # gradient(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(g)
-function evaluate_fg(model::GaussianPSF{T}, px, py) where T
+function evaluate_fg(model::GaussianPSF{T}, px, py) where {T}
     _gauss_pre = T(GAUSS_PRE)
     d = deg2rad(one(T))  # factor to convert degrees to radians for theta derivatives
     dx = px - model.x
@@ -245,18 +245,18 @@ function evaluate_fg(model::GaussianPSF{T}, px, py) where T
     # Gradient ↓
     γ = _gauss_pre
     D = 1 / ax² - 1 / ay²
-    Qx     = -2 * (cs * u / ax² - sn * v / ay²)
-    Qy     = -2 * (sn * u / ax² + cs * v / ay²)
-    Qax    = -2 * u^2 / ax^3
-    Qay    = -2 * v^2 / ay^3
+    Qx = -2 * (cs * u / ax² - sn * v / ay²)
+    Qy = -2 * (sn * u / ax² + cs * v / ay²)
+    Qax = -2 * u^2 / ax^3
+    Qay = -2 * v^2 / ay^3
     Qtheta = d * 2 * u * v * D
-    df_dx     = Ag * γ * Qx
-    df_dy     = Ag * γ * Qy
-    df_dax    = Ag * (-1 / ax + γ * Qax)
-    df_day    = Ag * (-1 / ay + γ * Qay)
+    df_dx = Ag * γ * Qx
+    df_dy = Ag * γ * Qy
+    df_dax = Ag * (-1 / ax + γ * Qax)
+    df_day = Ag * (-1 / ay + γ * Qay)
     df_dtheta = Ag * γ * Qtheta
-    df_dflux  = g / norm
-    df_dbkg   = one(T)
+    df_dflux = g / norm
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
     return f, G
 end
@@ -267,7 +267,7 @@ end
 # t = GaussianPSF(x=1.0, y=2.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=6.0, bkg=7.0)
 # _, _, h = evaluate_fgh(t, -1, 1)
 # hessian(x->evaluate(GaussianPSF(x...), -1, 1), collect(getproperties(t))) ≈ collect(h)
-function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
+function evaluate_fgh(model::GaussianPSF{T}, px, py) where {T}
     γ = T(GAUSS_PRE)
     d = deg2rad(one(T))  # factor to convert degrees to radians for theta derivatives
     dx = px - model.x
@@ -290,67 +290,67 @@ function evaluate_fgh(model::GaussianPSF{T}, px, py) where T
 
     # First derivatives of sqmahab w.r.t. each parameter (used for both gradient and Hessian)
     D = 1 / ax² - 1 / ay²  # (1/ax² - 1/ay²), used in theta terms
-    Qx     = -2 * (cs * u / ax² - sn * v / ay²)
-    Qy     = -2 * (sn * u / ax² + cs * v / ay²)
-    Qax    = -2 * u^2 / ax^3
-    Qay    = -2 * v^2 / ay^3
+    Qx = -2 * (cs * u / ax² - sn * v / ay²)
+    Qy = -2 * (sn * u / ax² + cs * v / ay²)
+    Qax = -2 * u^2 / ax^3
+    Qay = -2 * v^2 / ay^3
     Qtheta = d * 2 * u * v * D
 
     # Gradient
-    df_dx     = Ag * γ * Qx
-    df_dy     = Ag * γ * Qy
-    df_dax    = Ag * (-1 / ax + γ * Qax)
-    df_day    = Ag * (-1 / ay + γ * Qay)
+    df_dx = Ag * γ * Qx
+    df_dy = Ag * γ * Qy
+    df_dax = Ag * (-1 / ax + γ * Qax)
+    df_day = Ag * (-1 / ay + γ * Qay)
     df_dtheta = Ag * γ * Qtheta
-    df_dflux  = g / norm
-    df_dbkg   = one(T)
+    df_dflux = g / norm
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
 
     # Second derivatives of sqmahab
-    Rxx      = 2 * (cs^2 / ax² + sn^2 / ay²)
-    Ryy      = 2 * (sn^2 / ax² + cs^2 / ay²)
-    Rxy      = 2 * cs * sn * D
-    Rxax     = 4 * cs * u / ax^3
-    Rxay     = -4 * sn * v / ay^3
-    Ryax     = 4 * sn * u / ax^3
-    Ryay     = 4 * cs * v / ay^3
-    Raxax    = 6 * u^2 / ax^4
-    Rayay    = 6 * v^2 / ay^4
-    Rxtheta  = d * 2 * (sn * u - cs * v) * D
-    Rytheta  = -d * 2 * (cs * u + sn * v) * D
+    Rxx = 2 * (cs^2 / ax² + sn^2 / ay²)
+    Ryy = 2 * (sn^2 / ax² + cs^2 / ay²)
+    Rxy = 2 * cs * sn * D
+    Rxax = 4 * cs * u / ax^3
+    Rxay = -4 * sn * v / ay^3
+    Ryax = 4 * sn * u / ax^3
+    Ryay = 4 * cs * v / ay^3
+    Raxax = 6 * u^2 / ax^4
+    Rayay = 6 * v^2 / ay^4
+    Rxtheta = d * 2 * (sn * u - cs * v) * D
+    Rytheta = -d * 2 * (cs * u + sn * v) * D
     Raxtheta = -d * 4 * u * v / ax^3
     Raytheta = d * 4 * u * v / ay^3
-    Rtheta2  = d^2 * 2 * (v^2 - u^2) * D
+    Rtheta2 = d^2 * 2 * (v^2 - u^2) * D
 
     # Hessian entries (row/col order: x, y, x_fwhm, y_fwhm, theta, flux, bkg)
     # Second derivatives involving only sqmahab (∂A/∂x = ∂A/∂y = ∂A/∂theta = 0)
-    dxx      = Ag * (γ^2 * Qx^2     + γ * Rxx)
-    dyy      = Ag * (γ^2 * Qy^2     + γ * Ryy)
-    dxy      = Ag * (γ^2 * Qx * Qy  + γ * Rxy)
-    dxtheta  = Ag * (γ^2 * Qx * Qtheta  + γ * Rxtheta)
-    dytheta  = Ag * (γ^2 * Qy * Qtheta  + γ * Rytheta)
-    dtheta2  = Ag * (γ^2 * Qtheta^2 + γ * Rtheta2)
+    dxx = Ag * (γ^2 * Qx^2 + γ * Rxx)
+    dyy = Ag * (γ^2 * Qy^2 + γ * Ryy)
+    dxy = Ag * (γ^2 * Qx * Qy + γ * Rxy)
+    dxtheta = Ag * (γ^2 * Qx * Qtheta + γ * Rxtheta)
+    dytheta = Ag * (γ^2 * Qy * Qtheta + γ * Rytheta)
+    dtheta2 = Ag * (γ^2 * Qtheta^2 + γ * Rtheta2)
 
     # Cross terms: position × fwhm (∂A/∂ax = -A/ax, ∂A/∂ay = -A/ay)
-    dxax     = Ag * γ * (γ * Qx * Qax + Rxax  - Qx / ax)
-    dxay     = Ag * γ * (γ * Qx * Qay + Rxay  - Qx / ay)
-    dyax     = Ag * γ * (γ * Qy * Qax + Ryax  - Qy / ax)
-    dyay     = Ag * γ * (γ * Qy * Qay + Ryay  - Qy / ay)
+    dxax = Ag * γ * (γ * Qx * Qax + Rxax - Qx / ax)
+    dxay = Ag * γ * (γ * Qx * Qay + Rxay - Qx / ay)
+    dyax = Ag * γ * (γ * Qy * Qax + Ryax - Qy / ax)
+    dyay = Ag * γ * (γ * Qy * Qay + Ryay - Qy / ay)
 
     # Cross terms: fwhm × theta (∂A/∂theta = 0)
     daxtheta = Ag * γ * (γ * Qax * Qtheta + Raxtheta - Qtheta / ax)
     daytheta = Ag * γ * (γ * Qay * Qtheta + Raytheta - Qtheta / ay)
 
     # fwhm × fwhm (∂²A/∂ax² = 2A/ax², ∂²A/∂ay² = 2A/ay², ∂²A/∂ax∂ay = A/(ax*ay))
-    daxax    = Ag * (2 / ax² + γ^2 * Qax^2 + γ * Raxax - 2 * γ * Qax / ax)
-    dayay    = Ag * (2 / ay² + γ^2 * Qay^2 + γ * Rayay - 2 * γ * Qay / ay)
-    daxay    = Ag * (1 / (ax * ay) - γ * Qay / ax - γ * Qax / ay + γ^2 * Qax * Qay)
+    daxax = Ag * (2 / ax² + γ^2 * Qax^2 + γ * Raxax - 2 * γ * Qax / ax)
+    dayay = Ag * (2 / ay² + γ^2 * Qay^2 + γ * Rayay - 2 * γ * Qay / ay)
+    daxay = Ag * (1 / (ax * ay) - γ * Qay / ax - γ * Qax / ay + γ^2 * Qax * Qay)
 
     # Cross terms with flux (∂A/∂flux = 1/norm, ∂²A/∂flux∂ax = 1/(norm*ax), etc.)
-    dxflux     = γ * g * Qx / norm
-    dyflux     = γ * g * Qy / norm
-    daxflux    = g / norm * (-1 / ax + γ * Qax)
-    dayflux    = g / norm * (-1 / ay + γ * Qay)
+    dxflux = γ * g * Qx / norm
+    dyflux = γ * g * Qy / norm
+    daxflux = g / norm * (-1 / ax + γ * Qax)
+    dayflux = g / norm * (-1 / ay + γ * Qay)
     dthetaflux = γ * g * Qtheta / norm
 
     H = SA[
@@ -411,11 +411,11 @@ Base.@kwdef struct CircularGaussianPRF{T} <: AbstractPSFModel{T}
 end
 
 # Peak occurs when centroid is exactly at a pixel centre: flux * erf(√ln2 / fwhm)² + bkg
-peak(model::CircularGaussianPRF{T}) where T =
+peak(model::CircularGaussianPRF{T}) where {T} =
     model.flux * erf(sqrt(T(log(2))) / model.fwhm)^2 + model.bkg
-effective_area(model::CircularGaussianPRF{T}) where T = π * model.fwhm^2 / T(2 * log(2))
+effective_area(model::CircularGaussianPRF{T}) where {T} = π * model.fwhm^2 / T(2 * log(2))
 
-function evaluate(model::CircularGaussianPRF{T}, px, py) where T
+function evaluate(model::CircularGaussianPRF{T}, px, py) where {T}
     α = 2 * sqrt(T(log(2))) / model.fwhm
     dx = px - model.x
     dy = py - model.y
@@ -430,7 +430,7 @@ end
 # t = CircularGaussianPRF(x=0.0, y=0.0, fwhm=10.0, flux=1.0, bkg=10.0)
 # _, g = evaluate_fg(t, 1, 2)
 # gradient(x->evaluate(CircularGaussianPRF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
-function evaluate_fg(model::CircularGaussianPRF{T}, px, py) where T
+function evaluate_fg(model::CircularGaussianPRF{T}, px, py) where {T}
     α = 2 * sqrt(T(log(2))) / model.fwhm
     dx = px - model.x
     dy = py - model.y
@@ -453,7 +453,7 @@ function evaluate_fg(model::CircularGaussianPRF{T}, px, py) where T
     df_dy = model.flux / 4 * Ex * α * (Gym - Gyp)
     df_dfwhm = model.flux / 4 / model.fwhm * ((Gxm * u_m - Gxp * u_p) * Ey + Ex * (Gym * v_m - Gyp * v_p))
     df_dflux = Ex * Ey / 4
-    df_dbkg  = one(T)
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dfwhm, df_dflux, df_dbkg]
     return f, G
 end
@@ -515,11 +515,11 @@ Base.@kwdef struct GaussianPRF{T} <: AbstractPSFModel{T}
 end
 
 # Peak occurs when centroid is at a pixel centre: flux * erf(√ln2/x_fwhm) * erf(√ln2/y_fwhm) + bkg
-peak(model::GaussianPRF{T}) where T =
+peak(model::GaussianPRF{T}) where {T} =
     model.flux * erf(sqrt(T(log(2))) / model.x_fwhm) * erf(sqrt(T(log(2))) / model.y_fwhm) + model.bkg
-effective_area(model::GaussianPRF{T}) where T = π * model.x_fwhm * model.y_fwhm / T(2 * log(2))
+effective_area(model::GaussianPRF{T}) where {T} = π * model.x_fwhm * model.y_fwhm / T(2 * log(2))
 
-function evaluate(model::GaussianPRF{T}, px, py) where T
+function evaluate(model::GaussianPRF{T}, px, py) where {T}
     c = sqrt(-T(GAUSS_PRE)) # 2 * sqrt(T(log(2)))
     αx = c / model.x_fwhm
     αy = c / model.y_fwhm
@@ -541,7 +541,7 @@ end
 # t = GaussianPRF(x=0.0, y=0.0, x_fwhm=10.0, y_fwhm=6.0, theta=45.0, flux=1.0, bkg=10.0)
 # _, g = evaluate_fg(t, 1, 2)
 # gradient(x->evaluate(GaussianPRF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
-function evaluate_fg(model::GaussianPRF{T}, px, py) where T
+function evaluate_fg(model::GaussianPRF{T}, px, py) where {T}
     c = sqrt(-T(GAUSS_PRE)) # 2 * sqrt(T(log(2)))
     αx = c / model.x_fwhm
     αy = c / model.y_fwhm
@@ -603,16 +603,16 @@ Base.@kwdef struct AiryPSF{T} <: AbstractPSFModel{T}
         return new{T}(T(x), T(y), T(radius), T(flux), T(bkg))
     end
 end
-amplitude(model::AiryPSF{T}) where T = model.flux / (model.radius / T(AIRY_RZ))^2 * T(π) / 4
+amplitude(model::AiryPSF{T}) where {T} = model.flux / (model.radius / T(AIRY_RZ))^2 * T(π) / 4
 peak(model::AiryPSF) = amplitude(model) + model.bkg
 # 0.919... is 16 ∫ besselj1(u)^4 / u^3 du from 0 to ∞, numerically integrated
-effective_area(model::AiryPSF{T}) where T = 8 * (model.radius/ AIRY_RZ)^2 / π / T(0.9192407077670396)
-function fwhm(model::AiryPSF{T}) where T
+effective_area(model::AiryPSF{T}) where {T} = 8 * (model.radius / AIRY_RZ)^2 / π / T(0.9192407077670396)
+function fwhm(model::AiryPSF{T}) where {T}
     _f = T(0.8436659602162364) * model.radius
     return (_f, _f)
 end
 
-function evaluate(model::AiryPSF{T}, px, py) where T
+function evaluate(model::AiryPSF{T}, px, py) where {T}
     # r = hypot(px - model.x, py - model.y) # hypot is slow...
     r = sqrt((px - model.x)^2 + (py - model.y)^2)
     a = model.radius / T(AIRY_RZ)
@@ -625,7 +625,7 @@ function evaluate(model::AiryPSF{T}, px, py) where T
         (2 * J1 / u)^2
     end
     norm = a^2 / π * 4
-    amp  = model.flux / norm
+    amp = model.flux / norm
     return muladd(amp, A2, model.bkg)
 end
 # using ForwardDiff: gradient
@@ -634,7 +634,7 @@ end
 # t = AiryPSF(x=0.0, y=0.0, radius=10.0, flux=1.0, bkg=10.0)
 # _, g = evaluate_fg(t, 1, 2)
 # gradient(x->evaluate(AiryPSF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
-function evaluate_fg(model::AiryPSF{T}, px, py) where T
+function evaluate_fg(model::AiryPSF{T}, px, py) where {T}
     dx = px - model.x
     dy = py - model.y
     # r = hypot(dx, dy) # hypot is slow...
@@ -648,18 +648,18 @@ function evaluate_fg(model::AiryPSF{T}, px, py) where T
         J0 = besselj0(u)
         J1 = besselj1(u)
         J2 = besselj(2, u)
-        A  = 2J1 / u
+        A = 2J1 / u
         Ap = (u * (J0 - J2) - 2J1) / (u^2)
         A2 = A^2
         dA2_du = 2A * Ap
     end
     norm = a^2 / π * 4
-    amp  = model.flux / norm
+    amp = model.flux / norm
     f = muladd(amp, A2, model.bkg)
 
     # Gradients ↓
     df_dflux = A2 / norm
-    df_dbkg  = one(T)
+    df_dbkg = one(T)
     # avoid division by zero at center
     if r == 0
         return f, SA[zero(T), zero(T), zero(T), df_dflux, df_dbkg]

@@ -1,4 +1,3 @@
-
 # ---------------------------------------------------------------------------
 # Parameter vector ↔ model instance
 # ---------------------------------------------------------------------------
@@ -9,10 +8,10 @@
 Return the names of the free (non-fixed) parameters, their indices, and their initial values as
 a `Vector`. `fixed` is a `NamedTuple` whose keys name the fields to freeze.
 """
-function free_params(model::AbstractPSFModel{T}, fixed::NamedTuple=NamedTuple()) where {T}
+function free_params(model::AbstractPSFModel{T}, fixed::NamedTuple = NamedTuple()) where {T}
     all_props = getproperties(model)
     free_names = Tuple(k for k in keys(all_props) if !haskey(fixed, k))
-    free_idx   = Tuple(i for (i,k) in enumerate(keys(all_props)) if !haskey(fixed,k))
+    free_idx = Tuple(i for (i, k) in enumerate(keys(all_props)) if !haskey(fixed, k))
     x0 = T[all_props[k] for k in free_names]
     return free_names, free_idx, x0
 end
@@ -45,8 +44,10 @@ end
 # NLSolversBase objective builders
 # ---------------------------------------------------------------------------
 
-function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
-                   image, inds, inv_var, loss) where {T}
+function _make_fgh(
+        model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
+        image, inds, inv_var, loss
+    ) where {T}
 
     FT = float(T)
 
@@ -65,15 +66,15 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
                     w = isnothing(inv_var) ? one(FT) : inv_var[idx]
                     f_val, g_full, h_full = evaluate_fgh(m, px, py)
                     d = image[idx]
-                    ld  = LossFunctions.deriv(loss, f_val, d)
+                    ld = LossFunctions.deriv(loss, f_val, d)
                     ldd = LossFunctions.deriv2(loss, f_val, d)
                     loss_val = muladd(w, loss(f_val, d), loss_val)
-                    wld  = w * ld
+                    wld = w * ld
                     wldd = w * ldd
                     @inbounds @simd for j in eachindex(free_idx)
                         fj = free_idx[j]
                         gj = g_full[fj]
-                        # We could get fancy and only loop over the upper triangle here since H is symmetric, 
+                        # We could get fancy and only loop over the upper triangle here since H is symmetric,
                         # but benchmarks suggest it's not actually faster
                         for i in eachindex(free_idx)
                             fi = free_idx[i]
@@ -120,8 +121,10 @@ function _make_fgh(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::T
     )
 end
 
-function _make_fg(model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
-                  image, inds, inv_var, loss) where {T}
+function _make_fg(
+        model0::AbstractPSFModel{T}, free_names_val::Val, free_idx::Tuple, fixed,
+        image, inds, inv_var, loss
+    ) where {T}
 
     FT = float(T)
 
@@ -189,14 +192,16 @@ capabilities and the differentiability of `loss`:
 
 Override by passing `alg` explicitly.
 """
-function fit(model::AbstractPSFModel{T},
-             image::AbstractMatrix,
-             inds=axes(image);
-             fixed::NamedTuple=(;),
-             loss::LossFunctions.SupervisedLoss=LossFunctions.L2DistLoss(),
-             alg=nothing,
-             inv_var=nothing,
-             kwargs...) where {T}
+function fit(
+        model::AbstractPSFModel{T},
+        image::AbstractMatrix,
+        inds = axes(image);
+        fixed::NamedTuple = (;),
+        loss::LossFunctions.SupervisedLoss = LossFunctions.L2DistLoss(),
+        alg = nothing,
+        inv_var = nothing,
+        kwargs...
+    ) where {T}
 
     if !isnothing(inv_var)
         size(inv_var) == size(image) ||
@@ -224,21 +229,21 @@ function fit(model::AbstractPSFModel{T},
     end
 
     objective = if alg isa Union{Optim.FirstOrderOptimizer, Optim.SecondOrderOptimizer} && use_hessian
-                    _make_fgh(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
-                elseif alg isa Optim.FirstOrderOptimizer && use_deriv
-                    _make_fg(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
-                else
-                    # No analytic derivatives — scalar loss only (fall back to AD via Optim)
-                    function _scalar_loss(xv)
-                        m = model_from_vector(model, free_names_val, xv, fixed)
-                        return sum(CartesianIndices(inds)) do idx
-                            px, py = idx[1], idx[2]
-                            w = isnothing(inv_var) ? one(eltype(xv)) : inv_var[idx]
-                            w * loss(evaluate(m, px, py), image[idx])
-                        end
-                    end
-                end
-    result = Optim.optimize(objective, x0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
+        _make_fgh(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
+    elseif alg isa Optim.FirstOrderOptimizer && use_deriv
+        _make_fg(model, free_names_val, free_idx, fixed, image, inds, inv_var, loss)
+    else
+        # No analytic derivatives — scalar loss only (fall back to AD via Optim)
+        function _scalar_loss(xv)
+            m = model_from_vector(model, free_names_val, xv, fixed)
+            return sum(CartesianIndices(inds)) do idx
+                px, py = idx[1], idx[2]
+                w = isnothing(inv_var) ? one(eltype(xv)) : inv_var[idx]
+                w * loss(evaluate(m, px, py), image[idx])
+            end
+        end
+    end
+    result = Optim.optimize(objective, x0, alg, Optim.Options(; kwargs...); autodiff = ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
 
     x_best = Optim.minimizer(result)

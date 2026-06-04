@@ -3,12 +3,12 @@ using RecipesBase: apply_recipe
 using Test
 
 @testset "plotting - $K" for K in (gaussian, airydisk, moffat)
-    psf = K(x=0, y=1, fwhm=5)
+    psf = K(x = 0, y = 1, fwhm = 5)
     inds = (-8:8, -7:9)
     pplot = PsfPlot((psf, inds...))
-    recipes = apply_recipe(Dict{Symbol,Any}(), pplot)
+    recipes = apply_recipe(Dict{Symbol, Any}(), pplot)
     for rec in recipes
-        @test rec.plotattributes == Dict{Symbol,Any}(
+        @test rec.plotattributes == Dict{Symbol, Any}(
             :seriestype => :heatmap,
             :xlims => (-8, 8),
             :ylims => (-7, 9),
@@ -27,9 +27,9 @@ using Test
     end
 
     pplot = PsfPlot((psf, inds))
-    recipes_full = apply_recipe(Dict{Symbol,Any}(), pplot)
+    recipes_full = apply_recipe(Dict{Symbol, Any}(), pplot)
     for rec in recipes_full
-        @test rec.plotattributes == Dict{Symbol,Any}(
+        @test rec.plotattributes == Dict{Symbol, Any}(
             :seriestype => :heatmap,
             :xlims => (-8, 8),
             :ylims => (-7, 9),

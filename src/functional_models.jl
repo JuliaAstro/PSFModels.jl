@@ -3,7 +3,7 @@
 # factor for scaling radius in terms of the fwhm
 const AIRY_PRE = π / 0.973
 
-const BivariateLike = Union{<:Tuple,<:AbstractVector}
+const BivariateLike = Union{<:Tuple, <:AbstractVector}
 
 function rotate_point(dx, dy, theta)
     # generate rotation matrix
@@ -37,7 +37,7 @@ square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a
 scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or
 tuple, the weighting is applied along each axis (diagonal).
 """
-function gaussian(T, px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
+function gaussian(T, px, py; x, y, fwhm, amp = 1, theta = 0, bkg = 0)
     flux = amp * (π * (fwhm isa BivariateLike ? prod(fwhm) : fwhm^2) / -GAUSS_PRE)
     model = if fwhm isa BivariateLike
         GaussianPSF(x, y, fwhm..., theta, flux, bkg)
@@ -94,7 +94,7 @@ f(x | x̂, \mathrm{FWHM}, ϵ) = [ 2J₁(q) / q - 2ϵJ₁(ϵq) / q ]^2 / (1 - ϵ^
 ```
 where ``ϵ`` is the ratio (``0 ≤ ϵ < 1``).
 """
-airydisk(T, px, py; x, y, fwhm, ratio=0, amp=one(T), theta=0, bkg=0) =
+airydisk(T, px, py; x, y, fwhm, ratio = 0, amp = one(T), theta = 0, bkg = 0) =
     convert(T, _airydisk(px, py, x, y, fwhm, ratio, amp, theta, bkg))
 
 # isotropic
@@ -132,7 +132,7 @@ function _airydisk(px, py, x, y, fwhm::BivariateLike, ratio, amp, theta, backgro
     I1 = 2 * besselj1(q) / q
     iszero(ratio) && return amp * I1^2 + background
     I2 = 2 * ratio * besselj1(q * ratio) / q
-    return amp * (I1 - I2)^2+ background
+    return amp * (I1 - I2)^2 + background
 end
 
 
@@ -162,7 +162,7 @@ Note that this function technically uses the half width at half-maximum, defined
 as ``\mathrm{HWHM} = \mathrm{FWHM}/2``, but for compatibility with the other
 models, `fwhm` is used as an input parameter instead.
 """
-moffat(T, px, py; x, y, fwhm, alpha=1, amp=one(T), theta=0, bkg=0) =
+moffat(T, px, py; x, y, fwhm, alpha = 1, amp = one(T), theta = 0, bkg = 0) =
     convert(T, _moffat(px, py, x, y, fwhm, alpha, amp, theta, bkg))
 
 # isotropic
@@ -179,8 +179,8 @@ function _moffat(px, py, x, y, fwhm, alpha, amp, theta, background)
 end
 
 # http://openafox.com/science/peak-function-derivations.html#moffat
-_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1/alpha) - 1)
-_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1/alpha) - 1))
+_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1 / alpha) - 1)
+_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1 / alpha) - 1))
 
 # bivariate
 function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta, background)
