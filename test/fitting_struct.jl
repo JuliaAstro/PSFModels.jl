@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm, TukeyLoss, weight
+using PSFModels: free_params, model_from_vector, _has_hessian, _has_deriv, fit, fit_lm, TukeyLoss, weight, LMProblem, lm_irls, accum_residual!
 using Distributions: Poisson
 import LossFunctions
 import Optim
@@ -135,6 +135,79 @@ end
     @test_throws ArgumentError fit(init, img; inv_var = zeros(size(img)))
     @test_throws ArgumentError fit(init, img; inv_var = fill(-1.0, size(img)))
     @test_throws ArgumentError fit(init, img; inv_var = fill(1.0, (11, 10)))
+end
+
+# ---------------------------------------------------------------------------
+# Generic LMProblem / lm_irls tests
+# ---------------------------------------------------------------------------
+
+@testset "lm_irls generic linear problem" begin
+    xs = [0.0, 1.0, 2.0, 3.0, 4.0]
+    ys = @. 2.0 * xs + 1.0
+    active_idx = (1, 2)
+
+    function accum!(A, b, residuals, x, weights)
+        fill!(A, zero(eltype(A)))
+        fill!(b, zero(eltype(b)))
+        cost = zero(eltype(A))
+        for k in eachindex(xs)
+            w = isnothing(weights) ? one(eltype(A)) : weights[k]
+            r = x[1] * xs[k] + x[2] - ys[k]
+            cost += accum_residual!(A, b, residuals, k, r, (xs[k], 1.0), active_idx, w)
+        end
+        return cost
+    end
+
+    problem = LMProblem([0.5, 0.0], length(xs), accum!)
+    result = lm_irls(problem; max_iter = 20, x_tol = 1.0e-12, f_tol = 1.0e-12, g_tol = 1.0e-12)
+
+    @test result.converged
+    @test result.minimizer ≈ [2.0, 1.0] rtol = 1.0e-8
+    @test result.minimum < 1.0e-18
+end
+
+@testset "accum_residual! block-structured scatter" begin
+    xs = ([1.0, 2.0, 3.0], [1.5, 2.5, 3.5])
+    truth = [2.0, 1.0, -1.0] # shared slope, block 1 offset, block 2 offset
+    ys = (
+        [truth[1] * x + truth[2] for x in xs[1]],
+        [truth[1] * x + truth[3] for x in xs[2]],
+    )
+    nobs = length(xs[1]) + length(xs[2])
+
+    function block_accum!(A, b, residuals, x, weights)
+        fill!(A, zero(eltype(A)))
+        fill!(b, zero(eltype(b)))
+        cost = zero(eltype(A))
+        k = 0
+        for block in 1:2
+            local_idx = block + 1
+            active_idx = (1, local_idx)
+            for i in eachindex(xs[block])
+                k += 1
+                w = isnothing(weights) ? one(eltype(A)) : weights[k]
+                r = x[1] * xs[block][i] + x[local_idx] - ys[block][i]
+                cost += accum_residual!(A, b, residuals, k, r, (xs[block][i], 1.0), active_idx, w)
+            end
+        end
+        return cost
+    end
+
+    problem = LMProblem([1.0, 0.0, 0.0], nobs, block_accum!)
+    result = lm_irls(problem; max_iter = 20, x_tol = 1.0e-12, f_tol = 1.0e-12, g_tol = 1.0e-12)
+
+    @test result.converged
+    @test result.minimizer ≈ truth rtol = 1.0e-8
+
+    A = zeros(3, 3)
+    b = zeros(3)
+    residuals = zeros(nobs)
+    problem.accum!(A, b, residuals, truth, nothing)
+
+    @test A[2, 3] == 0.0
+    @test A[3, 2] == 0.0
+    @test A[1, 2] != 0.0
+    @test A[1, 3] != 0.0
 end
 
 # ---------------------------------------------------------------------------

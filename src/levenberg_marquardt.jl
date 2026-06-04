@@ -374,47 +374,330 @@ function covariance!(::ReweightedCovarianceEstimator, JTJ, cost_val, dof)
 end
 
 # ---------------------------------------------------------------------------
-# fit_lm
+# Generic LM/IRLS normal-equation optimizer
 # ---------------------------------------------------------------------------
 
-# Build the Gauss-Newton approximation to the Hessian (A = Jᵀ W J) and the
-# gradient (b = Jᵀ W r) together with the cost C = ∑ wᵢ rᵢ².
-#
-# The Jacobian row for pixel i is `g_full[free_idx]`, the projection of the
-# full analytic gradient onto the free parameters.  g_full is a StaticArrays
-# SVector (immutable), so we index into it rather than mutating it.
-function _lm_accum_fg!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, m::AbstractPSFModel, free_idx, image, inds, residuals, inv_var, weights = nothing) where {FT}
-    # Get the weight based on arguments provided
-    function _w(use_weights, use_inv_var, weights, inv_var, idx, ::Type{FT}) where {FT}
-        return FT(use_weights ? weights[idx] : (use_inv_var ? inv_var[idx] : one(FT)))
-    end
-    @assert size(A, 1) == size(A, 2) == length(b) == length(free_idx)
-    @assert size(image) == size(residuals)
-    fill!(A, zero(FT))
-    fill!(b, zero(FT))
-    cost = zero(FT)
-    n = length(free_idx)
-    # Weights come from IRLS, supercede inv_var if provided
-    use_weights = !isnothing(weights)
-    use_inv_var = !isnothing(inv_var)
-    for idx in CartesianIndices(inds)
-        w = _w(use_weights, use_inv_var, weights, inv_var, idx, FT)
-        f_val, g_full = evaluate_fg(m, idx)
-        r = FT(f_val) - FT(image[idx])
-        residuals[idx] = r
-        wr = w * r
-        cost = muladd(wr, r, cost)
-        @inbounds for j in 1:n
-            gj = FT(g_full[free_idx[j]])
-            b[j] = muladd(wr, gj, b[j])
-            # A is symmetric so we could only compute upper triangle,
-            # but this is not a bottleneck
-            for i in 1:n
-                A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
-            end
+"""
+    LMProblem(x0, nobs, accum!, base_weights=nothing)
+
+Reusable Levenberg-Marquardt problem definition. `accum!` must stream the
+observations for a parameter vector `x`, fill the normal equations `A = J'WJ`
+and `b = J'Wr` in place, write one residual per observation into `residuals`,
+and return the weighted cost.
+
+The callback signature is:
+
+```julia
+cost = accum!(A, b, residuals, x, weights)
+```
+
+where `weights` is either `nothing` or a length-`nobs` vector. This interface
+intentionally avoids materializing the full Jacobian.
+"""
+struct LMProblem{T, F, B}
+    x0::Vector{T}
+    nobs::Int
+    accum!::F
+    base_weights::B
+end
+
+function LMProblem(x0::AbstractVector{T}, nobs::Integer, accum!::F, base_weights::B = nothing) where {T, F, B}
+    FT = float(T)
+    weights = isnothing(base_weights) ? nothing : Vector{FT}(base_weights)
+    return LMProblem{FT, F, typeof(weights)}(Vector{FT}(x0), Int(nobs), accum!, weights)
+end
+
+"""
+    accum_residual!(A, b, residuals, k, r, g, active_idx, w)
+
+Scatter one residual into the normal equations. `g` contains derivatives for
+the parameters listed in `active_idx`, whose entries are indices into the global
+parameter vector. Returns the weighted squared-residual contribution.
+"""
+function accum_residual!(
+        A::AbstractMatrix{FT},
+        b::AbstractVector{FT},
+        residuals::AbstractVector{FT},
+        k::Integer,
+        r,
+        g,
+        active_idx,
+        w
+    ) where {FT}
+    @assert length(g) == length(active_idx)
+    rr = FT(r)
+    ww = FT(w)
+    residuals[k] = rr
+    wr = ww * rr
+    cost = wr * rr
+    @inbounds for j in eachindex(active_idx)
+        col = active_idx[j]
+        gj = FT(g[j])
+        b[col] = muladd(wr, gj, b[col])
+        for i in eachindex(active_idx)
+            row = active_idx[i]
+            A[row, col] = muladd(ww * FT(g[i]), gj, A[row, col])
         end
     end
     return cost
+end
+
+"""
+    lm_irls(problem::LMProblem; kwargs...) -> LMResult
+
+Run Levenberg-Marquardt with optional IRLS reweighting on a generic
+normal-equation problem. The core optimizer is agnostic to images and PSF model
+types; all model-specific work lives in `problem.accum!`.
+"""
+function lm_irls(
+        problem::LMProblem{T};
+        λ_init::Real = 1.0e-4,
+        λ_up::Real = 10.0,
+        λ_down::Real = 10.0,
+        λ_min::Real = 1.0e-12,
+        λ_max::Real = 1.0e12,
+        damping::AbstractLMDamping = MarquardtDamping(),
+        max_iter::Integer = 200,
+        x_tol::Real = 1.0e-8,
+        f_tol::Real = 1.0e-8,
+        g_tol::Real = 1.0e-8,
+        show_trace::Bool = false,
+        reweight::Union{Nothing, LossFunctions.SupervisedLoss} = nothing,
+        scale_estimator::Union{Nothing, AbstractScaleEstimator} = nothing,
+        covariance_estimator::Union{Nothing, AbstractCovarianceEstimator} = nothing
+    ) where {T}
+
+    # Input validation
+    FT = float(T)
+    x0 = Vector{FT}(problem.x0)
+    n = length(x0)
+    n > 0 || throw(ArgumentError("all parameters are fixed; nothing to fit"))
+    problem.nobs > 0 || throw(ArgumentError("number of observations must be positive"))
+    dof = problem.nobs - n
+    dof > 0 || throw(
+        ArgumentError(
+            "degrees of freedom must be positive; " *
+                "too many free parameters ($n) for the number of observations ($(problem.nobs))"
+        )
+    )
+
+    base_weights = isnothing(problem.base_weights) ? nothing : Vector{FT}(problem.base_weights)
+    if !isnothing(base_weights)
+        length(base_weights) == problem.nobs ||
+            throw(ArgumentError("`base_weights` must have length `nobs`"))
+        all(x -> isfinite(x) && x >= 0, base_weights) ||
+            throw(ArgumentError("`base_weights` must be finite and non-negative"))
+    end
+
+    # Allocate accumulators, working arrays
+    λ = FT(λ_init)
+    residuals = zeros(FT, problem.nobs)
+    x, x_cand = x0, Vector{FT}(undef, n)
+    A, b = zeros(FT, n, n), zeros(FT, n)
+    A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
+    A_damp = zeros(FT, n, n)
+    δ = zeros(FT, n)
+
+    # If performing IRLS, initialize variable weights 
+    # separate from `base_weights` (which are fixed input) and scale estimator
+    do_irls = !isnothing(reweight)
+    scale_est = if !isnothing(scale_estimator)
+        scale_estimator
+    elseif !isnothing(base_weights)
+        FixedScale(sqrt(inv(mean(base_weights))))
+    else
+        MADScale()
+    end
+    σ_final = FT(NaN)
+
+    weights = if do_irls
+        if isnothing(base_weights)
+            fill(one(FT), problem.nobs)
+        else
+            copy(base_weights)
+        end
+    else
+        base_weights
+    end
+
+    # Fill normal equations, residuals, and return cost at initial parameter vector
+    cost = problem.accum!(A, b, residuals, x, weights)
+    cost_init = cost
+
+    if show_trace
+        gnorm0 = sqrt(sum(abs2, b))
+        println("Initialization | cost = $cost_init | λ = $λ | ||g|| = $gnorm0")
+    end
+
+    x_converged = false
+    f_converged = false
+    g_converged = false
+    converged = false
+    iter = 0
+
+    while iter < max_iter
+        iter += 1
+
+        # If the gradient is already small, solving for a step can be unreliable.
+        gnorm = sqrt(sum(abs2, b))
+        if gnorm ≤ g_tol
+            g_converged = true
+            converged = true
+            show_trace && println("Iter $(lpad(iter, 4)) | converged on gradient norm (||g|| = $gnorm)")
+            break
+        end
+
+        # Apply damping
+        A_damp .= A
+        damp!(A_damp, damping, λ)
+
+        # Solve for step δ: (J'WJ + D) δ = -J'Wr
+        local F
+        try
+            F = cholesky!(Symmetric(A_damp))
+        catch e
+            e isa PosDefException || rethrow()
+            λ = min(λ * FT(λ_up), FT(λ_max))
+            continue
+        end
+        ldiv!(δ, F, -b)
+        δnorm = sqrt(sum(abs2, δ))
+
+        # Evaluate cost at candidate step, accept if cost decreases
+        x_cand .= x .+ δ
+        cost_cand = problem.accum!(A_cand, b_cand, residuals, x_cand, weights)
+        accepted = cost_cand < cost
+
+        if show_trace
+            status = accepted ? "accepted" : "rejected"
+            println(
+                "Iter $(lpad(iter, 4)) | cost = $cost → $cost_cand | " *
+                    "λ = $λ | ||g|| = $gnorm | ||δ|| = $δnorm | $status"
+            )
+        end
+
+        if accepted
+            # If accepted, update parameters, cost, and decrease damping λ
+            Δcost = cost - cost_cand
+            cost = cost_cand
+            λ = max(λ / FT(λ_down), FT(λ_min))
+            x .= x_cand
+            A .= A_cand
+            b .= b_cand
+
+            x_converged = δnorm ≤ FT(x_tol) * (sqrt(sum(abs2, x)) + FT(x_tol))
+            f_converged = Δcost ≤ FT(f_tol) * (abs(cost) + FT(f_tol))
+
+            if x_converged || f_converged
+                converged = true
+                break
+            end
+
+            if do_irls
+                # If doing IRLS, calculate weight scale from residuals
+                σ_final = FT(estimate_scale(scale_est, residuals))
+
+                if σ_final > eps(FT)
+                    # Update weights based on the new residuals and scale estimate
+                    @inbounds for k in eachindex(residuals)
+                        r_scaled = residuals[k] / σ_final
+                        base_w = isnothing(base_weights) ? one(FT) : base_weights[k]
+                        weights[k] = base_w * weight(reweight, FT(r_scaled))
+                    end
+                    # Recompute normal equations with updated weights
+                    cost = problem.accum!(A, b, residuals, x, weights)
+                    # After changing weights, we are no longer solving the same weighted
+                    # least-squares problem. A = J'WJ, b = J'Wr, and cost all change when 
+                    # W changes, so the old LM damping history is not strictly calibrated
+                    # to the new local quadratic model.
+                    λ = FT(λ_init)
+                end
+            end
+        else
+            λ = min(λ * FT(λ_up), FT(λ_max))
+        end
+    end
+
+    covariance_estimator = if !isnothing(covariance_estimator)
+        covariance_estimator
+    elseif !isnothing(base_weights) && !do_irls
+        KnownWeightsCovarianceEstimator()
+    else
+        ReweightedCovarianceEstimator()
+    end
+
+    cov = covariance!(covariance_estimator, A, cost, dof)
+    σ² = cost / dof
+    χ² = if isnothing(base_weights) && do_irls && !isnan(σ_final) && σ_final > eps(FT)
+        σ² / σ_final^2
+    else
+        σ²
+    end
+
+    return LMResult(
+        x, cost, cost_init,
+        converged, x_converged, f_converged, g_converged,
+        iter, λ, σ_final, cov, χ²
+    )
+end
+
+# ---------------------------------------------------------------------------
+# fit_lm
+# ---------------------------------------------------------------------------
+
+function _fit_lm_problem(
+        model::AbstractPSFModel{T},
+        image::AbstractMatrix,
+        inds::CartesianIndices,
+        free_names_val::Val,
+        free_idx,
+        x0::AbstractVector,
+        fixed::NamedTuple,
+        inv_var
+    ) where {T}
+    FT = float(T)
+    base_weights = if isnothing(inv_var)
+        nothing
+    else
+        weights = Vector{FT}(undef, length(inds))
+        base_k = 0
+        @inbounds for idx in inds
+            base_k += 1
+            weights[base_k] = FT(inv_var[idx])
+        end
+        weights
+    end
+
+    function accum!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, residuals::AbstractVector{FT}, x::AbstractVector{FT}, weights) where {FT}
+        nparams = length(free_idx)
+        @assert size(A, 1) == size(A, 2) == length(b) == nparams
+        @assert length(residuals) == length(inds)
+        fill!(A, zero(FT))
+        fill!(b, zero(FT))
+        cost = zero(FT)
+        m = model_from_vector(model, free_names_val, x, fixed)
+        use_weights = !isnothing(weights)
+        obs_k = 0
+        @inbounds for idx in inds
+            obs_k += 1
+            w = use_weights ? FT(weights[obs_k]) : one(FT)
+            f_val, g_full = evaluate_fg(m, idx)
+            r = FT(f_val) - FT(image[idx])
+            residuals[obs_k] = r
+            wr = w * r
+            cost = muladd(wr, r, cost)
+            @inbounds for j in 1:nparams
+                gj = FT(g_full[free_idx[j]])
+                b[j] = muladd(wr, gj, b[j])
+                for i in 1:nparams
+                    A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
+                end
+            end
+        end
+        return cost
+    end
+
+    return LMProblem(Vector{FT}(x0), length(inds), accum!, base_weights)
 end
 
 """
@@ -567,163 +850,29 @@ function fit_lm(
     dof > 0 || throw(
         ArgumentError(
             "degrees of freedom must be positive; " *
-                "too many free parameters ($n) for the number of pixels ($(prod(length, inds)))"
+                "too many free parameters ($n) for the number of pixels ($(length(inds)))"
         )
     )
     free_names_val = Val(free_names)
 
-    # Pre-allocate for in-place accumulation
-    FT = float(T)
-    λ = FT(λ_init)
-    residuals = zeros(FT, axes(image))
-    x, x_cand = Vector{FT}(x0), Vector{FT}(undef, n)
-    A, b = zeros(FT, n, n), zeros(FT, n)
-    A_cand, b_cand = zeros(FT, n, n), zeros(FT, n)
-    A_damp = zeros(FT, n, n)
-    δ = zeros(FT, n)
-
-    # IRLS setup
-    do_irls = !isnothing(reweight)
-    # Determine scale estimator: explicit > FixedScale from inv_var > MAD
-    scale_est = if !isnothing(scale_estimator)
-        scale_estimator
-    elseif !isnothing(inv_var)
-        # FixedScale from inv_var — σ ≈ 1/√(inv_var) averaged over the cutout
-        FixedScale(sqrt(inv(mean(view(inv_var, inds)))))
-    else
-        MADScale()
-    end
-    σ_final = FT(NaN) # Scale estimate from IRLS (NaN if not applicable)
-    # Pre-allocate weight arrays for IRLS
-    weights = nothing # Declare so it can be updated in-place if do_irls
-    if do_irls
-        weights = similar(image, FT)
-        isnothing(inv_var) ? fill!(weights, one(FT)) : copyto!(weights, inv_var)
-    end
-
-    # Initial cost and Jacobian
-    m0 = model_from_vector(model, free_names_val, x, fixed)
-    cost = _lm_accum_fg!(A, b, m0, free_idx, image, inds, residuals, inv_var, weights)
-    cost_init = cost
-
-    if show_trace
-        gnorm0 = sqrt(sum(abs2, b))
-        println("Initialization | cost = $cost_init | λ = $λ | ||g|| = $gnorm0")
-    end
-
-    # LM iteration
-    x_converged = false
-    f_converged = false
-    g_converged = false
-    converged = false
-    iter = 0
-
-    while iter < max_iter
-        iter += 1
-
-        # Test for gradient-norm convergence before attempting the linear solve,
-        # since if the gradient is small we are already close to a local minimum
-        # and the step direction may be unreliable
-        gnorm = sqrt(sum(abs2, b))
-        if gnorm ≤ g_tol
-            g_converged = true
-            converged = true
-            show_trace && println("Iter $(lpad(iter, 4)) | converged on gradient norm (||g|| = $gnorm)")
-            break
-        end
-
-        # Build the damped normal matrix A + λD
-        A_damp .= A
-        damp!(A_damp, damping, λ)
-
-        # Solve (A + λD) δ = −b; same as δ = A_damp \ (-b)
-        local F
-        try
-            F = cholesky!(Symmetric(A_damp))
-        catch e
-            # If the matrix is not positive definite, increase λ and retry
-            e isa LinearAlgebra.PosDefException || rethrow()
-            λ = min(λ * FT(λ_up), FT(λ_max))
-            continue
-        end
-        ldiv!(δ, F, -b)
-        δnorm = sqrt(sum(abs2, δ))
-
-        # Evaluate the candidate step
-        x_cand .= x .+ δ
-        m_cand = model_from_vector(model, free_names_val, x_cand, fixed)
-        cost_cand = _lm_accum_fg!(A_cand, b_cand, m_cand, free_idx, image, inds, residuals, inv_var, weights)
-        accepted = cost_cand < cost
-
-        if show_trace
-            status = accepted ? "accepted" : "rejected"
-            println(
-                "Iter $(lpad(iter, 4)) | cost = $cost → $cost_cand | " *
-                    "λ = $λ | ||g|| = $gnorm | ||δ|| = $δnorm | $status"
-            )
-        end
-
-        if accepted
-            Δcost = cost - cost_cand
-            cost = cost_cand
-            λ = max(λ / FT(λ_down), FT(λ_min))
-            x .= x_cand
-            A .= A_cand
-            b .= b_cand
-
-            # Check standard LM convergence before reweighting
-            x_converged = δnorm ≤ x_tol * (sqrt(sum(abs2, x)) + x_tol)
-            f_converged = Δcost ≤ f_tol * (abs(cost) + f_tol)
-
-            if x_converged || f_converged
-                converged = true
-                break
-            end
-
-            # IRLS: recompute weights from current residuals
-            if do_irls
-                σ_final = estimate_scale(scale_est, view(residuals, inds))
-
-                # Skip reweighting if scale is zero (noiseless or degenerate)
-                if σ_final > eps(FT)
-                    for idx in CartesianIndices(inds)
-                        r_scaled = residuals[idx] / σ_final
-                        ivar = isnothing(inv_var) ? one(FT) : inv_var[idx]
-                        weights[idx] = ivar * weight(reweight, FT(r_scaled))
-                    end
-                    # Recompute cost and gradient with new weights
-                    cost = _lm_accum_fg!(A, b, m_cand, free_idx, image, inds, residuals, inv_var, weights)
-                    # Reset λ — the Gauss-Newton approximation changed with the new weights
-                    λ = λ_init
-                end
-            end
-        else
-            λ = min(λ * FT(λ_up), FT(λ_max))
-        end
-    end
-
-    best_model = model_from_vector(model, free_names_val, x, fixed)
-
-    covariance_estimator = if !isnothing(covariance_estimator)
+    problem = _fit_lm_problem(model, image, inds, free_names_val, free_idx, x0, fixed, inv_var)
+    result = lm_irls(
+        problem;
+        λ_init,
+        λ_up,
+        λ_down,
+        λ_min,
+        λ_max,
+        damping,
+        max_iter,
+        x_tol,
+        f_tol,
+        g_tol,
+        show_trace,
+        reweight,
+        scale_estimator,
         covariance_estimator
-    elseif !isnothing(inv_var) && !do_irls
-        KnownWeightsCovarianceEstimator()
-    else
-        ReweightedCovarianceEstimator()
-    end
-
-    cov = covariance!(covariance_estimator, A, cost, dof)
-    σ² = cost / dof # mean weighted squares residual per dof in data units
-    χ² = if isnothing(inv_var) && do_irls && !isnan(σ_final) && σ_final > eps(FT)
-        σ² / σ_final^2 # reduced chi-squared: cost per dof normalized by the estimated scale²
-    else
-        σ² # reduced chi-squared without scale normalization (e.g. when inv_var is provided or no IRLS)
-    end
-
-    result = LMResult(
-        x, cost, cost_init,
-        converged, x_converged, f_converged, g_converged,
-        iter, λ, σ_final, cov, χ²
     )
+    best_model = model_from_vector(model, free_names_val, result.minimizer, fixed)
     return best_model, result
 end

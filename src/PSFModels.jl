@@ -2,7 +2,7 @@ module PSFModels
 
 import ADTypes
 import ForwardDiff
-using LinearAlgebra: inv, cholesky!, ldiv!, I, Symmetric, pinv
+using LinearAlgebra: inv, cholesky!, ldiv!, I, Symmetric, pinv, PosDefException
 import LossFunctions
 import NLSolversBase
 import Optim
