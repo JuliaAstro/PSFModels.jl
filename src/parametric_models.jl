@@ -590,6 +590,46 @@ function evaluate_fg(model::GaussianPRF{T}, px, py) where {T}
     return f, G
 end
 
+@doc raw"""
+    AiryPSF(x, y, radius, flux, bkg) -> AiryPSF{T}
+
+Airy disk point spread function (PSF) with centroid `(x, y)`, first-dark-ring `radius`,
+total `flux`, and scalar background `bkg`.
+
+The `radius` parameter is the radial distance from the centroid to the first dark ring
+(also called the first zero) of the Airy pattern. This is the limiting angular
+resolution of an optical system with ``R = R_z \lambda/D``, where `D` is the
+aperture diameter, ``\lambda`` is the wavelength of the light, and `R_z ≈ 1.2197` is the
+first positive zero of the first-order Bessel function `J_1`. 
+
+The model is evaluated as
+
+```math
+f(px, py) = \frac{\pi\,\mathrm{flux}}{4\,a^2}
+            \left(\frac{2\,J_1(u)}{u}\right)^2 + \mathrm{bkg}
+```
+
+where
+
+```math
+r = \sqrt{(px - x)^2 + (py - y)^2}, \qquad
+u = \frac{\pi\,r}{a}, \qquad
+a = \frac{\mathrm{radius}}{r_z}, \qquad
+r_z = \frac{j_{1,1}}{\pi} \approx 1.2197
+```
+
+with $j_{1,1}$ the first positive zero of the first-order Bessel function $J_1$.
+The singularity at $u = 0$ is handled analytically; the peak value at the centroid
+is $\pi\,\mathrm{flux}/(4a^2) + \mathrm{bkg}$.
+The FWHM is approximately $0.8437 \times \mathrm{radius}$ along each axis.
+
+```jldoctest
+julia> using PSFModels: AiryPSF
+
+julia> AiryPSF(x=1.0, y=2.0, radius=3.0, flux=4.0, bkg=5.0) isa AiryPSF{Float64}
+true
+```
+"""
 Base.@kwdef struct AiryPSF{T} <: AbstractPSFModel{T}
     x::T
     y::T
