@@ -13,7 +13,7 @@ using StaticArrays: SA, SVector, MVector, MMatrix
 using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
-export AiryPSF, CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffat, MoffatPSF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
+export AiryPSF, CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
 
 """Abstract type for PSF models. All PSF models should be subtypes of this abstract type, and implement the following methods:"""
 abstract type AbstractPSFModel{T} end

@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffat, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
 using Test
 
 # Tests generic API, type return, etc
@@ -40,8 +40,8 @@ end
 for model in (
         AiryPSF(x = 1.3, y = 2.4, radius = 3.0, flux = 120.0, bkg = 10.0),
         AiryPSF(x = 1.3f0, y = 2.4f0, radius = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
-        CircularMoffat(x = 1.3, y = 2.4, α = 3.0, β = 3.5, flux = 120.0, bkg = 10.0),
-        CircularMoffat(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
+        CircularMoffatPSF(x = 1.3, y = 2.4, α = 3.0, β = 3.5, flux = 120.0, bkg = 10.0),
+        CircularMoffatPSF(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
         MoffatPSF(x = 2.5, y = 5.0, x_α = 3.0, y_α = 4.0, theta = 35.0, β = 3.5, flux = 120.0, bkg = 10.0),
         MoffatPSF(x = 2.5f0, y = 5.0f0, x_α = 3.0f0, y_α = 4.0f0, theta = 35.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
         CircularGaussianPSF(x = 1.3, y = 2.4, fwhm = 3.0, flux = 120.0, bkg = 10.0),
@@ -58,15 +58,15 @@ for model in (
     end
 end
 
-@testset "CircularMoffat" begin
+@testset "CircularMoffatPSF" begin
     @testset "constructor promotion" begin
-        @test CircularMoffat(x = 1.3, y = 2.4, α = 3.0, β = 2.5, flux = 120.0, bkg = 10) isa CircularMoffat{Float64}
-        @test CircularMoffat(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 2.5f0, flux = 120.0f0, bkg = 10.0f0) isa CircularMoffat{Float32}
-        @test CircularMoffat(x = 1, y = 2, α = 3, β = 2, flux = 120, bkg = 10) isa CircularMoffat{Float64}
-        @test CircularMoffat(x = BigFloat(1.3), y = BigFloat(2.4), α = BigFloat(3.0), β = BigFloat(2.5), flux = BigFloat(120.0), bkg = BigFloat(10.0)) isa CircularMoffat{BigFloat}
+        @test CircularMoffatPSF(x = 1.3, y = 2.4, α = 3.0, β = 2.5, flux = 120.0, bkg = 10) isa CircularMoffatPSF{Float64}
+        @test CircularMoffatPSF(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 2.5f0, flux = 120.0f0, bkg = 10.0f0) isa CircularMoffatPSF{Float32}
+        @test CircularMoffatPSF(x = 1, y = 2, α = 3, β = 2, flux = 120, bkg = 10) isa CircularMoffatPSF{Float64}
+        @test CircularMoffatPSF(x = BigFloat(1.3), y = BigFloat(2.4), α = BigFloat(3.0), β = BigFloat(2.5), flux = BigFloat(120.0), bkg = BigFloat(10.0)) isa CircularMoffatPSF{BigFloat}
     end
 
-    m = CircularMoffat(x = 0, y = 0, α = 5, β = 3, flux = 50, bkg = 10)
+    m = CircularMoffatPSF(x = 0, y = 0, α = 5, β = 3, flux = 50, bkg = 10)
     @test centroid(m) == (0.0, 0.0)
     @test integral(m) == 50.0
     @test all(x -> isapprox(x, 5.098245285339587), fwhm(m))
@@ -107,8 +107,8 @@ end
         @test g ≈ [-0.016559689619557116, 0.6781570383450282, -0.0684867059819571, -0.07153854864611547, 0.012414115378633376, 0.2195970122399787, 0.01896803562918631, 1.0]
     end
 
-    # equal fwhm + theta=0 reduces to CircularMoffatPSF
-    mc = CircularMoffat(x = 1.5, y = 2.5, α = 8, β = 2.5, flux = 3, bkg = 0)
+    # equal α values and theta=0 reduce to CircularMoffatPSF
+    mc = CircularMoffatPSF(x = 1.5, y = 2.5, α = 8, β = 2.5, flux = 3, bkg = 0)
     mm = MoffatPSF(x = 1.5, y = 2.5, x_α = 8, y_α = 8, theta = 0, β = 2.5, flux = 3, bkg = 0)
     @test evaluate(mc, 3, 4) ≈ evaluate(mm, 3, 4)
 end
