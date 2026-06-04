@@ -713,3 +713,29 @@ function evaluate_fg(model::AiryPSF{T}, px, py) where {T}
     df_dradius = df_da * da_dR
     return f, SA[df_dx, df_dy, df_dradius, df_dflux, df_dbkg]
 end
+
+Base.@kwdef struct CircularMoffat{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    α::T
+    β::T
+    flux::T
+    bkg::T
+
+    function CircularMoffat(x, y, α, β, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(α), typeof(β), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T
+        return new{T}(T(x), T(y), T(α), T(β), T(flux), T(bkg))
+    end
+end
+amplitude(model::CircularMoffat{T}) where {T} = model.flux * (model.β - 1) / (π * model.α^2)
+peak(model::CircularMoffat) = amplitude(model) + model.bkg
+# effective_area(model::AiryPSF{T}) where {T} = 8 * (model.radius / AIRY_RZ)^2 / π / T(0.9192407077670396)
+fwhm(model::CircularMoffat{T}) where {T} = 2 * model.α * sqrt(exp2(1 / model.β) - 1)
+function evaluate(model::CircularMoffat{T}, px, py) where {T}
+    dx = px - model.x
+    dy = py - model.y
+    r2 = dx^2 + dy^2
+    amp = model.flux * (model.β - 1) / (π * model.α^2)
+    return muladd(amp, (1 + r2 / model.α^2)^(-model.β), model.bkg)
+end
