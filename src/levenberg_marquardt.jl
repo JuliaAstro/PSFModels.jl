@@ -470,7 +470,7 @@ function lm_irls(
     A_damp = zeros(FT, n, n)
     δ = zeros(FT, n)
 
-    # If performing IRLS, initialize variable weights 
+    # If performing IRLS, initialize variable weights
     # separate from `base_weights` (which are fixed input) and scale estimator
     do_irls = !isnothing(reweight)
     scale_est = if !isnothing(scale_estimator)
@@ -768,8 +768,12 @@ function fit_lm(
         end
     end
     if !(_has_deriv(model))
-        throw(ArgumentError("model does not implement `evaluate_fg`; " *
-                            "Levenberg-Marquardt requires gradient"))
+        throw(
+            ArgumentError(
+                "model does not implement `evaluate_fg`; " *
+                    "Levenberg-Marquardt requires gradient"
+            )
+        )
     end
 
     # Converting here simplifies downstream indexing
@@ -781,8 +785,12 @@ function fit_lm(
     n > 0 || throw(ArgumentError("all model parameters are fixed; nothing to fit"))
     dof = length(inds) - n
     if dof < 0
-        throw(ArgumentError("degrees of freedom must be positive; " *
-                            "too many free parameters ($n) for the number of pixels ($(length(inds)))"))
+        throw(
+            ArgumentError(
+                "degrees of freedom must be positive; " *
+                    "too many free parameters ($n) for the number of pixels ($(length(inds)))"
+            )
+        )
     end
     free_names_val = Val(free_names)
 
@@ -800,7 +808,7 @@ function fit_lm(
         weights
     end
 
-    # Custom accumulator for LM that streams over pixels, evaluates the model and Jacobian via `evaluate_fg`, 
+    # Custom accumulator for LM that streams over pixels, evaluates the model and Jacobian via `evaluate_fg`,
     # and fills the normal equations without materializing the full Jacobian. This is the core of the algorithm; all model-specific work lives here.
     function accum!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, residuals::AbstractVector{FT}, x::AbstractVector{FT}, weights) where {FT}
         nparams = length(free_idx)
