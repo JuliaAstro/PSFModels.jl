@@ -630,61 +630,6 @@ end
 # fit_lm
 # ---------------------------------------------------------------------------
 
-function _fit_lm_problem(
-        model::AbstractPSFModel{T},
-        image::AbstractMatrix,
-        inds::CartesianIndices,
-        free_names_val::Val,
-        free_idx,
-        x0::AbstractVector,
-        fixed::NamedTuple,
-        inv_var
-    ) where {T}
-    FT = float(T)
-    base_weights = if isnothing(inv_var)
-        nothing
-    else
-        weights = Vector{FT}(undef, length(inds))
-        base_k = 0
-        @inbounds for idx in inds
-            base_k += 1
-            weights[base_k] = FT(inv_var[idx])
-        end
-        weights
-    end
-
-    function accum!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, residuals::AbstractVector{FT}, x::AbstractVector{FT}, weights) where {FT}
-        nparams = length(free_idx)
-        @assert size(A, 1) == size(A, 2) == length(b) == nparams
-        @assert length(residuals) == length(inds)
-        fill!(A, zero(FT))
-        fill!(b, zero(FT))
-        cost = zero(FT)
-        m = model_from_vector(model, free_names_val, x, fixed)
-        use_weights = !isnothing(weights)
-        obs_k = 0
-        @inbounds for idx in inds
-            obs_k += 1
-            w = use_weights ? FT(weights[obs_k]) : one(FT)
-            f_val, g_full = evaluate_fg(m, idx)
-            r = FT(f_val) - FT(image[idx])
-            residuals[obs_k] = r
-            wr = w * r
-            cost = muladd(wr, r, cost)
-            @inbounds for j in 1:nparams
-                gj = FT(g_full[free_idx[j]])
-                b[j] = muladd(wr, gj, b[j])
-                for i in 1:nparams
-                    A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
-                end
-            end
-        end
-        return cost
-    end
-
-    return LMProblem(Vector{FT}(x0), length(inds), accum!, base_weights)
-end
-
 """
     PSFModels.fit_lm(model::AbstractPSFModel, image, inds=axes(image);
                      fixed=(;), inv_var=nothing,
@@ -815,19 +760,17 @@ function fit_lm(
 
     # Validate inputs
     if !isnothing(inv_var)
-        size(inv_var) == size(image) ||
+        if size(inv_var) != size(image)
             throw(ArgumentError("`inv_var` must be the same size as `image`"))
-        all(x -> isfinite(x) && x > 0, inv_var) ||
+        end
+        if !all(x -> isfinite(x) && x > 0, inv_var)
             throw(ArgumentError("`inv_var` must be finite and > 0 everywhere"))
-
+        end
     end
-    _has_deriv(model) ||
-        throw(
-        ArgumentError(
-            "model does not implement `evaluate_fg`; " *
-                "Levenberg-Marquardt requires gradient"
-        )
-    )
+    if !(_has_deriv(model))
+        throw(ArgumentError("model does not implement `evaluate_fg`; " *
+                            "Levenberg-Marquardt requires gradient"))
+    end
 
     # Converting here simplifies downstream indexing
     inds = CartesianIndices(inds)
@@ -837,15 +780,58 @@ function fit_lm(
     n = length(x0)
     n > 0 || throw(ArgumentError("all model parameters are fixed; nothing to fit"))
     dof = length(inds) - n
-    dof > 0 || throw(
-        ArgumentError(
-            "degrees of freedom must be positive; " *
-                "too many free parameters ($n) for the number of pixels ($(length(inds)))"
-        )
-    )
+    if dof < 0
+        throw(ArgumentError("degrees of freedom must be positive; " *
+                            "too many free parameters ($n) for the number of pixels ($(length(inds)))"))
+    end
     free_names_val = Val(free_names)
 
-    problem = _fit_lm_problem(model, image, inds, free_names_val, free_idx, x0, fixed, inv_var)
+    # Set up base weights from `inv_var` if provided, converting to FT and restricting to `inds`
+    FT = float(T)
+    base_weights = if isnothing(inv_var)
+        nothing
+    else
+        weights = Vector{FT}(undef, length(inds))
+        base_k = 0
+        @inbounds for idx in inds
+            base_k += 1
+            weights[base_k] = FT(inv_var[idx])
+        end
+        weights
+    end
+
+    # Custom accumulator for LM that streams over pixels, evaluates the model and Jacobian via `evaluate_fg`, 
+    # and fills the normal equations without materializing the full Jacobian. This is the core of the algorithm; all model-specific work lives here.
+    function accum!(A::AbstractMatrix{FT}, b::AbstractVector{FT}, residuals::AbstractVector{FT}, x::AbstractVector{FT}, weights) where {FT}
+        nparams = length(free_idx)
+        @assert size(A, 1) == size(A, 2) == length(b) == nparams
+        @assert length(residuals) == length(inds)
+        fill!(A, zero(FT))
+        fill!(b, zero(FT))
+        cost = zero(FT)
+        m = model_from_vector(model, free_names_val, x, fixed)
+        use_weights = !isnothing(weights)
+        obs_k = 0
+        @inbounds for idx in inds
+            obs_k += 1
+            w = use_weights ? FT(weights[obs_k]) : one(FT)
+            f_val, g_full = evaluate_fg(m, idx)
+            r = FT(f_val) - FT(image[idx])
+            residuals[obs_k] = r
+            wr = w * r
+            cost = muladd(wr, r, cost)
+            @inbounds for j in 1:nparams
+                gj = FT(g_full[free_idx[j]])
+                b[j] = muladd(wr, gj, b[j])
+                for i in 1:nparams
+                    A[i, j] = muladd(w * FT(g_full[free_idx[i]]), gj, A[i, j])
+                end
+            end
+        end
+        return cost
+    end
+
+    problem = LMProblem(Vector{FT}(x0), length(inds), accum!, base_weights)
     result = lm_irls(
         problem;
         λ_init,
