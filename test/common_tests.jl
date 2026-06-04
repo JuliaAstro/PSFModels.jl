@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffat, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
 using Test
 
 # Tests generic API, type return, etc
@@ -40,6 +40,8 @@ end
 for model in (
         AiryPSF(x = 1.3, y = 2.4, radius = 3.0, flux = 120.0, bkg = 10.0),
         AiryPSF(x = 1.3f0, y = 2.4f0, radius = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
+        CircularMoffat(x = 1.3, y = 2.4, α = 3.0, β = 3.5, flux = 120.0, bkg = 10.0),
+        CircularMoffat(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 3.5f0, flux = 120.0f0, bkg = 10.0f0),
         CircularGaussianPSF(x = 1.3, y = 2.4, fwhm = 3.0, flux = 120.0, bkg = 10.0),
         CircularGaussianPSF(x = 1.3f0, y = 2.4f0, fwhm = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
         GaussianPSF(x = 2.5, y = 5.0, x_fwhm = 3.0, y_fwhm = 4.0, theta = 35, flux = 120.0, bkg = 10),
@@ -51,6 +53,31 @@ for model in (
     )
     @testset "API: $(typeof(model))" begin
         test_common(model)
+    end
+end
+
+@testset "CircularMoffat" begin
+    @testset "constructor promotion" begin
+        @test CircularMoffat(x = 1.3, y = 2.4, α = 3.0, β = 2.5, flux = 120.0, bkg = 10) isa CircularMoffat{Float64}
+        @test CircularMoffat(x = 1.3f0, y = 2.4f0, α = 3.0f0, β = 2.5f0, flux = 120.0f0, bkg = 10.0f0) isa CircularMoffat{Float32}
+        @test CircularMoffat(x = 1, y = 2, α = 3, β = 2, flux = 120, bkg = 10) isa CircularMoffat{Float64}
+        @test CircularMoffat(x = BigFloat(1.3), y = BigFloat(2.4), α = BigFloat(3.0), β = BigFloat(2.5), flux = BigFloat(120.0), bkg = BigFloat(10.0)) isa CircularMoffat{BigFloat}
+    end
+
+    m = CircularMoffat(x = 0, y = 0, α = 5, β = 3, flux = 50, bkg = 10)
+    @test centroid(m) == (0.0, 0.0)
+    @test integral(m) == 50.0
+    @test all(x -> isapprox(x, 5.098245285339587), fwhm(m))
+    @test effective_area(m) ≈ 98.17477042468103 rtol = 1.0e-6
+    @test background(m) == 10.0
+    @test peak(m) ≈ amplitude(m) + background(m)
+    @test theta(m) == 0.0
+    r1 = evaluate(m, 1, 2)
+    @test r1 isa Float64
+    @test r1 ≈ 10.736828440240256 ≈ m(1, 2)
+    let (f, g) = evaluate_fg(m, 1, 2)
+        @test f ≈ evaluate(m, 1, 2)
+        @test g ≈ [0.14736568804805128, 0.29473137609610256, -0.14736568804805128, 0.23407451180546335, 0.014736568804805127, 1.0]
     end
 end
 

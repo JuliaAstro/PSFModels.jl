@@ -730,12 +730,41 @@ Base.@kwdef struct CircularMoffat{T} <: AbstractPSFModel{T}
 end
 amplitude(model::CircularMoffat{T}) where {T} = model.flux * (model.β - 1) / (π * model.α^2)
 peak(model::CircularMoffat) = amplitude(model) + model.bkg
-# effective_area(model::AiryPSF{T}) where {T} = 8 * (model.radius / AIRY_RZ)^2 / π / T(0.9192407077670396)
-fwhm(model::CircularMoffat{T}) where {T} = 2 * model.α * sqrt(exp2(1 / model.β) - 1)
+effective_area(model::CircularMoffat{T}) where {T} = T(π) * model.α^2 * (2 * model.β - 1) / (model.β - 1)^2
+function fwhm(model::CircularMoffat{T}) where {T}
+    _f = 2 * model.α * sqrt(exp2(1 / model.β) - 1)
+    return (_f, _f)
+end
 function evaluate(model::CircularMoffat{T}, px, py) where {T}
+    r2 = (px - model.x)^2 + (py - model.y)^2
+    amp = model.flux * (model.β - 1) / (π * model.α^2)
+    return muladd(amp, (1 + r2 / model.α^2)^(-model.β), model.bkg)
+end
+
+# using ForwardDiff: gradient
+# using PSFModels: CircularMoffat, evaluate_fg, evaluate
+# using ConstructionBase: getproperties
+# t = CircularMoffat(x=0.0, y=0.0, α=5.0, β=3.0, flux=50.0, bkg=10.0)
+# _, g = evaluate_fg(t, 1, 2)
+# gradient(x->evaluate(CircularMoffat(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::CircularMoffat{T}, px, py) where {T}
+    α, β = model.α, model.β
+    α² = α^2
     dx = px - model.x
     dy = py - model.y
     r2 = dx^2 + dy^2
-    amp = model.flux * (model.β - 1) / (π * model.α^2)
-    return muladd(amp, (1 + r2 / model.α^2)^(-model.β), model.bkg)
+    u = 1 + r2 / α²
+    profile = u^(-β)
+    norm = T(π) * α² / (β - 1)
+    amp = model.flux / norm
+    Ag = amp * profile
+    f = muladd(amp, profile, model.bkg)
+
+    df_dx = 2 * Ag * β * dx / (α² * u)
+    df_dy = 2 * Ag * β * dy / (α² * u)
+    df_dα = Ag * (-2 / α + 2 * β * r2 / (α^3 * u))
+    df_dβ = Ag * (1 / (β - 1) - log(u))
+    df_dflux = profile / norm
+    df_dbkg = one(T)
+    return f, SA[df_dx, df_dy, df_dα, df_dβ, df_dflux, df_dbkg]
 end
