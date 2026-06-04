@@ -8,12 +8,12 @@ import NLSolversBase
 import Optim
 using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting
 using Rotations: RotMatrix
-using SpecialFunctions: besselj1, erf
+using SpecialFunctions: besselj, besselj0, besselj1, erf
 using StaticArrays: SA, SVector, MVector, MMatrix
 using Statistics: median, mean
 
 export gaussian, normal, airydisk, moffat
-export CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
+export AiryPSF, CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, render, render!, peak, amplitude, effective_area
 
 """Abstract type for PSF models. All PSF models should be subtypes of this abstract type, and implement the following methods:"""
 abstract type AbstractPSFModel{T} end
@@ -181,8 +181,7 @@ julia> round.(ellipse_bounds(3, 2, 45); digits=3)
 """
 function ellipse_bounds(a, b, θ)
     θ = deg2rad(θ)
-    cosθ = cos(θ)
-    sinθ = sin(θ)
+    sinθ, cosθ = sincos(θ)
     x_bound = hypot(a * cosθ, b * sinθ)
     y_bound = hypot(a * sinθ, b * cosθ)
     return x_bound, y_bound

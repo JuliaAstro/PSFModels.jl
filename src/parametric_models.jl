@@ -1,9 +1,9 @@
-# Gaussian exponent coefficient when parameterized by FWHM:
-# exp(-4*log(2) * r² / fwhm²) for effective radius r
+"""Gaussian exponent coefficient when parameterized by FWHM:
+exp(-4*log(2) * r² / fwhm²)  = exp(GAUSS_PRE * r² / fwhm²) for effective radius r"""
 const GAUSS_PRE = -4 * log(2)
 
-# factor for scaling radius in terms of the fwhm
-const AIRY_PRE = π / 0.973
+"""Solution to ``J_1(π R_z) = 0`` where ``J_1`` is the first-order Bessel function of the first kind. This is used to compute the effective radius of an Airy disk in terms of its FWHM."""
+const AIRY_RZ = 1.2196698912665045
 
 @doc raw"""
     CircularGaussianPSF(x, y, fwhm, flux, bkg) → CircularGaussianPSF{T}
@@ -574,18 +574,102 @@ function evaluate_fg(model::GaussianPRF{T}, px, py) where T
 
     # ∂f/∂x: ∂u/∂x = -cs, ∂v/∂x = sn
     #   ∂f/∂x = fl4*((-dEx_du)*(-cs)*Ey + Ex*(-dEy_dv)*sn) = fl4*(dEx_du*cs*Ey - dEy_dv*sn*Ex)
-    df_dx    = fl4 * (cs * dEx_du * Ey - sn * dEy_dv * Ex)
+    df_dx = fl4 * (cs * dEx_du * Ey - sn * dEy_dv * Ex)
     # ∂f/∂y: ∂u/∂y = -sn, ∂v/∂y = -cs
     #   ∂f/∂y = fl4*((-dEx_du)*(-sn)*Ey + Ex*(-dEy_dv)*(-cs)) = fl4*(dEx_du*sn*Ey + dEy_dv*cs*Ex)
-    df_dy    = fl4 * (sn * dEx_du * Ey + cs * dEy_dv * Ex)
+    df_dy = fl4 * (sn * dEx_du * Ey + cs * dEy_dv * Ex)
     # ∂f/∂x_fwhm: same form but with u replacing dx
-    df_dax   = fl4 / model.x_fwhm * (Gxm * u_m - Gxp * u_p) * Ey
-    df_day   = fl4 / model.y_fwhm * Ex * (Gym * v_m - Gyp * v_p)
+    df_dax = fl4 / model.x_fwhm * (Gxm * u_m - Gxp * u_p) * Ey
+    df_day = fl4 / model.y_fwhm * Ex * (Gym * v_m - Gyp * v_p)
     # ∂f/∂θ: ∂u/∂θ = d*v, ∂v/∂θ = -d*u, where d = deg2rad(1) = π / 180
     #   ∂f/∂θ = fl4*((-dEx_du)*d*v*Ey + Ex*(-dEy_dv)*(-d*u)) = fl4*d*(dEy_dv*u*Ex - dEx_du*v*Ey)
     df_dtheta = fl4 * deg2rad(one(T)) * (dEy_dv * u * Ex - dEx_du * v * Ey)
     df_dflux = Ex * Ey / 4
-    df_dbkg  = one(T)
+    df_dbkg = one(T)
     G = SA[df_dx, df_dy, df_dax, df_day, df_dtheta, df_dflux, df_dbkg]
     return f, G
+end
+
+Base.@kwdef struct AiryPSF{T} <: AbstractPSFModel{T}
+    x::T
+    y::T
+    radius::T
+    flux::T
+    bkg::T
+
+    function AiryPSF(x, y, radius, flux, bkg)
+        T = promote_type(typeof(x), typeof(y), typeof(radius), typeof(flux), typeof(bkg))
+        T = T <: Integer ? Float64 : T
+        return new{T}(T(x), T(y), T(radius), T(flux), T(bkg))
+    end
+end
+amplitude(model::AiryPSF{T}) where T = model.flux / (model.radius / T(AIRY_RZ))^2 * T(π) / 4
+peak(model::AiryPSF) = amplitude(model) + model.bkg
+# 0.919... is 16 ∫ besselj1(u)^4 / u^3 du from 0 to ∞, numerically integrated
+effective_area(model::AiryPSF{T}) where T = 8 * (model.radius/ AIRY_RZ)^2 / π / T(0.9192407077670396)
+function fwhm(model::AiryPSF{T}) where T
+    _f = T(0.8436659602162364) * model.radius
+    return (_f, _f)
+end
+
+function evaluate(model::AiryPSF{T}, px, py) where T
+    # r = hypot(px - model.x, py - model.y) # hypot is slow...
+    r = sqrt((px - model.x)^2 + (py - model.y)^2)
+    a = model.radius / T(AIRY_RZ)
+    u = π * r / a
+    # Handle the u=0 case separately to avoid NaNs from besselj1(0)/0
+    A2 = if abs(u) < eps(T)
+        one(T)
+    else
+        J1 = besselj1(u)
+        (2 * J1 / u)^2
+    end
+    norm = a^2 / π * 4
+    amp  = model.flux / norm
+    return muladd(amp, A2, model.bkg)
+end
+# using ForwardDiff: gradient
+# using PSFModels: AiryPSF, evaluate_fg, evaluate
+# using ConstructionBase: getproperties
+# t = AiryPSF(x=0.0, y=0.0, radius=10.0, flux=1.0, bkg=10.0)
+# _, g = evaluate_fg(t, 1, 2)
+# gradient(x->evaluate(AiryPSF(x...), 1, 2), collect(getproperties(t))) ≈ collect(g)
+function evaluate_fg(model::AiryPSF{T}, px, py) where T
+    dx = px - model.x
+    dy = py - model.y
+    # r = hypot(dx, dy) # hypot is slow...
+    r = sqrt(dx^2 + dy^2)
+    a = model.radius / T(AIRY_RZ)
+    u = π * r / a
+    if abs(u) < eps(T)
+        A2 = one(T)
+        dA2_du = zero(T)
+    else
+        J0 = besselj0(u)
+        J1 = besselj1(u)
+        J2 = besselj(2, u)
+        A  = 2J1 / u
+        Ap = (u * (J0 - J2) - 2J1) / (u^2)
+        A2 = A^2
+        dA2_du = 2A * Ap
+    end
+    norm = a^2 / π * 4
+    amp  = model.flux / norm
+    f = muladd(amp, A2, model.bkg)
+
+    # Gradients ↓
+    df_dflux = A2 / norm
+    df_dbkg  = one(T)
+    # avoid division by zero at center
+    if r == 0
+        return f, SA[zero(T), zero(T), zero(T), df_dflux, df_dbkg]
+    end
+    du_dr = π / a
+    df_dr = amp * dA2_du * du_dr
+    df_dx = -df_dr * dx / r
+    df_dy = -df_dr * dy / r
+    da_dR = inv(T(AIRY_RZ))
+    df_da = amp / a * (-u * dA2_du - 2 * A2)
+    df_dradius = df_da * da_dR
+    return f, SA[df_dx, df_dy, df_dradius, df_dflux, df_dbkg]
 end

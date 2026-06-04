@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
 using Test
 
 # Tests generic API, type return, etc
@@ -37,14 +37,18 @@ function test_common(model::AbstractPSFModel{T}) where T
     @test @inferred(theta(model)) isa T
 end
 
-for model in (CircularGaussianPSF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10.0),
+for model in (
+              AiryPSF(x=1.3, y=2.4, radius=3.0, flux=120.0, bkg=10.0),
+              AiryPSF(x=1.3f0, y=2.4f0, radius=3.0f0, flux=120.0f0, bkg=10.0f0),
+              CircularGaussianPSF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10.0),
               CircularGaussianPSF(x=1.3f0, y=2.4f0, fwhm=3.0f0, flux=120.0f0, bkg=10.0f0),
               GaussianPSF(x=2.5, y=5.0, x_fwhm=3.0, y_fwhm=4.0, theta=35, flux=120.0, bkg=10),
               GaussianPSF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35f0, flux=120.0f0, bkg=10.0f0),
               CircularGaussianPRF(x=1.3, y=2.4, fwhm=3.0, flux=120.0, bkg=10.0),
               CircularGaussianPRF(x=1.3f0, y=2.4f0, fwhm=3.0f0, flux=120.0f0, bkg=10.0f0),
               GaussianPRF(x=2.5, y=5.0, x_fwhm=3.0, y_fwhm=4.0, theta=35.0, flux=120.0, bkg=10),
-              GaussianPRF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35.0f0, flux=120.0f0, bkg=10.0f0))
+              GaussianPRF(x=2.5f0, y=5.0f0, x_fwhm=3.0f0, y_fwhm=4.0f0, theta=35.0f0, flux=120.0f0, bkg=10.0f0)
+              )
     @testset "API: $(typeof(model))" begin
         test_common(model)
     end
@@ -168,4 +172,30 @@ end
     mc = CircularGaussianPRF(x=1.5, y=2.5, fwhm=8, flux=3, bkg=0)
     mg = GaussianPRF(x=1.5, y=2.5, x_fwhm=8, y_fwhm=8, theta=0, flux=3, bkg=0)
     @test evaluate(mc, 3, 4) ≈ evaluate(mg, 3, 4)
+end
+
+@testset "AiryPSF" begin
+    @testset "constructor promotion" begin
+        @test AiryPSF(x=1.3, y=2.4, radius=3.0, flux=120.0, bkg=10) isa AiryPSF{Float64}
+        @test AiryPSF(x=1.3f0, y=2.4f0, radius=3.0f0, flux=120.0f0, bkg=10.0f0) isa AiryPSF{Float32}
+        @test AiryPSF(x=1, y=2, radius=3, flux=120, bkg=10) isa AiryPSF{Float64}
+        @test AiryPSF(x=BigFloat(1.3), y=BigFloat(2.4), radius=BigFloat(3.0), flux=BigFloat(120.0), bkg=BigFloat(10.0)) isa AiryPSF{BigFloat}
+    end
+
+    m = AiryPSF(x=0, y=0, radius=10, flux=50, bkg=10)
+    @test centroid(m) == (0.0, 0.0)
+    @test integral(m) == 50.0
+    @test evaluate(m, centroid(m)...) ≈ peak(m) # Ensure r=0 is correct, as this is a special case in the code
+    @test all(x -> isapprox(x, 8.436659602162363; rtol=1e-6), fwhm(m))
+    @test effective_area(m) ≈ 186.21997265876772 rtol=1e-6
+    @test background(m) == 10.0
+    @test peak(m) ≈ amplitude(m) + background(m)
+    @test theta(m) == 0.0
+    r1 = evaluate(m, 1, 2)
+    @test r1 isa Float64
+    @test r1 ≈ 10.484822848946342 ≈ m(1, 2)
+    let (f, g) = evaluate_fg(m, 1, 2)
+        @test f ≈ evaluate(m, 1, 2)
+        @test g ≈ [0.03673192475215122, 0.07346384950430244, -0.0785986074131928, 0.00969645697892684, 1.0]
+    end
 end

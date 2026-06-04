@@ -1,5 +1,8 @@
 # Functional model interface
 
+# factor for scaling radius in terms of the fwhm
+const AIRY_PRE = π / 0.973
+
 const BivariateLike = Union{<:Tuple,<:AbstractVector}
 
 function rotate_point(dx, dy, theta)
