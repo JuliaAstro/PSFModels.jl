@@ -163,7 +163,7 @@ function _make_fg(
 end
 
 # ---------------------------------------------------------------------------
-# Public fit method for struct-based models
+# Public Optim.jl fit method for struct-based models
 # ---------------------------------------------------------------------------
 
 """

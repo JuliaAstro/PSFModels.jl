@@ -263,7 +263,7 @@ include("plotting.jl")
 ######################################################
 # Fitting code
 
-include("fitting.jl")
+include("fitting_functional.jl")
 include("fitting_struct.jl")
 include("levenberg_marquardt.jl")
 
