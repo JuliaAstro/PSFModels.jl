@@ -1,21 +1,21 @@
 """
-    LMResult{T}
+    LMResult{T, V <: AbstractVector{T}, M <: AbstractMatrix{T}}
 
 Result from [`PSFModels.fit_lm`](@ref).
 
 Fields:
-- `minimizer`:   final free-parameter vector
-- `minimum`:     final cost `∑ wᵢ (fᵢ − dᵢ)²` at the solution
-- `cost_init`:   cost at the initial parameter vector
-- `converged`:   `true` when any termination criterion was satisfied
-- `x_converged`: `true` when the step norm fell below `x_tol`
-- `f_converged`: `true` when the cost decrease fell below `f_tol`
-- `g_converged`: `true` when the gradient norm fell below `g_tol`
-- `iterations`:  total number of Levenberg-Marquardt iterations performed
-- `λ_final`:     damping parameter value at termination
-- `σ_final`:     final scale estimate (NaN if not applicable)
-- `cov`:         covariance matrix of the free parameters
-- `chisq`:       final reduced chi-squared (cost per degree of freedom)
+- `minimizer::V`: final free-parameter vector
+- `minimum::T`: final cost `∑ wᵢ (fᵢ − dᵢ)²` at the solution
+- `cost_init::T`: cost at the initial parameter vector
+- `converged::Bool`:  `true` when any termination criterion was satisfied
+- `x_converged::Bool`: `true` when the step norm fell below `x_tol`
+- `f_converged::Bool`: `true` when the cost decrease fell below `f_tol`
+- `g_converged::Bool`: `true` when the gradient norm fell below `g_tol`
+- `iterations::Int`: total number of Levenberg-Marquardt iterations performed
+- `λ_final::T`: damping parameter value at termination
+- `σ_final::T`: final scale estimate (NaN if not applicable)
+- `cov::M`: covariance matrix of the free parameters
+- `chisq::T`: final reduced chi-squared (cost per degree of freedom)
 """
 struct LMResult{T, V <: AbstractVector{T}, M <: AbstractMatrix{T}}
     minimizer::V
@@ -175,6 +175,11 @@ Base.@kwdef struct MScale{T} <: AbstractScaleEstimator
     δ::T = 0.5
     tol::T = 1.0e-6
     max_iter::Int = 30
+    function MSScale(δ, tol, max_iter)
+        T = promote_type(typeof(δ), typeof(tol))
+        T = float(T)
+        return new{T}(T(δ), T(tol), max_iter)
+    end
 end
 
 function estimate_scale(est::MScale, r::AbstractArray{T}) where {T}
@@ -331,11 +336,12 @@ true
 ```
 """
 function weight(loss::LossFunctions.SupervisedLoss, r::T) where {T}
-    ψ0 = LossFunctions.deriv2(loss, zero(T), zero(T))
-    if abs(r) < eps(T) * 10
-        return one(T)
+    FT = float(T)
+    ψ0 = LossFunctions.deriv2(loss, zero(FT), zero(FT))
+    if abs(r) < eps(FT) * 10
+        return one(FT)
     end
-    return LossFunctions.deriv(loss, r, zero(T)) / (r * ψ0)
+    return LossFunctions.deriv(loss, r, zero(FT)) / (r * ψ0)
 end
 
 # ---------------------------------------------------------------------------
@@ -362,8 +368,6 @@ end
 struct ReweightedCovarianceEstimator <: AbstractCovarianceEstimator end
 function covariance!(::ReweightedCovarianceEstimator, JTJ, cost_val, dof)
     # For reweighted estimates, the covariance is inflated by the reduced cost per degree of freedom
-    # F = cholesky!(Symmetric(JTJ))
-    # cov = F \ I # = inv(JTJ), more stable
     cov = try
         F = cholesky!(Symmetric(JTJ))
         F \ I # = inv(JTJ), more stable
