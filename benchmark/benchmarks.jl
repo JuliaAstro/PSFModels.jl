@@ -1,4 +1,4 @@
-using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss, bicubic_interpolate
+using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss, bicubic_interpolate, _fill_missing_bicubic!
 using BenchmarkTools
 import LossFunctions
 import Optim
@@ -64,6 +64,7 @@ end
 # ---------------------------------------------------------------------------
 SUITE["empirical"] = BenchmarkGroup()
 SUITE["empirical"]["bicubic_interpolate"] = @benchmarkable bicubic_interpolate(x, $3.5, $3.5) setup=(x=rand(7,7))
+SUITE["empirical"]["_fill_missing_bicubic!"] = @benchmarkable _fill_missing_bicubic!(x) setup=(x=rand(21,21); inds=([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1]); x[inds...] .= NaN) evals=1
 
 # If not on CI, we'll show a nice table
 if get(ENV, "CI", "false") == "false"
