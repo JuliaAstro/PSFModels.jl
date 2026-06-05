@@ -162,6 +162,8 @@ end
     @test sum(psf.data) ≈ 4.0
     @test count(result.used) ≥ 65
     @test mean(abs.(psf.data .- truth)) < 0.003
+    # Guard against extrapolating unconstrained edge holes into a false PSF tail.
+    @test maximum(abs.(psf.data .- truth)[20:21, 15:21]) < 5.0e-5
 
     # Verify the explicit-cutout API forwards into the same empirical builder.
     inds = ntuple(

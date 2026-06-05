@@ -492,6 +492,24 @@ function _nearest4_finite_indices(data, i, j; along_x::Bool)
     return candidates
 end
 
+function _has_finite_bracket(data, i, j; along_x::Bool)
+    # Require finite samples on both sides so infill interpolates rather than
+    # extrapolates beyond the sampled stellar footprint.
+    n = along_x ? size(data, 1) : size(data, 2)
+    center = along_x ? i : j
+    has_lo = false
+    has_hi = false
+    for idx in 1:n
+        idx == center && continue
+        v = along_x ? data[idx, j] : data[i, idx]
+        isfinite(v) || continue
+        has_lo |= idx < center
+        has_hi |= idx > center
+        has_lo && has_hi && return true
+    end
+    return false
+end
+
 function _cubic_lagrange(xs, ys, x0)
     # Evaluate the cubic Lagrange interpolant through four arbitrary samples.
     # For infill, nearby finite samples may not form a complete adjacent stencil,
@@ -514,18 +532,30 @@ function _fill_missing_bicubic!(data)
     # First try a separable cubic fill using nearby finite rows and columns.
     T = eltype(data)
     nx, ny = size(data)
+    fillable = falses(nx, ny)
+    for j in 1:ny, i in 1:nx
+        # Mark only holes with finite support on both sides along both axes.
+        if !isfinite(data[i, j])
+            fillable[i, j] = _has_finite_bracket(data, i, j; along_x = true) &&
+                _has_finite_bracket(data, i, j; along_x = false)
+        end
+    end
     for _ in 1:6
         changed = false
         old = copy(data)
         for j in 1:ny, i in 1:nx
             isfinite(old[i, j]) && continue
+            fillable[i, j] || continue
             yinds = _nearest4_finite_indices(old, i, j; along_x = false)
             length(yinds) == 4 || continue
+            any(yy -> yy < j, yinds) && any(yy -> yy > j, yinds) || continue
             row_vals = T[]
             good_y = Int[]
             for yy in yinds
+                _has_finite_bracket(old, i, yy; along_x = true) || continue
                 xinds = _nearest4_finite_indices(old, i, yy; along_x = true)
                 length(xinds) == 4 || continue
+                any(xx -> xx < i, xinds) && any(xx -> xx > i, xinds) || continue
                 vals = T[old[xx, yy] for xx in xinds]
                 push!(row_vals, _cubic_lagrange(xinds, vals, i))
                 push!(good_y, yy)
@@ -544,6 +574,7 @@ function _fill_missing_bicubic!(data)
         old = copy(data)
         for j in 1:ny, i in 1:nx
             isfinite(old[i, j]) && continue
+            fillable[i, j] || continue
             vals = T[]
             for jj in max(1, j - 1):min(ny, j + 1), ii in max(1, i - 1):min(nx, i + 1)
                 isfinite(old[ii, jj]) && push!(vals, old[ii, jj])
