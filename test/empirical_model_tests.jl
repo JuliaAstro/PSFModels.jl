@@ -1,5 +1,6 @@
 using PSFModels
 using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral
+import ConstructionBase
 using StableRNGs: StableRNG
 using Statistics: mean
 using Test
@@ -38,6 +39,13 @@ end
 
     fill_model = ImagePSF(data; x = 0, y = 0, flux = 4, bkg = 1, fill_value = 0.25)
     @test evaluate(fill_model, -100, -100) == 2.0
+
+    # Updating fit parameters should reuse the immutable model's PSF array
+    # instead of making a copy.
+    updated = ConstructionBase.setproperties(model, (x = 1, flux = 2))
+    @test updated.x === 1.0
+    @test updated.flux === 2.0
+    @test updated.data === model.data # Identity check for array reuse
 
     f, g = evaluate_fg(model, 10.8, 11.9)
     @test f ≈ evaluate(model, 10.8, 11.9)

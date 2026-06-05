@@ -111,8 +111,11 @@ function ImagePSF(
     end
     T = float(T)
 
-    # Optionally normalize so the oversampled grid sums to the sampling area.
+    # Copying here is not *strictly* necessary but it is safe; 
+    # external modifications to the input `data` after model
+    # construction would be surprising and could cause hard-to-debug issues.
     dataT = Matrix{T}(data)
+    # Optionally normalize so the oversampled grid sums to the sampling area.
     if normalize
         s = sum(dataT)
         isfinite(s) && s > zero(T) || throw(ArgumentError("cannot normalize PSF data with non-positive sum"))
@@ -138,19 +141,20 @@ ConstructionBase.getproperties(model::ImagePSF) = (x = model.x, y = model.y, flu
 
 function ConstructionBase.setproperties(model::ImagePSF, patch::NamedTuple)
     # Only fit parameters are mutable through ConstructionBase; PSF data stay fixed.
-    x = haskey(patch, :x) ? patch.x : model.x
-    y = haskey(patch, :y) ? patch.y : model.y
-    flux = haskey(patch, :flux) ? patch.flux : model.flux
-    bkg = haskey(patch, :bkg) ? patch.bkg : model.bkg
-    return ImagePSF(
-        model.data;
+    T = eltype(model.data)
+    x = haskey(patch, :x) ? T(patch.x) : model.x
+    y = haskey(patch, :y) ? T(patch.y) : model.y
+    flux = haskey(patch, :flux) ? T(patch.flux) : model.flux
+    bkg = haskey(patch, :bkg) ? T(patch.bkg) : model.bkg
+    return ImagePSF{T, typeof(model.data)}(
+        model.data,
         x,
         y,
         flux,
         bkg,
-        origin = model.origin,
-        oversampling = model.oversampling,
-        fill_value = model.fill_value
+        model.origin,
+        model.oversampling,
+        model.fill_value
     )
 end
 
@@ -185,8 +189,6 @@ end
     deriv = t * (3 * c4t + 2 * c2) + c1
     return value, deriv
 end
-
-@inline _clamp_index(i::Integer, n::Integer) = ifelse(i < 1, 1, ifelse(i > n, n, i))
 
 @doc raw"""
     bicubic_interpolate(data, x, y; fill_value=0)
@@ -249,11 +251,11 @@ function bicubic_interpolate(data::AbstractMatrix, x, y; fill_value = zero(eltyp
     temp = MVector{4, T}(undef)
     dfdxt = MVector{4, T}(undef)
     @inbounds for jy in 1:4
-        iy = _clamp_index(ly + jy - 2, ny)
-        f1 = T(data[_clamp_index(lx - 1, nx), iy])
-        f2 = T(data[_clamp_index(lx, nx), iy])
-        f3 = T(data[_clamp_index(lx + 1, nx), iy])
-        f4 = T(data[_clamp_index(lx + 2, nx), iy])
+        iy = clamp(ly + jy - 2, 1, ny)
+        f1 = T(data[clamp(lx - 1, 1, nx), iy])
+        f2 = T(data[clamp(lx, 1, nx), iy])
+        f3 = T(data[clamp(lx + 1, 1, nx), iy])
+        f4 = T(data[clamp(lx + 2, 1, nx), iy])
         temp[jy], dfdxt[jy] = _cubic4(f1, f2, f3, f4, dx)
     end
 
@@ -559,8 +561,8 @@ function _smooth_quartic(data::AbstractMatrix{T}) where {T}
     for j in 1:ny, i in 1:nx
         acc = zero(T)
         for kj in 1:5, ki in 1:5
-            ii = _clamp_index(i + ki - 3, nx)
-            jj = _clamp_index(j + kj - 3, ny)
+            ii = clamp(i + ki - 3, 1, nx)
+            jj = clamp(j + kj - 3, 1, ny)
             acc += T(_QUARTIC_SMOOTHING_KERNEL[kj][ki]) * data[ii, jj]
         end
         out[i, j] = acc
