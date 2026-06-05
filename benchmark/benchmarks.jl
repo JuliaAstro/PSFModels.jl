@@ -1,4 +1,4 @@
-using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss
+using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss, bicubic_interpolate
 using BenchmarkTools
 import LossFunctions
 import Optim
@@ -26,7 +26,7 @@ function show_benchmarks(results)
 end
 
 const SUITE = BenchmarkGroup()
-SUITE["core"] = BenchmarkGroup()
+SUITE["parametric"] = BenchmarkGroup()
 
 let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
     inds  = (1:30, 1:30)
@@ -34,7 +34,7 @@ let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
     fixed = (; bkg=1.1,)
     free_names, free_idx, x0 = free_params(model, fixed)
     free_names = Val(free_names)
-    SUITE["core"]["circular_gaussian_objective"] = @benchmarkable fgh.fgh(true, G, H, $x0) setup = (
+    SUITE["parametric"]["circular_gaussian_objective"] = @benchmarkable fgh.fgh(true, G, H, $x0) setup = (
         fgh = _make_fgh($model, $free_names, $free_idx, $fixed, $image, $inds, $nothing, $(LossFunctions.L2DistLoss()));
                         G = zeros(5); H = zeros(5, 5))
 end
@@ -59,12 +59,20 @@ let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
         x_abstol=1e-8, alg=Optim.LBFGS())
 end
 
+# ---------------------------------------------------------------------------
+# Empirical model benchmarks
+# ---------------------------------------------------------------------------
+SUITE["empirical"] = BenchmarkGroup()
+SUITE["empirical"]["bicubic_interpolate"] = @benchmarkable bicubic_interpolate(x, $3.5, $3.5) setup=(x=rand(7,7))
+
 # If not on CI, we'll show a nice table
 if get(ENV, "CI", "false") == "false"
     # Run the benchmarks
     results = run(SUITE, verbose=true)
-    println("⎯⎯⎯ Core Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
-    show_benchmarks(results["core"])
+    println("⎯⎯⎯ Parametric Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
+    show_benchmarks(results["parametric"])
     println("⎯⎯⎯ Fitting Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
     show_benchmarks(results["fitting"])
+    println("⎯⎯⎯ Empirical Suite ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯")
+    show_benchmarks(results["empirical"])
 end
