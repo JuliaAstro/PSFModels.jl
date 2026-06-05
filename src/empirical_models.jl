@@ -111,7 +111,7 @@ function ImagePSF(
     end
     T = float(T)
 
-    # Copying here is not *strictly* necessary but it is safe; 
+    # Allocating new matrix here is not *strictly* necessary but it is safe;
     # external modifications to the input `data` after model
     # construction would be surprising and could cause hard-to-debug issues.
     dataT = Matrix{T}(data)
@@ -139,14 +139,13 @@ ImagePSF(data::AbstractMatrix, x, y, flux, bkg; kwargs...) =
 
 ConstructionBase.getproperties(model::ImagePSF) = (x = model.x, y = model.y, flux = model.flux, bkg = model.bkg)
 
-function ConstructionBase.setproperties(model::ImagePSF, patch::NamedTuple)
-    # Only fit parameters are mutable through ConstructionBase; PSF data stay fixed.
-    T = eltype(model.data)
+function ConstructionBase.setproperties(model::ImagePSF{T, S}, patch::NamedTuple) where {T, S}
+    # Only fit parameters can change; PSF data stay fixed.
     x = haskey(patch, :x) ? T(patch.x) : model.x
     y = haskey(patch, :y) ? T(patch.y) : model.y
     flux = haskey(patch, :flux) ? T(patch.flux) : model.flux
     bkg = haskey(patch, :bkg) ? T(patch.bkg) : model.bkg
-    return ImagePSF{T, typeof(model.data)}(
+    return ImagePSF{T, S}(
         model.data,
         x,
         y,
@@ -247,21 +246,31 @@ function bicubic_interpolate(data::AbstractMatrix, x, y; fill_value = zero(eltyp
     dx = xx - T(lx)
     dy = yy - T(ly)
 
+    # Clamp the 4x4 stencil once so edge samples are reused directly below.
+    ix1 = clamp(lx - 1, 1, nx)
+    ix2 = lx
+    ix3 = lx + 1
+    ix4 = clamp(lx + 2, 1, nx)
+    iy1 = clamp(ly - 1, 1, ny)
+    iy2 = ly
+    iy3 = ly + 1
+    iy4 = clamp(ly + 2, 1, ny)
+
     # Interpolate each row in x and keep the row-wise x derivatives.
-    temp = MVector{4, T}(undef)
-    dfdxt = MVector{4, T}(undef)
-    @inbounds for jy in 1:4
-        iy = clamp(ly + jy - 2, 1, ny)
-        f1 = T(data[clamp(lx - 1, 1, nx), iy])
-        f2 = T(data[clamp(lx, 1, nx), iy])
-        f3 = T(data[clamp(lx + 1, 1, nx), iy])
-        f4 = T(data[clamp(lx + 2, 1, nx), iy])
-        temp[jy], dfdxt[jy] = _cubic4(f1, f2, f3, f4, dx)
+    @inbounds begin
+        row1, drow1dx = _cubic4(T(data[ix1, iy1]), T(data[ix2, iy1]), 
+                                T(data[ix3, iy1]), T(data[ix4, iy1]), dx)
+        row2, drow2dx = _cubic4(T(data[ix1, iy2]), T(data[ix2, iy2]), 
+                                T(data[ix3, iy2]), T(data[ix4, iy2]), dx)
+        row3, drow3dx = _cubic4(T(data[ix1, iy3]), T(data[ix2, iy3]), 
+                                T(data[ix3, iy3]), T(data[ix4, iy3]), dx)
+        row4, drow4dx = _cubic4(T(data[ix1, iy4]), T(data[ix2, iy4]), 
+                                T(data[ix3, iy4]), T(data[ix4, iy4]), dx)
     end
 
     # Interpolate those row values in y, including both first derivatives.
-    value, dfdy = _cubic4(temp[1], temp[2], temp[3], temp[4], dy)
-    dfdx, _ = _cubic4(dfdxt[1], dfdxt[2], dfdxt[3], dfdxt[4], dy)
+    value, dfdy = _cubic4(row1, row2, row3, row4, dy)
+    dfdx, _ = _cubic4(drow1dx, drow2dx, drow3dx, drow4dx, dy)
     return value, dfdx, dfdy
 end
 

@@ -91,7 +91,7 @@ end
     @test_throws ArgumentError _as_oversampling((2, 3, 4))
 end
 
-@testset "ImagePSF LM fit" begin
+@testset "ImagePSF LM fit -- single star" begin
     # Fit only ImagePSF's source parameters to ensure it works with LM/IRLS.
     grid_model = CircularGaussianPRF(x = 8, y = 8, fwhm = 2.4, flux = 1, bkg = 0)
     psf_data = render(grid_model, (1:16, 1:16))
@@ -129,7 +129,7 @@ end
     @test noisy != image
 end
 
-@testset "empirical ImagePSF recovery" begin
+@testset "Empirical ImagePSF recovery" begin
     # Recover an undersampled integrated Gaussian PRF from many clean stars.
     rng = StableRNG(42)
     truth_model = CircularGaussianPRF(x = 0, y = 0, fwhm = 1.8, flux = 1, bkg = 0)
@@ -187,7 +187,7 @@ end
     @test sum(psf_from_inds.data) ≈ 4.0
 end
 
-@testset "empirical ImagePSF with defective stars" begin
+@testset "Empirical ImagePSF with defective stars" begin
     # Stress the robust stack with many hot and low pixels in the training stars.
     rng = StableRNG(123)
     truth_model = CircularGaussianPRF(x = 0, y = 0, fwhm = 1.9, flux = 1, bkg = 0)
