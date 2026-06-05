@@ -528,10 +528,26 @@ function _cubic_lagrange(xs, ys, x0)
     return out
 end
 
-function _fill_missing_bicubic!(data)
+"""
+    _fill_missing_bicubic!(data; maxiter::Int = 6))
+
+Fill non-finite holes in an empirical ePSF stack in place. Interior holes are
+filled first with bracketed separable cubic interpolation, unsupported border
+holes then use a local exponential radial extrapolation 
+(see 4.2.1 of [Anderson2000](@citet)) and any remaining holes fall back to a
+local median if possible, and zero fill otherwise. `_stack_psf` uses
+this after robustly combining stellar samples into the *initial* oversampled grid
+and before smoothing, recentering, and normalization. `maxiter` controls the
+maximum number of passes for the bicubic and median stages; six is a reasonable
+default to allow infill growth without risking infinite loops.
+"""
+function _fill_missing_bicubic!(data; maxiter::Int = 6)
     # First try a separable cubic fill using nearby finite rows and columns.
     T = eltype(data)
     nx, ny = size(data)
+    # Skip all infill work when the stack already has no holes.
+    all(isfinite, data) && return data
+
     fillable = falses(nx, ny)
     for j in 1:ny, i in 1:nx
         # Mark only holes with finite support on both sides along both axes.
@@ -540,7 +556,12 @@ function _fill_missing_bicubic!(data)
                 _has_finite_bracket(data, i, j; along_x = false)
         end
     end
-    for _ in 1:6
+    if count(fillable) / (nx * ny) > 0.1
+        @warn "more than 10% of the ePSF grid is missing; infill may be unreliable"
+    end
+    # Iterate because filling one interior hole can provide the finite support
+    # needed to bicubically fill adjacent holes; six passes bounds the growth.
+    for _ in 1:maxiter
         changed = false
         old = copy(data)
         for j in 1:ny, i in 1:nx
@@ -568,15 +589,56 @@ function _fill_missing_bicubic!(data)
         changed || break
     end
 
+    # Extrapolate border holes with Anderson's local exponential radial tail.
+    cx = T((nx + 1) / 2)
+    cy = T((ny + 1) / 2)
+    old = copy(data)
+    for j in 1:ny, i in 1:nx
+        isfinite(old[i, j]) && continue
+        fillable[i, j] && continue
+        rs = T[]
+        logs = T[]
+        vals = T[]
+        for jj in max(1, j - 2):min(ny, j + 2), ii in max(1, i - 2):min(nx, i + 2)
+            # Use only positive finite samples because the fit is done in log space.
+            v = old[ii, jj]
+            if isfinite(v) && v > zero(T)
+                push!(rs, hypot(T(ii) - cx, T(jj) - cy))
+                push!(logs, log(T(v)))
+                push!(vals, T(v))
+            end
+        end
+        length(rs) ≥ 2 || continue
+
+        # Fit log(value) = a + b * radius using the local positive support.
+        rmean = sum(rs) / length(rs)
+        lmean = sum(logs) / length(logs)
+        denom = sum(abs2, r - rmean for r in rs; init = zero(T))
+        denom > eps(T) || continue
+        slope = sum(
+            (rs[k] - rmean) * (logs[k] - lmean) for k in eachindex(rs);
+            init = zero(T)
+        ) / denom
+        slope < zero(T) || continue
+        intercept = lmean - slope * rmean
+
+        # Accept only outward, decaying extrapolations to avoid false border peaks.
+        target_r = hypot(T(i) - cx, T(j) - cy)
+        target_r ≥ minimum(rs) || continue
+        value = exp(intercept + slope * target_r)
+        if isfinite(value) && zero(T) < value ≤ maximum(vals)
+            data[i, j] = value
+        end
+    end
+
     # Fill remaining holes with local neighbor medians.
-    for _ in 1:6
+    for _ in 1:maxiter
         changed = false
         old = copy(data)
         for j in 1:ny, i in 1:nx
             isfinite(old[i, j]) && continue
-            fillable[i, j] || continue
             vals = T[]
-            for jj in max(1, j - 1):min(ny, j + 1), ii in max(1, i - 1):min(nx, i + 1)
+            for jj in max(1, j - 2):min(ny, j + 2), ii in max(1, i - 2):min(nx, i + 2)
                 isfinite(old[ii, jj]) && push!(vals, old[ii, jj])
             end
             if !isempty(vals)

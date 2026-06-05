@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral
+using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral, _fill_missing_bicubic!
 import ConstructionBase
 using StableRNGs: StableRNG
 using Statistics: mean
@@ -64,7 +64,11 @@ end
         fd[k] = (evaluate(mplus, 10.8, 11.9) - evaluate(mminus, 10.8, 11.9)) / (2h)
     end
     @test collect(g) ≈ fd rtol = 1.0e-5 atol = 1.0e-5
+end
 
+@testset "bicubic_interpolate" begin
+    data = [exp(-((i - 4)^2 + (j - 4)^2) / 5) for i in 1:7, j in 1:7]
+    model = ImagePSF(data; x = 10.3, y = 11.4, flux = 120.0, bkg = 7.0, oversampling = 2, normalize = true)
     # Verify out-of-bounds interpolation and constructor validation paths.
     val, dx, dy = bicubic_interpolate(model.data, -1, 2; fill_value = 0.3)
     @test val == 0.3
@@ -76,6 +80,25 @@ end
     bad = copy(data)
     bad[1, 1] = NaN
     @test_throws ArgumentError ImagePSF(bad)
+end
+
+@testset "_fill_missing_bicubic!" begin
+    # Infill behavior
+    x=rand(StableRNG(43), 21,21)
+    # inds=(vcat(rand(1:21, 5), 1), vcat(rand(1:21, 5), 1))
+    inds = ([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1])
+    x[inds...] .= NaN
+    _fill_missing_bicubic!(x)
+    @test all(isfinite, x)
+    # Regression: bordered by three good pixels, should not copy single neighbor
+    @test x[1,1] != x[1,2]
+    # Test that warning triggers if too much data is missing,
+    # but still fills what it can without error.
+    fill!(x, 1)
+    inds = (1:2:21, 1:2:21)
+    x[inds...] .= NaN
+    @test_logs (:warn,) _fill_missing_bicubic!(x)
+    @test all(==(1), x) # Fallback infill should fill all holes in this case
 end
 
 @testset "_as_oversampling" begin
@@ -228,5 +251,5 @@ end
     )
     truth = _truth_grid(truth_model, psf)
     @test count(result.used) ≥ 65
-    @test mean(abs.(psf.data .- truth)) < 0.004
+    @test mean(abs.(psf.data .- truth)) < 1e-3
 end
