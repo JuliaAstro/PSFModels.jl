@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral
+using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral
 using StableRNGs: StableRNG
 using Statistics: mean
 using Test
@@ -62,10 +62,25 @@ end
     @test val == 0.3
     @test dx == 0
     @test dy == 0
+    @test_throws ArgumentError bicubic_interpolate(rand(3, 4), 2, 2)
     @test_throws ArgumentError ImagePSF(rand(3, 4))
+    @test_throws ArgumentError ImagePSF(data; oversampling = (2.0, 2))
     bad = copy(data)
     bad[1, 1] = NaN
     @test_throws ArgumentError ImagePSF(bad)
+end
+
+@testset "_as_oversampling" begin
+    # Confirm accepted scalar and axis-specific oversampling forms.
+    @test _as_oversampling(2) == (2, 2)
+    @test _as_oversampling((2, 3)) == (2, 3)
+    @test _as_oversampling([3, 4]) == (3, 4)
+
+    # Reject non-integer, non-positive, and incorrectly sized inputs.
+    @test_throws ArgumentError _as_oversampling(2.0)
+    @test_throws ArgumentError _as_oversampling((2.0, 2))
+    @test_throws ArgumentError _as_oversampling((2, 0))
+    @test_throws ArgumentError _as_oversampling((2, 3, 4))
 end
 
 @testset "ImagePSF LM fit" begin

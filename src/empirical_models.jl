@@ -1,4 +1,4 @@
-"""The quartic smoothing kernel of [`Anderson2000`](@cite), used by default when `smooth=true` in `fit(ImagePSF, ...)`."""
+"""The quartic smoothing kernel of [`Anderson2000`](@cite) (Eq. 8) used by default when `smooth=true` in `fit(ImagePSF, ...)`."""
 const _QUARTIC_SMOOTHING_KERNEL = (
     (0.041632, -0.080816, 0.078368, -0.080816, 0.041632),
     (-0.080816, -0.019592, 0.200816, -0.019592, -0.080816),
@@ -6,6 +6,25 @@ const _QUARTIC_SMOOTHING_KERNEL = (
     (-0.080816, -0.019592, 0.200816, -0.019592, -0.080816),
     (0.041632, -0.080816, 0.078368, -0.080816, 0.041632),
 )
+
+function _as_oversampling(oversampling)
+    # Accept scalar oversampling as the same factor along both axes.
+    if oversampling isa Integer
+        oversampling > 0 || throw(ArgumentError("`oversampling` must be positive"))
+        return (Int(oversampling), Int(oversampling))
+    # Accept explicit axis factors for anisotropic sampling.
+    elseif oversampling isa Tuple || oversampling isa AbstractVector
+        length(oversampling) == 2 ||
+            throw(ArgumentError("`oversampling` must be an integer or a length-2 tuple/vector of integers"))
+        all(x -> x isa Integer, oversampling) ||
+            throw(ArgumentError("length-2 `oversampling` values must be integers"))
+        sx, sy = Int(oversampling[1]), Int(oversampling[2])
+        sx > 0 && sy > 0 || throw(ArgumentError("`oversampling` values must be positive"))
+        return (sx, sy)
+    else
+        throw(ArgumentError("`oversampling` must be an integer or a length-2 tuple/vector of integers"))
+    end
+end
 
 """
     ImagePSF(data; x=0, y=0, flux=1, bkg=0, origin=nothing,
@@ -65,23 +84,6 @@ struct ImagePSF{T, A <: AbstractMatrix{T}} <: AbstractPSFModel{T}
     origin::Tuple{T, T}
     oversampling::Tuple{Int, Int}
     fill_value::T
-end
-
-function _as_oversampling(oversampling)
-    # Accept scalar oversampling as the same factor along both axes.
-    if oversampling isa Integer
-        oversampling > 0 || throw(ArgumentError("`oversampling` must be positive"))
-        return (Int(oversampling), Int(oversampling))
-    # Accept explicit axis factors for anisotropic sampling.
-    elseif oversampling isa Tuple || oversampling isa AbstractVector
-        length(oversampling) == 2 ||
-            throw(ArgumentError("`oversampling` must be an integer or a length-2 tuple/vector"))
-        sx, sy = Int(oversampling[1]), Int(oversampling[2])
-        sx > 0 && sy > 0 || throw(ArgumentError("`oversampling` values must be positive"))
-        return (sx, sy)
-    else
-        throw(ArgumentError("`oversampling` must be an integer or a length-2 tuple/vector"))
-    end
 end
 
 function ImagePSF(
@@ -186,18 +188,52 @@ end
 
 @inline _clamp_index(i::Integer, n::Integer) = ifelse(i < 1, 1, ifelse(i > n, n, i))
 
-"""
+@doc raw"""
     bicubic_interpolate(data, x, y; fill_value=0)
 
-Evaluate `data` at 1-based fractional array coordinates `(x, y)` using the
-same separable 4x4 cubic convolution form as DAOPHOT's `BICUBC`. Returns
-`(value, dfdx, dfdy)`.
+Evaluate `data` at 1-based fractional array coordinates `(x, y)` with a
+separable 4x4 cubic-convolution interpolant. Returns `(value, dfdx, dfdy)`,
+where `dfdx` and `dfdy` are derivatives with respect to the input grid
+coordinates.
+
+For a coordinate inside the array, let `lx = floor(x)`, `ly = floor(y)`,
+`dx = x - lx`, and `dy = y - ly`. The interpolation point is treated as lying
+between grid columns `lx` and `lx + 1`, and between rows `ly` and `ly + 1`.
+For each of the four neighboring rows `ly-1:ly+2`, the four samples
+`data[lx-1:lx+2, row]` define a cubic polynomial in `dx`:
+
+```math
+p(t) = a_0 + a_1 t + a_2 t^2 + a_3 t^3,\qquad 0 \le t \le 1.
+```
+
+The coefficients are chosen by the cubic-convolution constraints
+
+```math
+p(0) = f_2,\quad p(1) = f_3,\quad
+p'(0) = \frac{f_3 - f_1}{2},\quad
+p'(1) = \frac{f_4 - f_2}{2},
+```
+
+where `(f_1, f_2, f_3, f_4)` are the four row samples. This gives one
+interpolated value and one x-derivative for each row. The four row values are
+then interpolated with the same cubic-convolution rule in `dy` to produce the
+final value and `dfdy`. The four row-wise x-derivatives are also interpolated in
+`dy` to produce `dfdx`.
+
+Boundary conditions and assumptions:
+- `data` must have at least four samples along each axis.
+- Coordinates outside the closed array bounds return `(fill_value, 0, 0)`.
+- Inside the array, the 4x4 stencil is clamped at the nearest array edge. This
+  is equivalent to constant extrapolation of edge samples for the stencil only.
+- The interpolant is intended for regularly spaced grid samples. `x` and `y`
+  are array coordinates, not detector-pixel coordinates.
 """
 function bicubic_interpolate(data::AbstractMatrix, x, y; fill_value = zero(eltype(data)))
     # Work in a promoted floating type and reject out-of-grid samples early.
     T = promote_type(eltype(data), typeof(x), typeof(y), typeof(fill_value))
-    T = T <: Integer ? Float64 : float(T)
+    T = float(T)
     nx, ny = size(data)
+    nx ≥ 4 && ny ≥ 4 || throw(ArgumentError("`data` must have at least four samples along each axis"))
     xx, yy = T(x), T(y)
     if !(isfinite(xx) && isfinite(yy)) || xx < one(T) || xx > T(nx) || yy < one(T) || yy > T(ny)
         return T(fill_value), zero(T), zero(T)
@@ -447,6 +483,8 @@ end
 
 function _cubic_lagrange(xs, ys, x0)
     # Evaluate the cubic Lagrange interpolant through four arbitrary samples.
+    # For infill, nearby finite samples may not form a complete adjacent stencil,
+    # so this is more useful than the regular-grid bicubic evaluator.
     T = promote_type(eltype(xs), eltype(ys), typeof(x0))
     out = zero(T)
     for k in 1:4
@@ -515,6 +553,7 @@ end
 
 function _smooth_quartic(data::AbstractMatrix{T}) where {T}
     # Apply the fixed quartic ePSF smoothing kernel with clamped edges.
+    # Manual 2-D discrete convolution with fixed 5x5 kernel.
     nx, ny = size(data)
     out = similar(data)
     for j in 1:ny, i in 1:nx
