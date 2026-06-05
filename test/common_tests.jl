@@ -52,6 +52,8 @@ for model in (
         CircularGaussianPRF(x = 1.3f0, y = 2.4f0, fwhm = 3.0f0, flux = 120.0f0, bkg = 10.0f0),
         GaussianPRF(x = 2.5, y = 5.0, x_fwhm = 3.0, y_fwhm = 4.0, theta = 35.0, flux = 120.0, bkg = 10),
         GaussianPRF(x = 2.5f0, y = 5.0f0, x_fwhm = 3.0f0, y_fwhm = 4.0f0, theta = 35.0f0, flux = 120.0f0, bkg = 10.0f0),
+        ImagePSF(rand(7, 7); x = 3.0, y = 4.0, flux = 120.0, bkg = 7.0, oversampling = 2, normalize = false),
+        ImagePSF(rand(Float32, 7, 7); x = 3.0f0, y = 4.0f0, flux = 120.0f0, bkg = 7.0f0, oversampling = 2, normalize = false),
     )
     @testset "API: $(typeof(model))" begin
         test_common(model)
