@@ -263,8 +263,7 @@ include("plotting.jl")
 ######################################################
 # Fitting code
 
-include("fitting_functional.jl")
-include("fitting_struct.jl")
+include("optim_fitting.jl")
 include("levenberg_marquardt.jl")
 
 end # module PSFModels
