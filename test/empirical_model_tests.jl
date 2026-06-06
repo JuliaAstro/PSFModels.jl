@@ -157,13 +157,13 @@ end
     rng = StableRNG(42)
     truth_model = CircularGaussianPRF(x = 0, y = 0, fwhm = 1.8, flux = 1, bkg = 0)
     image, sources = simulate_image(
-        (96, 96),
+        (128, 128),
         truth_model,
         70;
         background = 20.0,
         noise = :none,
         flux = (600.0, 900.0),
-        min_separation = 7,
+        min_separation = 10,
         border = 8,
         model_radius = 6,
         rng
@@ -180,7 +180,6 @@ end
         recenter = true,
         anchor_centroids = false,
         reweight = nothing,
-        centroid_tol = 1e-6
     )
     truth = _truth_grid(truth_model, psf)
     @test sum(psf.data) ≈ 4.0
@@ -188,8 +187,7 @@ end
     @test mean(abs.(psf.data .- truth)) < 0.003
     @test mean(hypot.(sources.x[result.used] .- result.x[result.used], sources.y[result.used] .- result.y[result.used])) < 0.05
     # Guard against extrapolating unconstrained edge holes into a false PSF tail.
-    # TODO: this should be < 5e-5 or so, need to fix
-    @test maximum(abs.(psf.data .- truth)[20:21, 15:21]) < 1e-3
+    @test maximum(abs.(psf.data .- truth)[20:21, 15:21]) < 1e-5
 
     # Verify the explicit-cutout API forwards into the same empirical builder.
     inds = ntuple(
