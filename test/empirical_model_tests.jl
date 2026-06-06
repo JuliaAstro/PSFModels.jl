@@ -189,6 +189,16 @@ end
     # Guard against extrapolating unconstrained edge holes into a false PSF tail.
     @test maximum(abs.(psf.data .- truth)[20:21, 15:21]) < 1e-5
 
+    # Fit the stars in the image with the measured PSF model to confirm it can reproduce the input fluxes and centroids.
+    for k in eachindex(sources.x)
+        # model = ImagePSF(psf.data; x = sources.x[k], y = sources.y[k], flux = sources.flux[k], origin = psf.origin, oversampling = psf.oversampling)
+        model = ConstructionBase.setproperties(psf, (x = sources.x[k], y = sources.y[k], flux = sources.flux[k]))
+        fit, _ = fit_lm(model, image, (1:128, 1:128))
+        @test fit.flux ≈ sources.flux[k] rtol = 0.05
+        @test fit.x ≈ sources.x[k] atol = 0.1
+        @test fit.y ≈ sources.y[k] atol = 0.1
+    end
+
     # Verify the explicit-cutout API forwards into the same empirical builder.
     inds = ntuple(
         k -> (
