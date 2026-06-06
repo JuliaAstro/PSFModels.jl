@@ -270,6 +270,7 @@ include("plotting.jl")
 include("optim_fitting.jl")
 include("levenberg_marquardt.jl")
 include("empirical_models.jl")
+include("empirical_builder.jl")
 include("simulation.jl")
 
 end # module PSFModels

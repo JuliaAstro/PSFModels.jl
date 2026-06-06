@@ -1,4 +1,4 @@
-using PSFModels: GaussianPSF, CircularGaussianPSF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss, bicubic_interpolate, _fill_missing_bicubic!
+using PSFModels: GaussianPSF, CircularGaussianPSF, CircularGaussianPRF, evaluate, _make_fgh, free_params, model_from_vector, fit, fit_lm, render, TukeyLoss, bicubic_interpolate, fill_grid_holes!, simulate_image, fit, ImagePSF
 using BenchmarkTools
 import LossFunctions
 import Optim
@@ -64,11 +64,11 @@ end
 # ---------------------------------------------------------------------------
 SUITE["empirical"] = BenchmarkGroup()
 SUITE["empirical"]["bicubic_interpolate"] = @benchmarkable bicubic_interpolate(x, $3.5, $3.5) setup=(x=rand(7,7))
-SUITE["empirical"]["_fill_missing_bicubic!"] = @benchmarkable _fill_missing_bicubic!(x) setup=(x=rand(21,21); inds=([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1]); x[inds...] .= NaN) evals=1
+SUITE["empirical"]["fill_grid_holes!"] = @benchmarkable fill_grid_holes!(x) setup=(x=rand(21,21); inds=([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1]); x[inds...] .= NaN) evals=1
 
 for n in (50, 100)
     SUITE["empirical"]["ImagePSF fit, n=$n"] = @benchmarkable psf, result =
-        PSFModels.fit(ImagePSF, image, sources.x, sources.y;
+        fit(ImagePSF, image, sources.x, sources.y;
             fit_rad = 5.0, oversampling = 2, smooth = true, recenter = false,
             reweight = nothing) setup=(begin
                 truth_model = CircularGaussianPRF(x = 0, y = 0, fwhm = 1.8, flux = 1, bkg = 0)

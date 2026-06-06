@@ -1,5 +1,5 @@
 using PSFModels
-using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral, _fill_missing_bicubic!
+using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral, fill_grid_holes!
 import ConstructionBase
 using StableRNGs: StableRNG
 using Statistics: mean
@@ -82,13 +82,13 @@ end
     @test_throws ArgumentError ImagePSF(bad)
 end
 
-@testset "_fill_missing_bicubic!" begin
+@testset "fill_grid_holes!" begin
     # Infill behavior
     x=rand(StableRNG(43), 21,21)
     # inds=(vcat(rand(1:21, 5), 1), vcat(rand(1:21, 5), 1))
     inds = ([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1])
     x[inds...] .= NaN
-    _fill_missing_bicubic!(x)
+    fill_grid_holes!(x)
     @test all(isfinite, x)
     # Regression: bordered by three good pixels, should not copy single neighbor
     @test x[1,1] != x[1,2]
@@ -97,7 +97,7 @@ end
     fill!(x, 1)
     inds = (1:2:21, 1:2:21)
     x[inds...] .= NaN
-    @test_logs (:warn,) _fill_missing_bicubic!(x)
+    @test_logs (:warn,) fill_grid_holes!(x)
     @test all(==(1), x) # Fallback infill should fill all holes in this case
 end
 
