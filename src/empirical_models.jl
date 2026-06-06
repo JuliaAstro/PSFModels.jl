@@ -12,8 +12,8 @@ function _as_oversampling(oversampling)
     if oversampling isa Integer
         oversampling > 0 || throw(ArgumentError("`oversampling` must be positive"))
         return (Int(oversampling), Int(oversampling))
-    # Accept explicit axis factors for anisotropic sampling.
     elseif oversampling isa Tuple || oversampling isa AbstractVector
+        # Accept explicit axis factors for anisotropic sampling.
         length(oversampling) == 2 ||
             throw(ArgumentError("`oversampling` must be an integer or a length-2 tuple/vector of integers"))
         all(x -> x isa Integer, oversampling) ||
@@ -146,14 +146,8 @@ function ConstructionBase.setproperties(model::ImagePSF{T, S}, patch::NamedTuple
     flux = haskey(patch, :flux) ? T(patch.flux) : model.flux
     bkg = haskey(patch, :bkg) ? T(patch.bkg) : model.bkg
     return ImagePSF{T, S}(
-        model.data,
-        x,
-        y,
-        flux,
-        bkg,
-        model.origin,
-        model.oversampling,
-        model.fill_value
+        model.data, x, y, flux, bkg, model.origin,
+        model.oversampling, model.fill_value
     )
 end
 
@@ -258,14 +252,22 @@ function bicubic_interpolate(data::AbstractMatrix, x, y; fill_value = zero(eltyp
 
     # Interpolate each row in x and keep the row-wise x derivatives.
     @inbounds begin
-        row1, drow1dx = _cubic4(T(data[ix1, iy1]), T(data[ix2, iy1]), 
-                                T(data[ix3, iy1]), T(data[ix4, iy1]), dx)
-        row2, drow2dx = _cubic4(T(data[ix1, iy2]), T(data[ix2, iy2]), 
-                                T(data[ix3, iy2]), T(data[ix4, iy2]), dx)
-        row3, drow3dx = _cubic4(T(data[ix1, iy3]), T(data[ix2, iy3]), 
-                                T(data[ix3, iy3]), T(data[ix4, iy3]), dx)
-        row4, drow4dx = _cubic4(T(data[ix1, iy4]), T(data[ix2, iy4]), 
-                                T(data[ix3, iy4]), T(data[ix4, iy4]), dx)
+        row1, drow1dx = _cubic4(
+            T(data[ix1, iy1]), T(data[ix2, iy1]),
+            T(data[ix3, iy1]), T(data[ix4, iy1]), dx
+        )
+        row2, drow2dx = _cubic4(
+            T(data[ix1, iy2]), T(data[ix2, iy2]),
+            T(data[ix3, iy2]), T(data[ix4, iy2]), dx
+        )
+        row3, drow3dx = _cubic4(
+            T(data[ix1, iy3]), T(data[ix2, iy3]),
+            T(data[ix3, iy3]), T(data[ix4, iy3]), dx
+        )
+        row4, drow4dx = _cubic4(
+            T(data[ix1, iy4]), T(data[ix2, iy4]),
+            T(data[ix3, iy4]), T(data[ix4, iy4]), dx
+        )
     end
 
     # Interpolate those row values in y, including both first derivatives.
@@ -299,6 +301,10 @@ function evaluate_fg(model::ImagePSF{T}, px, py) where {T}
     df_dbkg = one(T)
     return f, SA[df_dx, df_dy, df_dflux, df_dbkg]
 end
+
+############################################
+# Fitting an ImagePSF from data
+############################################
 
 mutable struct _EmpiricalStar{T}
     inds::Tuple{UnitRange{Int}, UnitRange{Int}}
@@ -973,17 +979,8 @@ function _fit_imagepsf(
         count(s -> s.used, stars) ≥ 2 || throw(ArgumentError("too few stars survived empirical PSF fitting"))
         # Restack the ePSF using the updated per-star parameters.
         data = _stack_psf(
-            image,
-            stars,
-            shape,
-            origin,
-            os;
-            sigma_clip,
-            sample_clip,
-            smooth,
-            recenter,
-            clip_negative,
-            badmask
+            image, stars, shape, origin, os;
+            sigma_clip, sample_clip, smooth, recenter, clip_negative, badmask
         )
         psf = ImagePSF(data; origin, oversampling = os, fill_value)
 
@@ -1018,7 +1015,10 @@ Build a single empirical ePSF from stars in `image`, starting from initial
 detector-pixel coordinates `x` and `y`. Pixels whose full square area lies
 inside `fit_rad` of the initial center are used for each stellar cutout.
 """
-function fit(::Type{ImagePSF}, image::AbstractMatrix, x, y; fit_rad::Real, drop_edge::Bool = true, kwargs...)
+function fit(
+        ::Type{ImagePSF}, image::AbstractMatrix, x, y;
+        fit_rad::Real, drop_edge::Bool = true, kwargs...
+    )
     # Convert catalog positions into fit cutouts before entering the builder.
     stars = _stars_from_xy(image, x, y, fit_rad; drop_edge)
     return _fit_imagepsf(image, stars; psf_radius = fit_rad, kwargs...)
@@ -1031,7 +1031,10 @@ Build a single empirical ePSF from explicit cutout ranges. `inds` may be one
 cutout `(xrange, yrange)` or an iterable of such cutouts. If `x` and `y` are
 omitted, each initial center is the midpoint of its cutout.
 """
-function fit(::Type{ImagePSF}, image::AbstractMatrix, inds; x = nothing, y = nothing, kwargs...)
+function fit(
+        ::Type{ImagePSF}, image::AbstractMatrix, inds;
+        x = nothing, y = nothing, kwargs...
+    )
     # Use caller-provided cutout ranges directly.
     stars = _stars_from_inds(image, inds; x, y)
     return _fit_imagepsf(image, stars; kwargs...)

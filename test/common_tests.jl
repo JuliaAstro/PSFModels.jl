@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF, ImagePSF
 using Test
 
 # Tests generic API, type return, etc

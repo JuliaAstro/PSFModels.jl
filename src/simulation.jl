@@ -2,8 +2,8 @@ function _as_pair(value, name)
     # Treat scalar inputs as identical values on both axes.
     if value isa Number
         return (value, value)
-    # Validate explicit axis pairs.
     elseif value isa Tuple || value isa AbstractVector
+        # Validate explicit axis pairs.
         length(value) == 2 || throw(ArgumentError("`$name` must be a scalar or length-2 tuple/vector"))
         return (value[1], value[2])
     else
@@ -15,8 +15,8 @@ function _sample_flux(rng::Random.AbstractRNG, flux, distribution, power)
     # A scalar flux means every simulated source has the same brightness.
     if flux isa Number
         return float(flux)
-    # A two-value flux range is sampled from the requested distribution.
     elseif flux isa Tuple || flux isa AbstractVector
+        # A two-value flux range is sampled from the requested distribution.
         length(flux) == 2 || throw(ArgumentError("flux range must have two values"))
         lo, hi = float(flux[1]), float(flux[2])
         lo > 0 && hi ≥ lo || throw(ArgumentError("flux range must be positive and ordered"))
@@ -66,8 +66,8 @@ function _flux_from_snr_spec(rng, model, snr, background, read_noise, gain)
     bg = background isa AbstractMatrix ? mean(background) : background
     if snr isa Number
         return flux_for_snr(model; snr, background = bg, read_noise, gain)
-    # Allow source-to-source SNR variation over a uniform range.
     elseif snr isa Tuple || snr isa AbstractVector
+        # Allow source-to-source SNR variation over a uniform range.
         length(snr) == 2 || throw(ArgumentError("`snr` range must have two values"))
         sampled = snr[1] + rand(rng) * (snr[2] - snr[1])
         return flux_for_snr(model; snr = sampled, background = bg, read_noise, gain)
@@ -307,26 +307,13 @@ function simulate_image(
     )
     # Generate a source catalog with the same noise/background assumptions.
     sources = simulate_sources(
-        shape,
-        n_sources;
-        rng,
-        psf,
-        background,
-        read_noise,
-        gain,
-        source_kwargs...
+        shape, n_sources;
+        rng, psf, background, read_noise, gain, source_kwargs...
     )
     # Render the generated catalog into an image.
     image = simulate_image(
-        shape,
-        psf,
-        sources;
-        background,
-        noise,
-        read_noise,
-        gain,
-        model_radius,
-        rng
+        shape, psf, sources;
+        background, noise, read_noise, gain, model_radius, rng
     )
     return image, sources
 end
