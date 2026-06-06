@@ -191,8 +191,7 @@ end
 
     # Fit the stars in the image with the measured PSF model to confirm it can reproduce the input fluxes and centroids.
     for k in eachindex(sources.x)
-        # model = ImagePSF(psf.data; x = sources.x[k], y = sources.y[k], flux = sources.flux[k], origin = psf.origin, oversampling = psf.oversampling)
-        model = ConstructionBase.setproperties(psf, (x = sources.x[k], y = sources.y[k], flux = sources.flux[k]))
+        model = ConstructionBase.setproperties(psf, (x = sources.x[k] + randn(rng) * 0.5, y = sources.y[k] + randn(rng) * 0.5, flux = sources.flux[k] * (1 - randn(rng) * 0.1)))
         fit, _ = fit_lm(model, image, (1:128, 1:128))
         @test fit.flux ≈ sources.flux[k] rtol = 0.05
         @test fit.x ≈ sources.x[k] atol = 0.1
