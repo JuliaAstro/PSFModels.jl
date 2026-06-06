@@ -87,7 +87,7 @@ individual stars — until the largest centroid shift falls below `centroid_tol`
 3. FIT      → fit_all_stars(stars, psf, image)
 4. ANCHOR   → remove_centroid_drift(stars, old_centroids)
 5. RESTACK  → stack_epsf_grid(image, stars, state)
-6. Repeat 3–5 until check_centroid_convergence(stars, ...)
+6. Repeat 3–5 until convergence
 ```
 
 ### Step 1 — Star extraction
@@ -263,15 +263,9 @@ together in the future**.
 
 ### Convergence
 
-[`check_centroid_convergence`](@ref) returns `true` when the largest accepted
+Convergence is achieved when the largest accepted
 centroid update across all stars falls below `centroid_tol` (default
-$10^{-3}$ pixels). A minimum of two surviving stars is enforced by
-[`check_min_stars`](@ref).
-
-```@docs
-PSFModels.check_centroid_convergence
-PSFModels.check_min_stars
-```
+$10^{-3}$ pixels). A minimum of two surviving stars is required.
 
 ### Return value
 

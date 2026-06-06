@@ -4,11 +4,11 @@ import ADTypes
 import ForwardDiff
 import Random
 using LinearAlgebra: inv, cholesky!, ldiv!, I, Symmetric, pinv, PosDefException
-import ConstructionBase
 import LossFunctions
 import NLSolversBase
 import Optim
-using ConstructionBase: constructorof, getfields, getproperties, setproperties # Use these to query / update structs in a generic way for fitting
+import ConstructionBase
+using ConstructionBase: getproperties, setproperties # Use these to query / update structs in a generic way for fitting
 using Rotations: RotMatrix
 using SpecialFunctions: besselj, besselj0, besselj1, erf
 using StaticArrays: SA, SVector, MMatrix

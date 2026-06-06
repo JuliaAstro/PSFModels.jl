@@ -728,21 +728,6 @@ function remove_centroid_drift(stars, old_centroids)
     return stars
 end
 
-function check_centroid_convergence(stars, old_centroids, centroid_tol)
-    T = typeof(stars[1].x)
-    max_shift = zero(T)
-    for k in eachindex(stars)
-        stars[k].used || continue
-        max_shift = max(max_shift, hypot(stars[k].x - old_centroids[k][1], stars[k].y - old_centroids[k][2]))
-    end
-    return max_shift ≤ centroid_tol
-end
-
-function check_min_stars(stars)
-    return count(s -> s.used, stars) ≥ 2 ||
-        throw(ArgumentError("too few stars survived empirical PSF fitting"))
-end
-
 function build_result(stars, psf, iterations)
     T = typeof(stars[1].x)
     return ImagePSFBuildResult(
@@ -820,16 +805,30 @@ function build_epsf(
             stars, psf, image;
             badmask, reweight, star_max_iter, fit_bkg, show_trace, kwargs...
         )
+        # Capture fitted centroids before anchoring so the convergence
+        # check reflects the actual fit improvement, not the anchoring step.
+        fitted_centroids = [(s.x, s.y) for s in stars]
         if anchor_centroids
             stars = remove_centroid_drift(stars, old_centroids)
         end
-        check_min_stars(stars)
+        count(s -> s.used, stars) ≥ 2 ||
+            throw(ArgumentError("too few stars survived empirical PSF fitting"))
         data = stack_epsf_grid(image, stars, state; badmask)
         psf = ImagePSF(
             data; origin = state.origin, oversampling = state.oversampling,
             fill_value = state.fill_value
         )
-        check_centroid_convergence(stars, old_centroids, T(centroid_tol)) && break
+        # Convergence uses pre-anchoring shifts so the loop does not
+        # exit before the ePSF has a chance to improve.
+        max_shift = zero(T)
+        for k in eachindex(stars)
+            stars[k].used || continue
+            max_shift = max(max_shift, hypot(
+                fitted_centroids[k][1] - old_centroids[k][1],
+                fitted_centroids[k][2] - old_centroids[k][2],
+            ))
+        end
+        max_shift ≤ T(centroid_tol) && break
     end
     return psf, build_result(stars, psf, iterations)
 end
