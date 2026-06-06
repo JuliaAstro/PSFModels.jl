@@ -329,8 +329,12 @@ end
     cubic_lagrange_interpolate(xs, ys, x0)
 
 Evaluate the cubic Lagrange interpolant through four arbitrary `(xs, ys)`
-samples at `x0`. Used during grid hole-filling when the finite support does not
-form a contiguous stencil for bicubic interpolation.
+samples at `x0` (constructs the unique cubic polynomial that passes
+through the four points and evaluates it at `x0`).
+This is useful when the underlying data grid is irregular
+or has missing values, as there is no constraint on the spacing of the
+`xs`, `ys` values. Used during grid hole-filling when the finite
+support does not form a contiguous stencil for bicubic interpolation.
 """
 function cubic_lagrange_interpolate(xs, ys, x0)
     T = promote_type(eltype(xs), eltype(ys), typeof(x0))
