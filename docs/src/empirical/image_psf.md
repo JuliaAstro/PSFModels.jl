@@ -2,7 +2,7 @@
 CurrentModule = PSFModels
 ```
 
-# ImagePSF — ePSF model for single images
+# [ImagePSF — ePSF model for single images](@id image_psf)
 
 ## Overview
 
@@ -273,89 +273,6 @@ $10^{-3}$ pixels). A minimum of two surviving stars is required.
 [`ImagePSFBuildResult`](@ref) containing the final per-star parameters,
 usage and convergence flags, iteration count, and per-star costs — enabling
 downstream quality filtering.
-
-## Recommendations on usage
-
-### Oversampling and number of PSF stars
-
-Oversampling increases the number of ePSF grid cells that must be constrained
-from the same detector pixels. A useful first-order estimate comes from treating
-the stellar pixel phases as independent uniform random variables on
-$[0, 1) \times [0, 1)$. Let the oversampling be
-$(s_x, s_y)$ and define
-
-```math
-q = s_x s_y
-```
-
-as the number of oversampled phase cells per detector pixel. For one ePSF grid
-cell away from cutout boundaries, each star contributes one relevant detector
-pixel whose random pixel phase lands in that cell with probability
-
-```math
-p = \frac{1}{q} = \frac{1}{s_x s_y}.
-```
-
-With $N_\ast$ usable PSF stars, the number of detector-pixel samples assigned to
-that ePSF cell is therefore
-
-```math
-K \sim \mathrm{Binomial}\!\left(N_\ast, \frac{1}{s_x s_y}\right),
-```
-
-so
-
-```math
-\mathbb{E}[K] = \frac{N_\ast}{s_x s_y}.
-```
-
-Equivalently, to obtain an average of $\mu$ input samples per ePSF cell,
-
-```math
-N_\ast \approx \mu\,s_x s_y.
-```
-
-This scaling is fairly intuitive; doubling the oversampling along both axes
-requires roughly four times as many stars for the same per-cell support. It also
-gives the expected hole rate before interpolation. For an interior ePSF cell,
-
-```math
-\Pr(K = 0) = \left(1 - \frac{1}{s_x s_y}\right)^{N_\ast},
-```
-
-and requiring an expected empty-cell fraction below $f$ gives
-
-```math
-N_\ast \ge
-\frac{\log f}{\log\left(1 - \frac{1}{s_x s_y}\right)}
-\approx s_x s_y \log\frac{1}{f}.
-```
-
-The empty-cell criterion is weaker than the requirement for a high-quality
-stack. For example, a 4x oversampled grid needs only about 72 stars to make the
-expected interior hole fraction less than 1%, but that corresponds to only
-$72 / 16 = 4.5$ samples per cell on average. That is usually enough for the
-hole filler to be mostly inactive, but it is still a sparse sample for robust
-median combination and sigma rejection.
-
-As a rule of thumb, use at least $\mu \approx 5$ samples per ePSF cell for
-exploratory work and $\mu \approx 10$ or more for production-quality stacks,
-assuming isolated stars with good S/N. For scalar oversampling $s = s_x = s_y$:
-
-| Oversampling | Phase cells $s^2$ | Stars for $\mu=5$ | Stars for $\mu=10$ | Stars for <1% holes |
-|---:|---:|---:|---:|---:|
-| 1× | 1 | 5 | 10 | 1 |
-| 2× | 4 | 20 | 40 | 16 |
-| 4× | 16 | 80 | 160 | 72 |
-| 8× | 64 | 320 | 640 | 293 |
-| 16× | 256 | 1280 | 2560 | 1177 |
-
-These counts should be interpreted as usable stars after masking, clipping, and
-quality cuts. Boundary cells, bad pixels, saturation masks, cosmic-ray rejection,
-crowding, low S/N, and non-uniform pixel phases all reduce the effective number
-of samples, so real data often need more stars than this idealized calculation.
-If the build reports many filled holes or the fitted ePSF changes noticeably
-when the star list is resampled, reduce the oversampling or add more stars.
 
 ## References
 This page cites the following references:
