@@ -192,13 +192,17 @@ function ellipse_bounds(a, b, θ)
 end
 
 """
-    extent(model::AbstractPSFModel, fwhm_factor=5) → (x_range::Tuple, y_range::Tuple)
+    extent([T::Integer], model::AbstractPSFModel, fwhm_factor=5; roundint::Bool=false) → (x_range::Tuple, y_range::Tuple)
 
 Returns the extent of the PSF model which is typically useful for fitting, plotting, etc., 
 `((x_min, x_max), (y_min, y_max))`. By default, the extent is the smallest axis-aligned
 rectangle enclosing an ellipse centered on the model centroid whose major and minor axis
 lengths are `fwhm_factor` times the model FWHM values. Models with more
 complex shapes can override this function to provide a more appropriate extent.
+
+If the first argument is an integer type `T`, the returned extent will be rounded to
+the nearest integers of type `T` that fully contain the original extent. This is useful
+for determining pixel indices for rendering and fitting.
 
 ```jldoctest
 julia> using PSFModels: extent, CircularGaussianPSF, GaussianPSF
@@ -208,27 +212,37 @@ julia> extent(CircularGaussianPSF(x=10, y=20, fwhm=5, flux=30, bkg=1), 5)
 
 julia> extent(GaussianPSF(x=10, y=20, x_fwhm=5, y_fwhm=3, theta=90, flux=30, bkg=1), 5)
 ((2.5, 17.5), (7.5, 32.5))
+
+julia> extent(Int, GaussianPSF(x=10, y=20, x_fwhm=5, y_fwhm=3, theta=90, flux=30, bkg=1), 5)
+((2, 18), (7, 33))
 ```
 """
 function extent(model::AbstractPSFModel, fwhm_factor = 5)
-    # default extent is 5x5 around centroid, but specific models can override this
+    # default extent is 5x5 fwhm around centroid, but specific models can override this
     x0, y0 = centroid(model)
     FWHM = fwhm(model)
     a, b = fwhm_factor * FWHM[1] / 2, fwhm_factor * FWHM[2] / 2
     dx, dy = ellipse_bounds(a, b, theta(model))
     return (x0 - dx, x0 + dx), (y0 - dy, y0 + dy)
 end
+@inline function extent(::Type{T}, model::AbstractPSFModel, fwhm_factor = 5) where {T<:Integer}
+    (xmin, xmax), (ymin, ymax) = extent(model, fwhm_factor)
+    return (floor(T, xmin), ceil(T, xmax)), (floor(T, ymin), ceil(T, ymax))
+end
 
 """
     render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
 
-Fill the pre-allocated matrix `out` with `evaluate(model, px, py)` for each pixel
-`(px, py)` in `inds`. The first axis of `out` corresponds to `inds[1]` and the
-second axis to `inds[2]`, so offset ranges are handled correctly.
+Mutate `out` by filling index `[i, j]` with `evaluate(model, px, py)` for
+`px = inds[1][i]` and `py = inds[2][j]`. Mostly useful
+for filling a postage stamp or sub-image view with the PSF model values.
+
+See `render_inframe!` for a version that renders the model into a larger image
+frame given a model centroid in the pixel-space coordinates of the image.
 """
 function render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
     xs, ys = inds
-    @inbounds for i in eachindex(xs)
+    for i in eachindex(xs)
         px = xs[i]
         for j in eachindex(ys)
             out[i, j] = evaluate(model, px, ys[j])

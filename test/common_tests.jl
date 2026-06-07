@@ -11,6 +11,8 @@ function test_common(model::AbstractPSFModel{T}) where {T}
     ex = @inferred extent(model)
     @test ex isa Tuple{Tuple{T, T}, Tuple{T, T}}
     x, y = range(ex[1][1], ex[1][2]; step = one(T)), range(ex[2][1], ex[2][2]; step = one(T))
+    ex_round = @inferred extent(Int, model)
+    @test ex_round == ((floor(Int, ex[1][1]), ceil(Int, ex[1][2])), (floor(Int, ex[2][1]), ceil(Int, ex[2][2])))
     m = evaluate.(model, x, y')
     @test m isa Matrix{T}
     @test size(m) == (length(x), length(y))

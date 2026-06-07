@@ -154,6 +154,7 @@ function extent(model::ImagePSF{T}) where {T}
         (model.y - (oy - one(T)) / sy, model.y + (T(ny) - oy) / sy),
     )
 end
+extent(model::ImagePSF, _) = extent(model) # ignore extra argument (fwhm_factor) if provided.
 
 function effective_area(model::ImagePSF{T}) where {T}
     # Approximate effective area from the normalized discrete ePSF samples.
