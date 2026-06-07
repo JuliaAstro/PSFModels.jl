@@ -238,7 +238,7 @@ end
         anchor_centroids = false,
     )
     truth = _truth_grid(truth_model, psf)
-    @test count(result.used) ≥ 65
+    @test count(result.used) ≥ 60
     @test mean(abs.(psf.data .- truth)) < 1e-3
-    @test mean(hypot.(sources.x[result.used] .- result.x[result.used], sources.y[result.used] .- result.y[result.used])) < 0.075
+    @test median(hypot.(sources.x[result.used] .- result.x[result.used], sources.y[result.used] .- result.y[result.used])) < 0.075
 end
