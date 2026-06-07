@@ -234,6 +234,9 @@ function Base.CartesianIndices(model::AbstractPSFModel, fwhm_factor = 5)
     return CartesianIndices((ex[1][1]:ex[1][2], ex[2][1]:ex[2][2]))
 end
 
+# TODO: render!, render(model, inds) probably redundant with broadcasting 
+# like evaluate.(model, x, y') or evaluate.(model, CartesianIndices(model)),
+# want to get rid of these I think, but leaving for now to stew in my noggin.
 """
     render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
 
