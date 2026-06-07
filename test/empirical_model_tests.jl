@@ -151,7 +151,7 @@ end
         image,
         sources.x .+ randn(rng, length(sources.x)) * 0.5,
         sources.y .+ randn(rng, length(sources.y)) * 0.5;
-        fit_rad = 5.0,
+        psf_rad = 5.0,
         oversampling = 2,
         smooth = true,
         recenter = true,
@@ -188,6 +188,7 @@ end
         ImagePSF,
         image,
         inds;
+        psf_rad = 5.0,
         x = sources.x,
         y = sources.y,
         oversampling = 2,
@@ -232,7 +233,7 @@ end
         image,
         sources.x .+ randn(rng, length(sources.x)) * 0.25,
         sources.y .+ randn(rng, length(sources.y)) * 0.25;
-        fit_rad = 5.0,
+        psf_rad = 5.0,
         oversampling = 2,
         smooth = true,
         recenter = true,

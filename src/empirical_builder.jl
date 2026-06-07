@@ -176,39 +176,36 @@ function _normalize_cutout_inds(inds)
 end
 
 """
-    extract_stars(image, x, y, fit_rad; drop_edge=false) -> Vector{EmpiricalStar}
+    extract_stars(image, x, y, psf_rad; drop_edge=false) -> Vector{EmpiricalStar}
 
 Build per-star cutouts from an image and initial detector-pixel coordinates.
-Pixels whose full square area lies inside `fit_rad` of the initial center are
-used for each star. Each cutout gets initial centroid, flux, and background
-estimates.
+The cutout bounding box extends ±`psf_rad` around each star center; all pixels
+within that box are stored for ePSF construction. Each cutout gets initial
+centroid, flux, and background estimates.
 """
-function extract_stars(image, x, y, fit_rad; drop_edge::Bool)
+function extract_stars(image, x, y, psf_rad; drop_edge::Bool)
     xs = collect(x)
     ys = collect(y)
     length(xs) == length(ys) || throw(ArgumentError("`x` and `y` must have the same length"))
-    T = promote_type(eltype(image), eltype(xs), eltype(ys), typeof(fit_rad))
+    T = promote_type(eltype(image), eltype(xs), eltype(ys), typeof(psf_rad))
     T = T <: Integer ? Float64 : float(T)
     ax, ay = axes(image)
     stars = EmpiricalStar{T}[]
     for k in eachindex(xs, ys)
         xk, yk = T(xs[k]), T(ys[k])
-        xlo = floor(Int, xk - fit_rad)
-        xhi = ceil(Int, xk + fit_rad)
-        ylo = floor(Int, yk - fit_rad)
-        yhi = ceil(Int, yk + fit_rad)
+        xlo = floor(Int, xk - psf_rad)
+        xhi = ceil(Int, xk + psf_rad)
+        ylo = floor(Int, yk - psf_rad)
+        yhi = ceil(Int, yk + psf_rad)
         inside = first(ax) ≤ xlo && xhi ≤ last(ax) && first(ay) ≤ ylo && yhi ≤ last(ay)
         if !inside
             drop_edge && continue
             throw(ArgumentError("fit cutout for star $k extends outside the image"))
         end
 
-        # Keep only pixels whose full pixel square lies inside the fit radius.
-        pix = CartesianIndex{2}[]
-        for i in xlo:xhi, j in ylo:yhi
-            _pixel_wholly_inside(i, j, xk, yk, fit_rad) && push!(pix, CartesianIndex(i, j))
-        end
-        isempty(pix) && throw(ArgumentError("`fit_rad` leaves no usable pixels for star $k"))
+        # Include all pixels in the cutout for ePSF construction.
+        pix = vec(collect(CartesianIndices((xlo:xhi, ylo:yhi))))
+        isempty(pix) && throw(ArgumentError("`psf_rad` leaves no usable pixels for star $k"))
         star = EmpiricalStar((xlo:xhi, ylo:yhi), pix, xk, yk, one(T), zero(T), true, false, T(Inf))
         star = estimate_initial_star_params(star, image)
         push!(stars, star)
@@ -367,7 +364,11 @@ default to allow infill growth without risking infinite loops.
 function fill_grid_holes!(data; maxiter::Int = 6)
     T = eltype(data)
     nx, ny = size(data)
-    all(isfinite, data) && return data
+    n_holes = count(!isfinite, data)
+    n_holes == 0 && return data
+    if n_holes / (nx * ny) > 0.1
+        @warn "more than 10% of the ePSF grid is missing; infill may be unreliable"
+    end
 
     fillable = falses(nx, ny)
     for j in 1:ny, i in 1:nx
@@ -376,9 +377,7 @@ function fill_grid_holes!(data; maxiter::Int = 6)
                 has_finite_support_on_both_sides(data, i, j; along_x = false)
         end
     end
-    if count(fillable) / (nx * ny) > 0.1
-        @warn "more than 10% of the ePSF grid is missing; infill may be unreliable"
-    end
+
     # First: fill interior holes with separable cubic interpolation where possible
     for _ in 1:maxiter
         changed = false
@@ -606,11 +605,15 @@ end
 # Phase: Per-star fitting against the current ePSF
 # ==============================================================================
 
-function finite_unmasked_pixels(star, image, badmask)
+function finite_unmasked_pixels(star, image, badmask, fit_rad)
     pix = CartesianIndex{2}[]
     for idx in star.pixels
         isnothing(badmask) || !badmask[idx] || continue
-        isfinite(image[idx]) && push!(pix, idx)
+        isfinite(image[idx]) || continue
+        if !isnothing(fit_rad)
+            _pixel_wholly_inside(idx[1], idx[2], star.x, star.y, fit_rad) || continue
+        end
+        push!(pix, idx)
     end
     return pix
 end
@@ -631,10 +634,11 @@ function fit_star_against_epsf(
         star_max_iter::Integer = 100,
         fit_bkg::Bool = false,
         show_trace::Bool = false,
+        fit_rad = nothing,
         kwargs...
     ) where {T}
 
-    pix = finite_unmasked_pixels(star, image, badmask)
+    pix = finite_unmasked_pixels(star, image, badmask, fit_rad)
     nparams = fit_bkg ? 4 : 3
     if length(pix) <= nparams
         return setproperties(star, (used = false, converged = false))
@@ -700,13 +704,14 @@ end
 
 function fit_all_stars(
         stars, psf, image; badmask = nothing, reweight = TukeyLoss(),
-        star_max_iter::Integer = 100, fit_bkg::Bool = false, show_trace::Bool = false, kwargs...
+        star_max_iter::Integer = 100, fit_bkg::Bool = false, show_trace::Bool = false,
+        fit_rad = nothing, kwargs...
     )
     for k in eachindex(stars)
         stars[k].used || continue
         stars[k] = fit_star_against_epsf(
             stars[k], psf, image;
-            badmask, reweight, star_max_iter, fit_bkg, show_trace, kwargs...
+            badmask, reweight, star_max_iter, fit_bkg, show_trace, fit_rad, kwargs...
         )
     end
     return stars
@@ -767,6 +772,7 @@ function build_epsf(
         stars::Vector{EmpiricalStar{T}};
         oversampling = 1,
         psf_radius = nothing,
+        fit_rad = nothing,
         maxiters::Integer = 6,
         centroid_tol::Real = 1.0e-3,
         sigma_clip = 4.0,
@@ -807,7 +813,7 @@ function build_epsf(
         old_centroids = [(s.x, s.y) for s in stars]
         stars = fit_all_stars(
             stars, psf, image;
-            badmask, reweight, star_max_iter, fit_bkg, show_trace, kwargs...
+            badmask, reweight, star_max_iter, fit_bkg, show_trace, fit_rad, kwargs...
         )
         # Capture fitted centroids before anchoring so the convergence
         # check reflects the actual fit improvement, not the anchoring step.
@@ -844,31 +850,33 @@ end
 # ==============================================================================
 
 """
-    fit(ImagePSF, image, x, y; fit_rad, kwargs...) -> (psf, result)
+    fit(ImagePSF, image, x, y; psf_rad, fit_rad=psf_rad, kwargs...) -> (psf, result)
 
 Build a single empirical ePSF from stars in `image`, starting from initial
-detector-pixel coordinates `x` and `y`. Pixels whose full square area lies
-inside `fit_rad` of the initial center are used for each stellar cutout.
+detector-pixel coordinates `x` and `y`.
+
+`psf_rad` controls the cutout extent (±`psf_rad` around each star center);
+all pixels in the cutout are used for ePSF construction.  `fit_rad` controls
+the circular aperture (pixel-wholly-inside test) used when fitting each star's
+centroid and flux against the current ePSF; defaults to `psf_rad`.
 """
 function fit(
         ::Type{ImagePSF}, image::AbstractMatrix, x, y;
-        fit_rad::Real, drop_edge::Bool = true, kwargs...
+        psf_rad::Real,
+        fit_rad::Real = psf_rad,
+        drop_edge::Bool = true,
+        kwargs...
     )
-    stars = extract_stars(image, x, y, fit_rad; drop_edge)
-    return build_epsf(image, stars; psf_radius = fit_rad, kwargs...)
+    stars = extract_stars(image, x, y, psf_rad; drop_edge)
+    return build_epsf(image, stars; psf_radius = psf_rad, fit_rad, kwargs...)
 end
 
-"""
-    fit(ImagePSF, image, inds; x=nothing, y=nothing, kwargs...) -> (psf, result)
-
-Build a single empirical ePSF from explicit cutout ranges. `inds` may be one
-cutout `(xrange, yrange)` or an iterable of such cutouts. If `x` and `y` are
-omitted, each initial center is the midpoint of its cutout.
-"""
 function fit(
         ::Type{ImagePSF}, image::AbstractMatrix, inds;
-        x = nothing, y = nothing, kwargs...
+        x = nothing, y = nothing, psf_rad::Real,
+        fit_rad::Real = psf_rad,
+        kwargs...
     )
     stars = extract_stars(image, inds; x, y)
-    return build_epsf(image, stars; kwargs...)
+    return build_epsf(image, stars; psf_radius = psf_rad, fit_rad, kwargs...)
 end

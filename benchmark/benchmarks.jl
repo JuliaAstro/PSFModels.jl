@@ -69,10 +69,10 @@ SUITE["empirical"]["fill_grid_holes!"] = @benchmarkable fill_grid_holes!(x) setu
 for n in (50, 100)
     SUITE["empirical"]["ImagePSF fit, n=$n"] = @benchmarkable psf, result =
         fit(ImagePSF, image, sources.x, sources.y;
-            fit_rad = 5.0, oversampling = 2, smooth = true, recenter = false,
+            psf_rad = 5.0, oversampling = 2, smooth = true, recenter = false,
             reweight = nothing) setup=(begin
                 truth_model = CircularGaussianPRF(x = 0, y = 0, fwhm = 1.8, flux = 1, bkg = 0)
-                image, sources = simulate_image((96, 96), truth_model, $n;
+                image, sources = simulate_image((128, 128), truth_model, $n;
                     background = 20.0, noise = :none, flux = (600.0, 900.0),
                     min_separation = 7, border = 8, model_radius = 6)
             end) evals=1

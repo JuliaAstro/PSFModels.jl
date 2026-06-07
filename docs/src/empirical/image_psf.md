@@ -34,7 +34,7 @@ model's `flux` parameter directly scales detector-pixel fluxes.
 ### Building an ePSF from data
 
 ```@docs
-fit(::Type{ImagePSF}, ::AbstractMatrix, ::Any, ::Any; fit_rad)
+fit(::Type{ImagePSF}, ::AbstractMatrix, ::Any, ::Any; psf_rad, fit_rad)
 fit(::Type{ImagePSF}, ::AbstractMatrix, ::Any; x, y)
 ```
 
@@ -82,9 +82,9 @@ The builder iterates between two phases — stacking the ePSF grid and fitting
 individual stars — until the largest centroid shift falls below `centroid_tol`:
 
 ```
-1. EXTRACT  → extract_stars(image, x, y, fit_rad)
+1. EXTRACT  → extract_stars(image, x, y, psf_rad)
 2. STACK    → stack_epsf_grid(image, stars, state)
-3. FIT      → fit_all_stars(stars, psf, image)
+3. FIT      → fit_all_stars(stars, psf, image; fit_rad)
 4. ANCHOR   → remove_centroid_drift(stars, old_centroids)
 5. RESTACK  → stack_epsf_grid(image, stars, state)
 6. Repeat 3–5 until convergence
@@ -93,8 +93,8 @@ individual stars — until the largest centroid shift falls below `centroid_tol`
 ### Step 1 — Star extraction
 
 [`extract_stars`](@ref) takes an image and initial detector-pixel coordinates
-`(x, y)`, creates a square cutout of radius `fit_rad` around each position, and
-keeps only pixels whose full square area lies inside that radius. For each star
+`(x, y)`, creates a square cutout of radius `psf_rad` around each position, and
+stores all pixels in the cutout for ePSF construction.  For each star
 an [`EmpiricalStar`](@ref) record is created with:
 
 - The cutout index ranges and a flat vector of pixel coordinates
