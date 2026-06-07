@@ -2,7 +2,7 @@ using PSFModels
 using PSFModels: _as_oversampling, background, bicubic_interpolate, centroid, evaluate_fg, extent, fit_lm, integral, fill_grid_holes!, TukeyLoss
 import ConstructionBase
 using StableRNGs: StableRNG
-using Statistics: mean
+using Statistics: mean, median
 using Test
 
 """
