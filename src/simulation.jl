@@ -27,12 +27,34 @@ function _sample_flux(rng::Random.AbstractRNG, flux, distribution, power)
     end
 end
 
-"""
+@doc raw"""
     flux_for_snr(model; snr, background, read_noise=0, gain=1)
 
-Approximate source flux required for matched-filter `snr` for a PSF model on a
-flat background. The estimate uses `effective_area(model)` and a per-pixel
-variance of `background / gain + read_noise^2`.
+Approximate source flux, in the same data units as `background` and
+`read_noise` (for example, ADU), required for matched-filter `snr` for a PSF
+model on a flat background. `gain` is in electrons per data unit. The estimate
+uses [`effective_area(model)`](@ref PSFModels.effective_area), includes source
+shot noise, and a background/read-noise variance per pixel of
+`background / gain + read_noise^2`. The returned flux is in data units; the
+corresponding source flux in electrons is `F * gain`:
+
+```math
+\\mathrm{snr} \\approx \\frac{F}{\\sqrt{F / g + A_\\mathrm{eff}\\,\\sigma_b^2}},
+\\quad
+\\sigma_b^2 = \\max\\left(0, \\frac{\\mathrm{background}}{g} + \\mathrm{read\\_noise}^2\\right)
+```
+
+Solving the quadratic for the positive flux gives
+
+```math
+F \approx \frac{1}{2}\left[
+\frac{\mathrm{snr}^2}{g} +
+\sqrt{\left(\frac{\mathrm{snr}^2}{g}\right)^2
++ 4\,\mathrm{snr}^2 A_\mathrm{eff}\sigma_b^2}
+\right],
+\quad
+A_\mathrm{eff} = \mathrm{effective\_area}(\mathrm{model})
+```
 """
 function flux_for_snr(
         model::AbstractPSFModel;
@@ -41,11 +63,18 @@ function flux_for_snr(
         read_noise::Real = 0,
         gain::Real = 1
     )
-    # Use the matched-filter background variance approximation.
+    # Validate inputs before solving the SNR-flux quadratic.
     snr ≥ 0 || throw(ArgumentError("`snr` must be non-negative"))
     gain > 0 || throw(ArgumentError("`gain` must be positive"))
-    σ2 = max(zero(float(background)), float(background) / gain + float(read_noise)^2)
-    return float(snr) * sqrt(σ2 * effective_area(model))
+    snr, background, read_noise, gain = float.((snr, background, read_noise, gain))
+
+    # Combine the background/read-noise variance and effective PSF area.
+    σb2 = max(zero(background), background) / gain + read_noise^2
+    background_variance = effective_area(model) * σb2
+
+    # Include source shot noise by taking the positive root of the quadratic.
+    source_noise_term = snr^2 / gain
+    return (source_noise_term + sqrt(source_noise_term^2 + 4 * snr^2 * background_variance)) / 2
 end
 
 function _flux_from_snr_spec(rng, model, snr, background, read_noise, gain)

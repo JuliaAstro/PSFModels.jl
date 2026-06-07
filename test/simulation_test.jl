@@ -70,11 +70,26 @@ end
     @test sum(image) ≈ 12.0 * 40 * 45 + sum(sources.flux) rtol = 1.0e-6
     @test flux_for_snr(psf; snr = 20, background = 12, read_noise = 2) > 0
 
+    @testset "flux_for_snr" begin
+        # Verify that requested SNR inverts the data-unit noise model, including source shot noise.
+        snr = 20.0
+        background = 12.0
+        read_noise = 2.0
+        gain = 2.5
+        flux = flux_for_snr(psf; snr, background, read_noise, gain)
+        σb2 = background / gain + read_noise^2
+        @test flux / sqrt(flux / gain + effective_area(psf) * σb2) ≈ snr
+
+        # Source-only Poisson noise still requires nonzero flux in data units.
+        @test flux_for_snr(psf; snr = 5, background = 0, gain = 2) ≈ 12.5
+    end
+
     noisy = copy(image)
     add_noise!(noisy; noise = :poisson_gaussian, read_noise = 1.0, rng)
     @test noisy != image
 
     @testset "poisson" begin
+        # Compare the internal Poisson sampler against Distributions.jl across small and large rates.
         for val in (0.5, 2.0, 10.0, 1000.0)
             rng = StableRNG(123)
             x = [PSFModels.rand_poisson(rng, val) for _ in 1:100_000]
