@@ -92,11 +92,45 @@ function _flux_from_snr_spec(rng, model, snr, background, read_noise, gain)
     end
 end
 
+### Source placement utilities with grid-based acceleration for large `min_separation` ###
+
+function _source_grid_cell(x, y, xmin, ymin, inv_cell_size)
+    # Anchor grid coordinates to the valid placement region.
+    return (floor(Int, (x - xmin) * inv_cell_size), floor(Int, (y - ymin) * inv_cell_size))
+end
+
+function _candidate_is_separated(x, y, xs, ys, grid, next_source, minsep2, xmin, ymin, inv_cell_size)
+    # Limit exact separation checks to sources in nearby grid cells.
+    cx, cy = _source_grid_cell(x, y, xmin, ymin, inv_cell_size)
+    for ix in (cx - 1):(cx + 1), iy in (cy - 1):(cy + 1)
+        k = get(grid, (ix, iy), 0)
+        while k != 0
+            if (x - xs[k])^2 + (y - ys[k])^2 < minsep2
+                return false
+            end
+            k = next_source[k]
+        end
+    end
+    return true
+end
+
+function _insert_source!(grid, next_source, source_index, x, y, xmin, ymin, inv_cell_size)
+    # Link the source into its grid cell without allocating a per-cell vector.
+    cell = _source_grid_cell(x, y, xmin, ymin, inv_cell_size)
+    next_source[source_index] = get(grid, cell, 0)
+    grid[cell] = source_index
+    return grid
+end
+
 """
     simulate_sources(shape, n_sources; kwargs...) -> NamedTuple
 
-Generate random source positions and fluxes for an image with dimensions
-`shape == (nx, ny)`.
+Generate random source positions and fluxes for an image
+with dimensions `shape == (nx, ny)`. Result is a `NamedTuple` with keys
+`(id, x, y, flux)` where `id` is a 1-based source index, `x` and `y`
+are source positions in pixel coordinates, and
+`flux` is the source brightness in data units (e.g., ADU). See keyword
+arguments below for controlling the source properties and placement.
 
 Source fluxes can be specified in one of two mutually exclusive ways:
 
@@ -159,24 +193,26 @@ function simulate_sources(
     xmin, xmax = 1 + float(bx), float(shape[1]) - float(bx)
     ymin, ymax = 1 + float(by), float(shape[2]) - float(by)
     xmin ≤ xmax && ymin ≤ ymax || throw(ArgumentError("border leaves no valid source-placement area"))
-    minsep2 = float(min_separation)^2
-    xs = Float64[]
-    ys = Float64[]
-    fs = Float64[]
+    minsep = float(min_separation)
+    minsep ≥ 0 || throw(ArgumentError("`min_separation` must be non-negative"))
+    minsep2 = minsep^2
+    use_grid = !iszero(minsep)
+    inv_cell_size = inv(minsep)
+    xs = Vector{Float64}(undef, n_sources)
+    ys = Vector{Float64}(undef, n_sources)
+    fs = Vector{Float64}(undef, n_sources)
+    next_source = use_grid ? Vector{Int}(undef, n_sources) : Int[]
+    # Track a grid of source indices at minsep resolution to limit expensive separation checks to nearby sources.
+    grid = Dict{Tuple{Int, Int}, Int}()
+    use_grid && sizehint!(grid, n_sources)
     attempts = 0
-    while length(xs) < n_sources && attempts < max_attempts
-        # Draw a candidate position and reject it if it is too close to earlier sources.
+    n_generated = 0
+    while n_generated < n_sources && attempts < max_attempts
+        # Draw a candidate position and reject it if the local grid neighborhood is occupied too closely.
         attempts += 1
         x = xmin + rand(rng) * (xmax - xmin)
         y = ymin + rand(rng) * (ymax - ymin)
-        separated = true
-        for k in eachindex(xs)
-            if (x - xs[k])^2 + (y - ys[k])^2 < minsep2
-                separated = false
-                break
-            end
-        end
-        separated || continue
+        !use_grid || _candidate_is_separated(x, y, xs, ys, grid, next_source, minsep2, xmin, ymin, inv_cell_size) || continue
         # Draw either flux directly or infer it from a requested SNR.
         f = if isnothing(snr)
             _sample_flux(rng, flux, flux_distribution, flux_power)
@@ -184,14 +220,20 @@ function simulate_sources(
             isnothing(psf) && throw(ArgumentError("`psf` is required when generating fluxes from `snr`"))
             _flux_from_snr_spec(rng, psf, snr, background, read_noise, gain)
         end
-        push!(xs, x)
-        push!(ys, y)
-        push!(fs, f)
+        n_generated += 1
+        xs[n_generated] = x
+        ys[n_generated] = y
+        fs[n_generated] = f
+        # Log the source in the grid for efficient separation checks of future candidates.
+        !use_grid || _insert_source!(grid, next_source, n_generated, x, y, xmin, ymin, inv_cell_size)
     end
     if attempts >= max_attempts
-        @warn "Reached maximum attempts ($max_attempts) with only $(length(xs)) sources generated; consider reducing `min_separation` or increasing `max_attempts`. Returning the $(length(xs)) sources that were generated."
+        @warn "Reached maximum attempts ($max_attempts) with only $(n_generated) sources generated; consider reducing `min_separation` or increasing `max_attempts`. Returning the $(n_generated) sources that were generated."
     end
-    return (id = collect(1:length(xs)), x = xs, y = ys, flux = fs)
+    resize!(xs, n_generated)
+    resize!(ys, n_generated)
+    resize!(fs, n_generated)
+    return (id = 1:n_generated, x = xs, y = ys, flux = fs)
 end
 
 function _source_vectors(sources)

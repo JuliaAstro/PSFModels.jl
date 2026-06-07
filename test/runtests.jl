@@ -6,3 +6,4 @@ using SafeTestsets
 @safetestset "Fitting" include("fitting_struct.jl")
 @safetestset "Empirical models" include("empirical_model_tests.jl")
 @safetestset "Plotting" include("plotting.jl")
+@safetestset "Simulation" include("simulation_test.jl")
