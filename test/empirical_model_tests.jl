@@ -159,6 +159,7 @@ end
         reweight = nothing,
     )
     truth = _truth_grid(truth_model, psf)
+    @test size(psf.data) == (21, 21)
     @test sum(psf.data) ≈ 4.0
     @test count(result.used) ≥ 65
     @test mean(abs.(psf.data .- truth)) < 0.003
