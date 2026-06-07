@@ -229,6 +229,10 @@ end
     (xmin, xmax), (ymin, ymax) = extent(model, fwhm_factor)
     return (floor(T, xmin), ceil(T, xmax)), (floor(T, ymin), ceil(T, ymax))
 end
+function Base.CartesianIndices(model::AbstractPSFModel, fwhm_factor = 5)
+    ex = extent(Int, model, fwhm_factor)
+    return CartesianIndices((ex[1][1]:ex[1][2], ex[2][1]:ex[2][2]))
+end
 
 """
     render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
@@ -273,6 +277,37 @@ function render(model::AbstractPSFModel)
     inds = (round(Int, x_lo):round(Int, x_hi), round(Int, y_lo):round(Int, y_hi))
     return render(model, inds)
 end
+
+"""
+    render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, 
+                    inds::CartesianIndices = CartesianIndices(model))
+
+Mutate `out` by evaluating `model` at each pixel index in `inds`, skipping indices
+that fall outside the bounds of `out`. This is designed for rendering a PSF model
+into a larger image frame, requiring that the `centroid` of the `model` be in the
+pixel space of the image (i.e., a star with a center of `(10.5, 20.5)` would be
+centered on the pixel at row 20, column 10 of the image). Pixels that lie off the
+edge of `out` are quietly skipped.
+"""
+function render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices=CartesianIndices(model))
+    for idx in inds
+        checkbounds(Bool, out, idx) || continue
+        @inbounds out[idx] = evaluate(model, Tuple(idx)...)
+    end
+    return out
+end
+
+# function render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, inds)
+#     xs, ys = inds
+#     for i in eachindex(xs)
+#         px = xs[i]
+#         for j in eachindex(ys)
+#             py = ys[j]
+#             checkbounds(Bool, out, px, py) || continue
+#             @inbounds out[px, py] = evaluate(model, px, py)
+#         end
+#     end
+# end
 
 include("parametric_models.jl")
 include("functional_models.jl")

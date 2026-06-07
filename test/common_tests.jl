@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF, ImagePSF
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, render!, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF, ImagePSF, render_inframe!
 using Test
 
 # Tests generic API, type return, etc
@@ -16,8 +16,8 @@ function test_common(model::AbstractPSFModel{T}) where {T}
     m = evaluate.(model, x, y')
     @test m isa Matrix{T}
     @test size(m) == (length(x), length(y))
-    ex = (round.(Int, ex[1]), round.(Int, ex[2]))
-    x, y = ex[1][1]:ex[1][2], ex[2][1]:ex[2][2]
+    # ex = (round.(Int, ex[1]), round.(Int, ex[2]))
+    x, y = ex_round[1][1]:ex_round[1][2], ex_round[2][1]:ex_round[2][2]
     m = evaluate.(model, CartesianIndices((x, y)))
     @test m isa Matrix{T}
     @test size(m) == (length(x), length(y))
@@ -27,6 +27,21 @@ function test_common(model::AbstractPSFModel{T}) where {T}
     @test @inferred(render!(m2, model, (x, y))) ≈ m
     @test m2 ≈ evaluate.(model, x, y')
     @test @inferred(render(model)) isa Matrix{T}
+    # Check rendering into a larger image
+    image = zeros(T, 20, 20)
+    inds = CartesianIndices(model)
+    render_inframe!(image, model, inds)
+    for i in inds
+        checkbounds(Bool, image, i) || continue
+        @test image[i] == evaluate(model, i)
+    end
+    # Check automatic inds
+    fill!(image, 0)
+    render_inframe!(image, model)
+    for i in inds
+        checkbounds(Bool, image, i) || continue
+        @test image[i] == evaluate(model, i)
+    end
 
     # API functions
     @test @inferred(centroid(model)) isa Tuple{T, T}
