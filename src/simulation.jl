@@ -1,16 +1,3 @@
-function _as_pair(value, name)
-    # Treat scalar inputs as identical values on both axes.
-    if value isa Number
-        return (value, value)
-    elseif value isa Tuple || value isa AbstractVector
-        # Validate explicit axis pairs.
-        length(value) == 2 || throw(ArgumentError("`$name` must be a scalar or length-2 tuple/vector"))
-        return (value[1], value[2])
-    else
-        throw(ArgumentError("`$name` must be a scalar or length-2 tuple/vector"))
-    end
-end
-
 function _sample_flux(rng::Random.AbstractRNG, flux, distribution, power)
     # A scalar flux means every simulated source has the same brightness.
     if flux isa Number
@@ -63,7 +50,7 @@ end
 
 function _flux_from_snr_spec(rng, model, snr, background, read_noise, gain)
     # Collapse matrix backgrounds to a representative scalar for source draws.
-    bg = background isa AbstractMatrix ? mean(background) : background
+    bg = background isa AbstractMatrix ? median(background) : background
     if snr isa Number
         return flux_for_snr(model; snr, background = bg, read_noise, gain)
     elseif snr isa Tuple || snr isa AbstractVector
@@ -109,7 +96,14 @@ function simulate_sources(
     )
     # Define the valid placement region after excluding the image border.
     n_sources ≥ 0 || throw(ArgumentError("`n_sources` must be non-negative"))
-    bx, by = _as_pair(border, "border")
+    # Treat scalar inputs as identical values on both axes.
+    bx, by = if length(border) == 1
+        (border, border)
+    elseif length(border) == 2
+        (border[1], border[2])
+    else
+        throw(ArgumentError("`border` must be a scalar or length-2 tuple/vector"))
+    end
     xmin, xmax = 1 + float(bx), float(shape[1]) - float(bx)
     ymin, ymax = 1 + float(by), float(shape[2]) - float(by)
     xmin ≤ xmax && ymin ≤ ymax || throw(ArgumentError("border leaves no valid source-placement area"))
@@ -220,6 +214,42 @@ function _rand_poisson(rng::Random.AbstractRNG, λ::Real)
         return max(0, round(Int, λf + sqrt(λf) * randn(rng)))
     end
 end
+
+function rand_poisson(rng::Random.AbstractRNG, λ::Real)
+    # Use exact inversion for small means and Gaussian approximation for large means.
+    function _rand_poisson_knuth(rng::Random.AbstractRNG, λ::T) where T
+        L = exp(-λ)
+        k = 0
+        p = one(T)
+
+        while p > L
+            k += 1
+            p *= rand(rng, T)
+        end
+
+        return k - 1
+    end
+
+    function _rand_poisson_normal(rng::Random.AbstractRNG, λ::T) where T
+        σ = sqrt(λ)
+
+        while true
+            x = round(Int, λ + σ * randn(rng, T))
+            x >= 0 && return x
+        end
+    end
+
+    λ < 0 && throw(DomainError(λ, "Poisson rate λ must be nonnegative"))
+    λ == 0 && return 0
+
+    if λ < 30
+        return _rand_poisson_knuth(rng, float(λ))
+    else
+        return _rand_poisson_normal(rng, float(λ))
+    end
+end
+rand_poisson(λ::Real) = rand_poisson(Random.default_rng(), λ)
+
 
 """
     add_noise!(image; noise=:poisson_gaussian, read_noise=0, gain=1, rng=Random.default_rng())

@@ -1,6 +1,57 @@
 using PSFModels
+using Distributions: Poisson
 using StableRNGs: StableRNG
 using Test
+
+"""
+    ks_2sample_statistic(x, y)
+
+Return the two-sample Kolmogorov–Smirnov statistic between samples `x` and `y`.
+
+This computes
+
+    D = sup_z |F_x(z) - F_y(z)|
+
+where `F_x` and `F_y` are empirical CDFs.
+"""
+function ks_2sample_statistic(x::AbstractVector, y::AbstractVector)
+    n = length(x)
+    m = length(y)
+    n > 0 || throw(ArgumentError("x must be nonempty"))
+    m > 0 || throw(ArgumentError("y must be nonempty"))
+
+    xs = sort(x)
+    ys = sort(y)
+
+    i = j = 1
+    cdf_x = 0.0
+    cdf_y = 0.0
+    d = 0.0
+
+    while i <= n || j <= m
+        if j > m || (i <= n && xs[i] < ys[j])
+            z = xs[i]
+        elseif i > n || ys[j] < xs[i]
+            z = ys[j]
+        else
+            z = xs[i]
+        end
+
+        while i <= n && xs[i] == z
+            i += 1
+        end
+        cdf_x = (i - 1) / n
+
+        while j <= m && ys[j] == z
+            j += 1
+        end
+        cdf_y = (j - 1) / m
+
+        d = max(d, abs(cdf_x - cdf_y))
+    end
+
+    return d
+end
 
 @testset "simulation utilities" begin
     # Exercise source placement, deterministic rendering, SNR conversion, and noise.
@@ -22,4 +73,13 @@ using Test
     noisy = copy(image)
     add_noise!(noisy; noise = :poisson_gaussian, read_noise = 1.0, rng)
     @test noisy != image
+
+    @testset "poisson" begin
+        for val in (0.5, 2.0, 10.0, 1000.0)
+            rng = StableRNG(123)
+            x = [PSFModels.rand_poisson(rng, val) for _ in 1:100_000]
+            y = rand(rng, Poisson(val), 100_000)
+            @test ks_2sample_statistic(x, y) < 0.01
+        end
+    end
 end
