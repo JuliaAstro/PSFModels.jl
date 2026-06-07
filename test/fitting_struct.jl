@@ -58,7 +58,7 @@ end
 @testset "struct fit CircularGaussianPSF" begin
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x = 13.5, y = 12.3, fwhm = 4.0, flux = 200.0, bkg = 5.0)
-    img = render(truth, inds)
+    img = evaluate.(truth, inds[1], inds[2]')
     # Initial guess: perturbed ~5% away from truth
     init = CircularGaussianPSF(x = 14.1, y = 11.8, fwhm = 4.3, flux = 190.0, bkg = 5.5)
 
@@ -99,7 +99,7 @@ end
 @testset "struct fit GaussianPSF" begin
     inds = (1:40, 1:40)
     truth = GaussianPSF(x = 18.5, y = 17.3, x_fwhm = 5.0, y_fwhm = 3.5, theta = 15.0, flux = 300.0, bkg = 2.0)
-    img = render(truth, inds)
+    img = evaluate.(truth, inds[1], inds[2]')
     # Initial guess: perturbed ~5% away from truth
     init = GaussianPSF(x = 19.3, y = 16.7, x_fwhm = 5.3, y_fwhm = 3.3, theta = 13.0, flux = 285.0, bkg = 2.2)
 
@@ -130,7 +130,7 @@ end
 
 @testset "struct fit argument errors" begin
     m = CircularGaussianPSF(x = 5.5, y = 5.2, fwhm = 3.0, flux = 100.0, bkg = 1.0)
-    img = render(m, (1:10, 1:10))
+    img = evaluate.(m, 1:10, (1:10)')
     init = CircularGaussianPSF(x = 5.8, y = 4.9, fwhm = 3.2, flux = 95.0, bkg = 1.1)
     @test_throws ArgumentError fit(init, img; inv_var = zeros(size(img)))
     @test_throws ArgumentError fit(init, img; inv_var = fill(-1.0, size(img)))
@@ -247,7 +247,7 @@ end
 @testset "fit_lm noiseless recovery" begin
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x = 13.5, y = 12.3, fwhm = 4.0, flux = 200.0, bkg = 5.0)
-    img = render(truth, inds)
+    img = evaluate.(truth, inds[1], inds[2]')
     init = CircularGaussianPSF(x = 14.1, y = 11.8, fwhm = 4.3, flux = 190.0, bkg = 5.5)
 
     # No inv_var
@@ -271,7 +271,7 @@ end
     # On clean data, IRLS should recover the same parameters as plain L2
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x = 13.5, y = 12.3, fwhm = 4.0, flux = 200.0, bkg = 5.0)
-    img = render(truth, inds)
+    img = evaluate.(truth, inds[1], inds[2]')
     init = CircularGaussianPSF(x = 14.1, y = 11.8, fwhm = 4.3, flux = 190.0, bkg = 5.5)
 
     best_l2, result_l2 = fit_lm(init, img, inds)
@@ -289,7 +289,7 @@ end
 @testset "fit_lm IRLS — outlier rejection" begin
     inds = (1:30, 1:30)
     truth = CircularGaussianPSF(x = 15.0, y = 15.0, fwhm = 4.0, flux = 200.0, bkg = 1.0)
-    img = render(truth, inds)
+    img = evaluate.(truth, inds[1], inds[2]')
     # Add Gaussian noise and scattered severe outliers in the wings
     rng = StableRNG(42)
     img .= img .+ 0.5 .* randn(rng, size(img))
@@ -335,7 +335,7 @@ end
             flux = snr * sqrt(bkg * A_eff) # flux as a function of matched-filter snr and background level
             v[4] = flux
             truth = CircularGaussianPSF(x = v[1], y = v[2], fwhm = v[3], flux = v[4], bkg = v[5])
-            img = render(truth, inds)
+            img = evaluate.(truth, inds[1], inds[2]')
             img_noisy = similar(img) # buffer to hold Poisson noise realizations
             # Add Poisson noise
             rng = StableRNG(42)
@@ -387,7 +387,7 @@ end
 
 @testset "fit_lm argument errors" begin
     m = CircularGaussianPSF(x = 5.5, y = 5.2, fwhm = 3.0, flux = 100.0, bkg = 1.0)
-    img = render(m, (1:10, 1:10))
+    img = evaluate.(m, 1:10, (1:10)')
     init = CircularGaussianPSF(x = 5.8, y = 4.9, fwhm = 3.2, flux = 95.0, bkg = 1.1)
     @test_throws ArgumentError fit_lm(init, img; inv_var = zeros(size(img)))
     @test_throws ArgumentError fit_lm(init, img; inv_var = fill(-1.0, size(img)))

@@ -30,7 +30,7 @@ SUITE["parametric"] = BenchmarkGroup()
 
 let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
     inds  = (1:30, 1:30)
-    image = render(model, inds)
+    image = evaluate.(model, inds[1], inds[2]')
     fixed = (; bkg=1.1,)
     free_names, free_idx, x0 = free_params(model, fixed)
     free_names = Val(free_names)
@@ -46,7 +46,7 @@ SUITE["fitting"] = BenchmarkGroup()
 
 let model = CircularGaussianPSF(x=15.0, y=15.0, fwhm=4.0, flux=10.0, bkg=1.0)
     inds  = (1:30, 1:30)
-    image = render(model, inds)
+    image = evaluate.(model, inds[1], inds[2]')
     init = CircularGaussianPSF(x=15.5, y=14.5, fwhm=3.5, flux=9.0, bkg=1.2)
     SUITE["fitting"]["fit_lm (L2)"] = @benchmarkable fit_lm($init, $image, $inds)
     SUITE["fitting"]["fit_lm (Huber IRLS)"] = @benchmarkable fit_lm($init, $image, $inds;

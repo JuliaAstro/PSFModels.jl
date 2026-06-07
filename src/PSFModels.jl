@@ -234,55 +234,20 @@ function Base.CartesianIndices(model::AbstractPSFModel, fwhm_factor = 5)
     return CartesianIndices((ex[1][1]:ex[1][2], ex[2][1]:ex[2][2]))
 end
 
-# TODO: render!, render(model, inds) probably redundant with broadcasting 
-# like evaluate.(model, x, y') or evaluate.(model, CartesianIndices(model)),
-# want to get rid of these I think, but leaving for now to stew in my noggin.
-"""
-    render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
-
-Mutate `out` by filling index `[i, j]` with `evaluate(model, px, py)` for
-`px = inds[1][i]` and `py = inds[2][j]`. Mostly useful
-for filling a postage stamp or sub-image view with the PSF model values.
-
-See `render_inframe!` for a version that renders the model into a larger image
-frame given a model centroid in the pixel-space coordinates of the image.
-"""
-function render!(out::AbstractMatrix, model::AbstractPSFModel, inds)
-    xs, ys = inds
-    for i in eachindex(xs)
-        px = xs[i]
-        for j in eachindex(ys)
-            out[i, j] = evaluate(model, px, ys[j])
-        end
-    end
-    return out
-end
-
-"""
-    render(model::AbstractPSFModel{T}, inds) → Matrix{float(T)}
-
-Allocate and return a matrix whose `[i, j]` entry is `evaluate(model, px, py)` for
-`px = inds[1][i]` and `py = inds[2][j]`.
-"""
-function render(model::AbstractPSFModel{T}, inds) where {T}
-    out = Matrix{float(T)}(undef, length(inds[1]), length(inds[2]))
-    return render!(out, model, inds)
-end
-
 """
     render(model::AbstractPSFModel) → Matrix
 
-Allocate and return a matrix covering the region returned by `extent(model)`,
+Return a matrix covering the region returned by `extent(model)`,
 rounding the bounds to the nearest integer.
 """
 function render(model::AbstractPSFModel)
     (x_lo, x_hi), (y_lo, y_hi) = extent(model)
     inds = (round(Int, x_lo):round(Int, x_hi), round(Int, y_lo):round(Int, y_hi))
-    return render(model, inds)
+    return evaluate.(model, inds[1], inds[2]')
 end
 
 """
-    render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, 
+    add_star!(out::AbstractMatrix, model::AbstractPSFModel, 
                     inds::CartesianIndices = CartesianIndices(model))
 
 Mutate `out` by evaluating `model` at each pixel index in `inds`, skipping indices
@@ -292,7 +257,7 @@ pixel space of the image (i.e., a star with a center of `(10.5, 20.5)` would be
 centered on the pixel at row 20, column 10 of the image). Pixels that lie off the
 edge of `out` are quietly skipped.
 """
-function render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices=CartesianIndices(model))
+function add_star!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices=CartesianIndices(model))
     for idx in inds
         checkbounds(Bool, out, idx) || continue
         @inbounds out[idx] = evaluate(model, Tuple(idx)...)

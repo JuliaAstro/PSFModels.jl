@@ -85,7 +85,6 @@ end
 @testset "fill_grid_holes!" begin
     # Infill behavior
     x=rand(StableRNG(43), 21,21)
-    # inds=(vcat(rand(1:21, 5), 1), vcat(rand(1:21, 5), 1))
     inds = ([9, 4, 15, 13, 1, 1], [6, 15, 17, 1, 17, 1])
     x[inds...] .= NaN
     fill_grid_holes!(x)
@@ -117,9 +116,9 @@ end
 @testset "ImagePSF LM fit -- single star" begin
     # Fit only ImagePSF's source parameters to ensure it works with LM/IRLS.
     grid_model = CircularGaussianPRF(x = 8, y = 8, fwhm = 2.4, flux = 1, bkg = 0)
-    psf_data = render(grid_model, (1:16, 1:16))
+    psf_data = evaluate.(grid_model, 1:16, (1:16)')
     truth = ImagePSF(psf_data; x = 8.35, y = 7.75, flux = 300.0, bkg = 4.0, origin = (8.0, 8.0), normalize = true)
-    image = render(truth, (1:16, 1:16))
+    image = evaluate.(truth, 1:16, (1:16)')
     init = ImagePSF(psf_data; x = 8.0, y = 8.1, flux = 260.0, bkg = 3.5, origin = (8.0, 8.0), normalize = true)
 
     best, result = fit_lm(init, image, (1:16, 1:16); max_iter = 100)
