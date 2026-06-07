@@ -98,14 +98,37 @@ end
 Generate random source positions and fluxes for an image with dimensions
 `shape == (nx, ny)`.
 
-Keywords:
+Source fluxes can be specified in one of two mutually exclusive ways:
+
+**Branch 1 — Flux-based (default):** `flux`, `flux_distribution`, `flux_power`
+are used to draw fluxes directly; `psf`, `background`, `read_noise`, and
+`gain` are ignored.
+
 - `flux`: scalar or `(lo, hi)` range. Defaults to `(100, 1000)`.
 - `flux_distribution`: `:uniform`, `:loguniform`, or `:powerlaw`.
 - `flux_power`: power-law exponent for `:powerlaw` (`dN/dF ∝ F^-flux_power`).
+
+**Branch 2 — SNR-based (when `snr` is set):** fluxes are derived from a
+requested signal-to-noise ratio via [`flux_for_snr`](@ref), which requires
+the PSF model and noise properties. `flux` and `flux_distribution` are
+ignored in this branch.
+
+- `snr`: scalar SNR or `(lo, hi)` range. If a scalar, every source is drawn
+  at the flux required for that SNR. If a two-value range, each source gets a
+  uniform random SNR in `[lo, hi]` before converting to flux.
+- `psf`: an [`AbstractPSFModel`](@ref). Required when `snr` is provided in
+  order to compute the effective area for flux conversion.
+- `background`: scalar background level or a 2-D `AbstractMatrix`
+  (image-sized). If a matrix, its median is used as a representative scalar.
+  Defaults to `0`.
+- `read_noise`: Gaussian read-noise standard deviation in data units (e.g.,
+  ADU). Defaults to `0`.
+- `gain`: CCD gain in electrons per data unit. Must be positive. Defaults to `1`.
+
+**Common keywords (used in both branches):**
+
 - `min_separation`: minimum source-center separation in pixels.
 - `border`: scalar or `(xborder, yborder)` excluded image border.
-- `snr`, `psf`, `background`, `read_noise`, `gain`: if `snr` is provided,
-  fluxes are derived from `flux_for_snr` and `psf` is required.
 """
 function simulate_sources(
         shape::Tuple{<:Integer, <:Integer},
@@ -164,6 +187,9 @@ function simulate_sources(
         push!(xs, x)
         push!(ys, y)
         push!(fs, f)
+    end
+    if attempts >= max_attempts
+        @warn "Reached maximum attempts ($max_attempts) with only $(length(xs)) sources generated; consider reducing `min_separation` or increasing `max_attempts`. Returning the $(length(xs)) sources that were generated."
     end
     return (id = collect(1:length(xs)), x = xs, y = ys, flux = fs)
 end
