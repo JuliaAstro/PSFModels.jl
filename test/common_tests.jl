@@ -1,4 +1,4 @@
-using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF, ImagePSF, add_star!
+using PSFModels: CircularGaussianPSF, GaussianPSF, CircularGaussianPRF, GaussianPRF, CircularMoffatPSF, MoffatPSF, evaluate, centroid, integral, evaluate_fg, evaluate_fgh, AbstractPSFModel, extent, render, theta, amplitude, background, fwhm, peak, effective_area, AiryPSF, ImagePSF, add_star!, subtract_star!
 using Test
 
 # Tests generic API, type return, etc
@@ -29,6 +29,12 @@ function test_common(model::AbstractPSFModel{T}) where {T}
         checkbounds(Bool, image, i) || continue
         @test image[i] == evaluate(model, i)
     end
+    # Check that doing it again accumulates flux
+    add_star!(image, model, inds)
+    for i in inds
+        checkbounds(Bool, image, i) || continue
+        @test image[i] == 2 * evaluate(model, i)
+    end
     # Check automatic inds
     fill!(image, 0)
     add_star!(image, model)
@@ -36,6 +42,9 @@ function test_common(model::AbstractPSFModel{T}) where {T}
         checkbounds(Bool, image, i) || continue
         @test image[i] == evaluate(model, i)
     end
+    subtract_star!(image, model)
+    @test all(iszero, image)
+
 
     # API functions
     @test @inferred(centroid(model)) isa Tuple{T, T}

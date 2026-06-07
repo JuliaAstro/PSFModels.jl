@@ -827,10 +827,12 @@ function build_epsf(
         max_shift = zero(T)
         for k in eachindex(stars)
             stars[k].used || continue
-            max_shift = max(max_shift, hypot(
-                fitted_centroids[k][1] - old_centroids[k][1],
-                fitted_centroids[k][2] - old_centroids[k][2],
-            ))
+            max_shift = max(
+                max_shift, hypot(
+                    fitted_centroids[k][1] - old_centroids[k][1],
+                    fitted_centroids[k][2] - old_centroids[k][2],
+                )
+            )
         end
         max_shift ≤ T(centroid_tol) && break
     end

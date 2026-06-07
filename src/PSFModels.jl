@@ -225,7 +225,7 @@ function extent(model::AbstractPSFModel, fwhm_factor = 5)
     dx, dy = ellipse_bounds(a, b, theta(model))
     return (x0 - dx, x0 + dx), (y0 - dy, y0 + dy)
 end
-@inline function extent(::Type{T}, model::AbstractPSFModel, fwhm_factor = 5) where {T<:Integer}
+@inline function extent(::Type{T}, model::AbstractPSFModel, fwhm_factor = 5) where {T <: Integer}
     (xmin, xmax), (ymin, ymax) = extent(model, fwhm_factor)
     return (floor(T, xmin), ceil(T, xmax)), (floor(T, ymin), ceil(T, ymax))
 end
@@ -250,32 +250,40 @@ end
     add_star!(out::AbstractMatrix, model::AbstractPSFModel, 
                     inds::CartesianIndices = CartesianIndices(model))
 
-Mutate `out` by evaluating `model` at each pixel index in `inds`, skipping indices
-that fall outside the bounds of `out`. This is designed for rendering a PSF model
-into a larger image frame, requiring that the `centroid` of the `model` be in the
-pixel space of the image (i.e., a star with a center of `(10.5, 20.5)` would be
-centered on the pixel at row 20, column 10 of the image). Pixels that lie off the
-edge of `out` are quietly skipped.
+Mutate `out` by evaluating `model` at each pixel index in `inds` and adding
+the result to `out`, skipping indices that fall outside the bounds of `out`.
+This is designed for rendering a PSF model into a larger image frame,
+requiring that the `centroid` of the `model` be in the pixel space of the
+image (i.e., a star with a center of `(10.5, 20.5)` would be centered on the
+pixel at row 20, column 10 of the image). Pixels that lie off the edge of
+`out` are quietly skipped.
+
+See also: [`subtract_star!`](@ref) for the subtractive counterpart.
 """
-function add_star!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices=CartesianIndices(model))
+function add_star!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices = CartesianIndices(model))
     for idx in inds
         checkbounds(Bool, out, idx) || continue
-        @inbounds out[idx] = evaluate(model, Tuple(idx)...)
+        @inbounds out[idx] += evaluate(model, Tuple(idx)...)
     end
     return out
 end
 
-# function render_inframe!(out::AbstractMatrix, model::AbstractPSFModel, inds)
-#     xs, ys = inds
-#     for i in eachindex(xs)
-#         px = xs[i]
-#         for j in eachindex(ys)
-#             py = ys[j]
-#             checkbounds(Bool, out, px, py) || continue
-#             @inbounds out[px, py] = evaluate(model, px, py)
-#         end
-#     end
-# end
+
+"""
+    subtract_star!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices=CartesianIndices(model))
+
+Subtract the model PSF flux from each pixel of `out` over the indices `inds`,
+i.e. `out[idx] -= evaluate(model, Tuple(idx)...)`.
+
+See also: [`add_star!`](@ref) for the additive counterpart.
+"""
+function subtract_star!(out::AbstractMatrix, model::AbstractPSFModel, inds::CartesianIndices = CartesianIndices(model))
+    for idx in inds
+        checkbounds(Bool, out, idx) || continue
+        @inbounds out[idx] -= evaluate(model, Tuple(idx)...)
+    end
+    return out
+end
 
 include("parametric_models.jl")
 include("functional_models.jl")
