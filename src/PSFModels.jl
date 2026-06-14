@@ -9,7 +9,7 @@ using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
 
-const BivariateLike = Union{<:Tuple,<:AbstractVector}
+const BivariateLike = Union{<:Tuple, <:AbstractVector}
 
 function rotate_point(dx, dy, theta)
     # generate rotation matrix
