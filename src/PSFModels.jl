@@ -10,6 +10,11 @@ using Rotations
 using SpecialFunctions
 using StaticArrays
 using Statistics
+import ADTypes
+import ForwardDiff
+using Rotations: RotMatrix
+using SpecialFunctions: besselj1
+using StaticArrays: SA
 
 export gaussian, normal, airydisk, moffat
 

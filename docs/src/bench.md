@@ -15,17 +15,17 @@ $ julia --project=bench bench/bench.jl
 **System Information**
 
 ```plain
-Julia Version 1.10.4
-Commit 48d4fd48430 (2024-06-04 10:41 UTC)
+Julia Version 1.12.4
+Commit 01a2eadb047 (2026-01-06 16:56 UTC)
 Build Info:
-  Official https://julialang.org/ release
+  Official https://julialang.org release
 Platform Info:
   OS: Linux (x86_64-linux-gnu)
   CPU: 16 × 13th Gen Intel(R) Core(TM) i5-1340P
   WORD_SIZE: 64
-  LIBM: libopenlibm
-  LLVM: libLLVM-15.0.7 (ORCJIT, goldmont)
-Threads: 1 default, 0 interactive, 1 GC (on 16 virtual cores)
+  LLVM: libLLVM-18.1.7 (ORCJIT, alderlake)
+  GC: Built with stock GC
+Threads: 1 default, 1 interactive, 1 GC (on 16 virtual cores)
 ```
 
 ---
