@@ -1,8 +1,17 @@
 module PSFModels
 
+using ChainRulesCore
+import ChainRulesCore: frule, rrule
+using CoordinateTransformations
+using KeywordCalls
+using LinearAlgebra
+using Optim
+using Rotations
+using SpecialFunctions
+using StaticArrays
+using Statistics
 import ADTypes
 import ForwardDiff
-import Optim
 using Rotations: RotMatrix
 using SpecialFunctions: besselj1
 using StaticArrays: SA
