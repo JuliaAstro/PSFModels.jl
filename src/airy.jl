@@ -1,4 +1,3 @@
-
 @doc raw"""
     airydisk([T=Float64], point; x, y, fwhm, ratio=0, amp=1, theta=0, bkg=0)
     airydisk([T=Float64], px, py; x, y, fwhm, ratio=0, amp=1, theta=0, bkg=0)
@@ -37,7 +36,7 @@ f(x | x̂, \mathrm{FWHM}, ϵ) = [ 2J₁(q) / q - 2ϵJ₁(ϵq) / q ]^2 / (1 - ϵ^
 ```
 where ``ϵ`` is the ratio (``0 ≤ ϵ < 1``).
 """
-airydisk(T, px, py; x, y, fwhm, ratio=0, amp=one(T), theta=0, bkg=0) =
+airydisk(T, px, py; x, y, fwhm, ratio = 0, amp = one(T), theta = 0, bkg = 0) =
     convert(T, _airydisk(px, py, x, y, fwhm, ratio, amp, theta, bkg))
 
 # factor for scaling radius in terms of the fwhm
@@ -78,5 +77,5 @@ function _airydisk(px, py, x, y, fwhm::BivariateLike, ratio, amp, theta, backgro
     I1 = 2 * besselj1(q) / q
     iszero(ratio) && return amp * I1^2 + background
     I2 = 2 * ratio * besselj1(q * ratio) / q
-    return amp * (I1 - I2)^2+ background
+    return amp * (I1 - I2)^2 + background
 end

@@ -67,6 +67,10 @@ function test_model_interface(K)
 end
 
 @testset "PSFModels" begin
+    @testset "Model Interface - $K" for K in (gaussian, airydisk, moffat)
+        test_model_interface(K)
+    end
+
     @testset "gaussian" begin
         m = gaussian(x = 0, y = 0, fwhm = 10)
         expected = exp(-4 * log(2) * sum(abs2, SA[1, 2]) / 100)
@@ -79,8 +83,6 @@ end
 
         # test Normal alias
         @test normal(0, 0; x = 0, y = 0, fwhm = 10) === gaussian(0, 0; x = 0, y = 0, fwhm = 10)
-
-        test_model_interface(gaussian)
 
         @testset "gradients" begin
             FiniteDifferences.to_vec(x::Integer) = Bool[], _ -> x
@@ -149,13 +151,9 @@ end
         # https://github.com/JuliaAstro/PSFModels.jl/issues/14
         mratio = airydisk(x = 40.5, y = 40.5, fwhm = 10, ratio = 0.2, amp = 1)
         @test mratio(40.5, 40.5) ≈ 1
-
-        test_model_interface(airydisk)
     end
 
     @testset "moffat" begin
-        test_model_interface(moffat)
-
         m = moffat(x = 0, y = 0, fwhm = 10)
         expected = inv(1 + sum(abs2, SA[1, 2]) / 25)
         @test m(1, 2) ≈ expected
