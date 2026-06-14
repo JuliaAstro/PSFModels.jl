@@ -1,4 +1,3 @@
-
 const Model = Union{typeof(gaussian), typeof(normal), typeof(airydisk), typeof(moffat)}
 
 """
@@ -114,26 +113,28 @@ func_kwargs = (alpha=2)
 params, synthpsf = PSFModels.fit(moffat, P, psf; func_kwargs)
 ```
 """
-function fit(model::Model,
-             params,
-             image::AbstractMatrix{T},
-             inds=axes(image);
-             func_kwargs=(;),
-             loss=abs2,
-             alg=Optim.NewtonTrustRegion(),
-             maxfwhm=Inf,
-             inv_var=nothing,
-             kwargs...) where T
+function fit(
+        model::Model,
+        params,
+        image::AbstractMatrix{T},
+        inds = axes(image);
+        func_kwargs = (;),
+        loss = abs2,
+        alg = Optim.NewtonTrustRegion(),
+        maxfwhm = Inf,
+        inv_var = nothing,
+        kwargs...
+    ) where {T}
     _keys = keys(params)
     if isnothing(inv_var)
-        @warn "Without inverse variance weights, cannot estimate PSF parameter covariance matrix." maxlog=5
+        @warn "Without inverse variance weights, cannot estimate PSF parameter covariance matrix." maxlog = 5
     else
         size(inv_var) == size(image) || throw(ArgumentError("`inv_var` must be the same size as `image`"))
         any(<=(0), inv_var) && throw(ArgumentError("`inv_var` must be > 0 everywhere"))
     end
     _loss = build_loss_function(model, params, image, inv_var, inds; func_kwargs, loss, maxfwhm)
     X0 = vector_from_params(T, params)
-    result = Optim.optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff=ADTypes.AutoForwardDiff())
+    result = Optim.optimize(_loss, X0, alg, Optim.Options(; kwargs...); autodiff = ADTypes.AutoForwardDiff())
     Optim.converged(result) || @warn "optimizer did not converge" result
     X = Optim.minimizer(result)
     P_best = generate_params(_keys, X)
@@ -146,12 +147,12 @@ function fit(model::Model,
     return P_best, best_model, cov
 end
 
-function build_loss_function(model::Model, params, image, inv_var, inds=axes(image); func_kwargs=(;), loss=abs2, maxfwhm=Inf)
+function build_loss_function(model::Model, params, image, inv_var, inds = axes(image); func_kwargs = (;), loss = abs2, maxfwhm = Inf)
     _keys = keys(params)
     cartinds = CartesianIndices(inds)
     minind = map(minimum, inds)
     maxind = map(maximum, inds)
-    @inline function loss_function(X::AbstractVector{T}) where T
+    @inline function loss_function(X::AbstractVector{T}) where {T}
         P = generate_params(_keys, X)
         # position is within stamp
         minind[1] - 0.5 ≤ P.x ≤ maxind[1] + 0.5 || return T(Inf)
@@ -183,9 +184,9 @@ function vector_from_params(T, params)
     _vals = values(params)
     if :fwhm in _keys && params.fwhm isa BivariateLike
         _ind = findfirst(==(:fwhm), _keys)
-        first_half = @views _vals[begin:_ind - 1]
+        first_half = @views _vals[begin:(_ind - 1)]
         fwhmx, fwhmy = _vals[_ind]
-        second_half = @views _vals[_ind + 1:end]
+        second_half = @views _vals[(_ind + 1):end]
         return T[first_half..., fwhmx, fwhmy, second_half...]
     end
     if :theta in _keys && !(:fwhm isa BivariateLike)
@@ -198,9 +199,9 @@ function generate_params(names, values)
     if length(values) > length(names) && :fwhm in names
         _ind = findfirst(==(:fwhm), names)
         fwhm = values[_ind], values[_ind + 1]
-        first_half = @views zip(names[begin:_ind - 1], values[begin:_ind - 1])
-        second_half = @views zip(names[_ind + 1:end], values[_ind + 2:end])
-        return (;first_half..., fwhm, second_half...)
+        first_half = @views zip(names[begin:(_ind - 1)], values[begin:(_ind - 1)])
+        second_half = @views zip(names[(_ind + 1):end], values[(_ind + 2):end])
+        return (; first_half..., fwhm, second_half...)
     end
-    return (;zip(names, values)...)
+    return (; zip(names, values)...)
 end

@@ -1,4 +1,3 @@
-
 @doc raw"""
     gaussian([T=Float64], point; x, y, fwhm, amp=1, theta=0, bkg=0)
     gaussian([T=Float64], px, py; x, y, fwhm, amp=1, theta=0, bkg=0)
@@ -23,7 +22,7 @@ square-distance, and `FWHM` is the full width at half-maximum. If `FWHM` is a
 scalar, the Gaussian distribution will be isotropic. If `FWHM` is a vector or
 tuple, the weighting is applied along each axis (diagonal).
 """
-gaussian(T, px, py; x, y, fwhm, amp=one(T), theta=0, bkg=0) =
+gaussian(T, px, py; x, y, fwhm, amp = one(T), theta = 0, bkg = 0) =
     convert(T, _gaussian(px, py, x, y, fwhm, amp, theta, bkg))
 
 

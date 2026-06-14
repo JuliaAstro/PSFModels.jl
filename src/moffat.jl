@@ -1,4 +1,3 @@
-
 @doc raw"""
     moffat([T=Float64], point; x, y, fwhm, alpha=1, amp=1, theta=0, bkg=0)
     moffat([T=Float64], px, py; x, y, fwhm, alpha=1, amp=1, theta=0, bkg=0)
@@ -25,7 +24,7 @@ Note that this function technically uses the half width at half-maximum, defined
 as ``\mathrm{HWHM} = \mathrm{FWHM}/2``, but for compatibility with the other
 models, `fwhm` is used as an input parameter instead.
 """
-moffat(T, px, py; x, y, fwhm, alpha=1, amp=one(T), theta=0, bkg=0) =
+moffat(T, px, py; x, y, fwhm, alpha = 1, amp = one(T), theta = 0, bkg = 0) =
     convert(T, _moffat(px, py, x, y, fwhm, alpha, amp, theta, bkg))
 
 # isotropic
@@ -42,8 +41,8 @@ function _moffat(px, py, x, y, fwhm, alpha, amp, theta, background)
 end
 
 # http://openafox.com/science/peak-function-derivations.html#moffat
-_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1/alpha) - 1)
-_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1/alpha) - 1))
+_moffat_gamma_to_fwhm(gamma, alpha) = 2 * gamma * sqrt(2^(1 / alpha) - 1)
+_moffat_fwhm_to_gamma(fwhm, alpha) = fwhm / (2 * sqrt(2^(1 / alpha) - 1))
 
 # bivariate
 function _moffat(px, py, x, y, fwhm::BivariateLike, alpha, amp, theta, background)
