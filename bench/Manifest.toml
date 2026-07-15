@@ -167,12 +167,6 @@ version = "1.6.0"
     LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
-[[CoordinateTransformations]]
-deps = ["LinearAlgebra", "StaticArrays"]
-git-tree-sha1 = "a692f5e257d332de1e554e4566a4e5a8a72de2b2"
-uuid = "150eb455-5306-5404-9cee-2592286d6298"
-version = "0.6.4"
-
 [[Crayons]]
 git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
 uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
@@ -191,9 +185,9 @@ version = "0.7.13"
 
 [[DataFrames]]
 deps = ["Compat", "DataAPI", "DataStructures", "Future", "InlineStrings", "InvertedIndices", "IteratorInterfaceExtensions", "LinearAlgebra", "Markdown", "Missings", "PooledArrays", "PrecompileTools", "PrettyTables", "Printf", "Random", "Reexport", "SentinelArrays", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "d8928e9169ff76c6281f39a659f9bca3a573f24c"
+git-tree-sha1 = "5fab31e2e01e70ad66e3e24c968c264d1cf166d6"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "1.8.1"
+version = "1.8.2"
 
 [[DataStructures]]
 deps = ["OrderedCollections"]
@@ -449,12 +443,6 @@ deps = ["StyledStrings"]
 uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
 version = "1.12.0"
 
-[[KeywordCalls]]
-deps = ["Compat", "Tricks"]
-git-tree-sha1 = "42feb5ec95dd43f99bb0437fcb5abccd14d9e67e"
-uuid = "4d827475-d3e4-43d6-abe3-9688362ede9f"
-version = "0.2.5"
-
 [[LaTeXStrings]]
 git-tree-sha1 = "dda21b8cbd6a6c40d9d02a73230f9d70fed6918c"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
@@ -634,10 +622,10 @@ uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.8.1"
 
 [[PSFModels]]
-deps = ["CoordinateTransformations", "KeywordCalls", "Optim", "RecipesBase", "Rotations", "SpecialFunctions", "StaticArrays", "Statistics"]
+deps = ["ADTypes", "ForwardDiff", "Optim", "RecipesBase", "Rotations", "SpecialFunctions", "StaticArrays"]
 path = ".."
 uuid = "9ba017d1-7760-46cd-84a3-1e79e9ae9ddc"
-version = "0.8.2"
+version = "0.8.3"
 
 [[Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -933,11 +921,6 @@ version = "1.11.0"
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.11.3"
-
-[[Tricks]]
-git-tree-sha1 = "311349fd1c93a31f783f977a71e8b062a57d4101"
-uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
-version = "0.1.13"
 
 [[URIs]]
 git-tree-sha1 = "bef26fb046d031353ef97a82e3fdb6afe7f21b1a"
