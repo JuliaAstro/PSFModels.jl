@@ -92,8 +92,8 @@ end
 
 function ChainRulesCore.frule((Δpsf, Δp), g::typeof(gaussian), point::AbstractVector)
     f, dfdpos, dfdfwhm, dfda = fgrad(g, point)
-    Δf = dot(dfdpos, Δpsf.pos) + dot(dfdfwhm, Δpsf.fwhm) + dfda * Δpsf.amp
-    Δf -= dot(dfdpos, Δp)
+    (; Δpos, Δfwhm, Δamp) = Δpsf
+    Δf = dot(dfdpos, Δpos - Δp) + dot(dfdfwhm, Δfwhm) + dfda * Δamp
     return f, Δf
 end
 
