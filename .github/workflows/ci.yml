@@ -1,12 +1,10 @@
 name: CI
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     tags: '*'
   pull_request:
-    branches:
-      - main
+    branches: [main]
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -14,7 +12,7 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,14 +25,11 @@ jobs:
           - ubuntu-latest
           - macOS-latest
           - windows-latest
-        arch:
-          - default
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
-          arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
@@ -51,25 +46,11 @@ jobs:
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
+      - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
-      - run: julia -e 'using Pkg; Pkg.add("Aqua")'
-      - run: julia --project=@. -e 'using Aqua, PSFModels; Aqua.test_all(PSFModels, ambiguities=false)'
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v3
-        with:
-          version: '1'
-      - run: |
-          julia --project=docs -e '
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()'
-      - run: julia --project=docs docs/make.jl
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-          GKSwstype: "100" # fix GKS socket error for plots made in @example blocks
-          DATADEPS_ALWAYS_ACCEPT: true
+      - name: Install Aqua
+        shell: julia --color=yes {0}
+        run: using Pkg; Pkg.add("Aqua")
+      - name: Run Aqua tests
+        shell: julia --project=@. --color=yes {0}
+        run: 'using Aqua, PSFModels; Aqua.test_all(PSFModels, ambiguities=false)'
