@@ -1,8 +1,10 @@
 module PSFModels
 
 import ADTypes
+import ChainRulesCore
 import ForwardDiff
 import Optim
+using LinearAlgebra: dot
 using Rotations: RotMatrix
 using SpecialFunctions: besselj1
 using StaticArrays: SA
