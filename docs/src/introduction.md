@@ -141,13 +141,21 @@ params, synthpsf = fit(moffat, (x=12, y=13, fwhm=(3.2, 3.2), amp=0.1, alpha=1),
 
 ### Plotting
 
-Finally, we provide plotting recipes (`psfplot`/`psfplot!`) from
-[RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be
-seen in use in the [API/Reference](@ref) section.
+Finally, we provide plotting recipes (`psfplot`/`psfplot!`) for both [Plots.jl](https://github.com/JuliaPlots/Plots.jl) and [Makie.jl](https://github.com/MakieOrg/Makie.jl) via package extensions, which can be seen in use in the [API/Reference](@ref) section. Loading either plotting package activates the corresponding recipe.
 
 ```julia
 using Plots
 
 model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
 psfplot(model, -30:30, -30:30, colorbar_scale=:log10)
+```
+
+```julia
+using CairoMakie # or GLMakie, etc. (requires Makie v0.25 or above)
+
+model = gaussian(x=0, y=0, fwhm=(8, 10), theta=12)
+psfplot(model, -30:30, -30:30, colorscale=log10, colorrange=(1e-5, 1))
+
+# or bundled with a colorbar
+fig, view = psfplotview(model, -30:30, -30:30, colorscale=log10, colorrange=(1e-5, 1))
 ```
