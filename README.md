@@ -161,7 +161,7 @@ params, synthpsf = fit(moffat, P0, data, stamp_inds; func_kwargs)
 
 ### Plotting models
 
-We provide simple user recipes from [RecipesBase.jl](https://github.com/JuliaPlots/RecipesBase.jl), which can be called with `psfplot`/`psfplot!`
+We provide plotting recipes for both [Plots.jl](https://github.com/JuliaPlots/Plots.jl) and [Makie.jl](https://github.com/MakieOrg/Makie.jl) via package extensions, which can be called with `psfplot`/`psfplot!` once the corresponding plotting package is loaded:
 
 ```julia
 using Plots
@@ -169,6 +169,17 @@ using Plots
 inds = (1:30, 1:30)
 model = airydisk(x=12, y=13, fwhm=(4.5, 6.7), theta=12, ratio=0.3)
 psfplot(model, inds, colorbar_scale=:log10)
+```
+
+```julia
+using CairoMakie # or GLMakie, etc. (requires Makie v0.25 or above)
+
+inds = (1:30, 1:30)
+model = airydisk(x=12, y=13, fwhm=(4.5, 6.7), theta=12, ratio=0.3)
+psfplot(model, inds, colorscale=log10, colorrange=(1e-5, 1))
+
+# or bundled with a colorbar
+fig, view = psfplotview(model, inds, colorscale=log10, colorrange=(1e-5, 1))
 ```
 
 ## Contributing and Support

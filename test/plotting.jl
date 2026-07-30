@@ -1,5 +1,9 @@
-using PSFModels: PsfPlot
+using Plots: Plots
 using RecipesBase: apply_recipe
+
+const PSFModelsPlotsExt = Base.get_extension(PSFModels, :PSFModelsPlotsExt)
+@test !isnothing(PSFModelsPlotsExt)
+const PsfPlot = PSFModelsPlotsExt.PsfPlot
 
 @testset "plotting - $K" for K in (gaussian, airydisk, moffat)
     psf = K(x = 0, y = 1, fwhm = 5)
@@ -45,4 +49,9 @@ using RecipesBase: apply_recipe
         @test ys == -7:9
         @test _psf ≈ transpose(map(psf, CartesianIndices(inds)))
     end
+
+    plt = psfplot(psf, inds)
+    @test plt isa Plots.Plot
+    @test psfplot(psf, inds...) isa Plots.Plot
+    @test psfplot!(plt, psf, inds) === plt
 end

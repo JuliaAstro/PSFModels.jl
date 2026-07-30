@@ -157,6 +157,10 @@ end
         end
     end
 
+    # The Makie tests must run before "plotting.jl" loads Plots: with both
+    # backends loaded, the Plots extension's methods take over the shared
+    # `psfplot(model, ...)` call signatures.
+    include("makie.jl")
     include("plotting.jl")
     include("fitting.jl")
 end
