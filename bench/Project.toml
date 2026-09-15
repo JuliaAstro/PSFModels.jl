@@ -9,7 +9,7 @@ PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 
 [compat]
 BenchmarkTools = "1.8.0"
-CSV = "0.10.16"
+CSV = "0.10.16, 1.0"
 CondaPkg = "0.2.36"
 DataFrames = "1.8.2"
 HCIDatasets = "0.3.0"
